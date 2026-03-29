@@ -1,0 +1,288 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CLIENT
+  OPERATOR
+  SUPERVISOR
+  ADMIN
+}
+
+enum OrderStatus {
+  RECEIVED
+  ANALYSIS
+  WAITING_APPROVAL
+  WAITING_PAYMENT
+  QUEUED
+  PRINTING
+  POST_PROCESSING
+  QUALITY
+  READY_TO_SHIP
+  SHIPPED
+  COMPLETED
+  CANCELED
+  FAILED_REWORK
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum PrintTechnology {
+  FDM
+  SLA
+  RESIN
+  SLS
+}
+
+enum MachineStatus {
+  AVAILABLE
+  BUSY
+  PAUSED
+  MAINTENANCE
+  ERROR
+  OFFLINE
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  REFUNDED
+}
+
+enum PaymentMethod {
+  PIX
+  CARD
+  BOLETO
+  TRANSFER
+}
+
+enum FinishLevel {
+  RAW
+  STANDARD
+  PREMIUM
+  PAINTED
+}
+
+model User {
+  id           String         @id @default(cuid())
+  name         String
+  email        String         @unique
+  passwordHash String
+  role         UserRole       @default(CLIENT)
+  phone        String?
+  company      String?
+  address      String?
+  projectType  String?
+  avatarColor  String         @default("#ff7a18")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  orders       Order[]        @relation("CustomerOrders")
+  assignedJobs Order[]        @relation("OperatorOrders")
+  sessions     Session[]
+  comments     OrderComment[]
+  timelines    OrderTimeline[]
+  inspections  QualityCheck[] @relation("InspectorChecks")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Material {
+  id           String          @id @default(cuid())
+  name         String
+  category     String
+  technology   PrintTechnology
+  color        String
+  brand        String
+  lot          String
+  stockAmount  Float
+  unit         String
+  costPerUnit  Float
+  minimumStock Float
+  expiresAt    DateTime?
+  supplier     String?
+  leadTimeDays Int             @default(0)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  orders       Order[]
+}
+
+model Machine {
+  id                        String            @id @default(cuid())
+  name                      String
+  model                     String
+  technology                PrintTechnology
+  buildVolumeX              Float
+  buildVolumeY              Float
+  buildVolumeZ              Float
+  supportedMaterialNames    String
+  status                    MachineStatus     @default(AVAILABLE)
+  responsibleOperator       String?
+  availableHours            Float             @default(0)
+  failureRate               Float             @default(0)
+  preventiveMaintenanceDays Int               @default(30)
+  lastMaintenanceAt         DateTime?
+  nozzleTemp                Int?
+  bedTemp                   Int?
+  progressPercent           Int               @default(0)
+  timeRemainingMinutes      Int               @default(0)
+  webcamUrl                 String?
+  location                  String?
+  notes                     String?
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
+  orders                    Order[]
+  maintenanceRecords        MaintenanceRecord[]
+}
+
+model Order {
+  id                   String          @id @default(cuid())
+  orderNumber          String          @unique
+  title                String
+  type                 String
+  description          String?
+  fileName             String
+  fileUrl              String
+  fileFormat           String
+  fileSizeKb           Int
+  technology           PrintTechnology
+  quantity             Int             @default(1)
+  color                String
+  finishLevel          FinishLevel
+  urgencyMultiplier    Float           @default(1)
+  priority             Priority        @default(MEDIUM)
+  status               OrderStatus     @default(RECEIVED)
+  paymentStatus        PaymentStatus   @default(PENDING)
+  boundingBoxX         Float
+  boundingBoxY         Float
+  boundingBoxZ         Float
+  estimatedVolumeCm3   Float
+  estimatedSupportCm3  Float
+  estimatedHours       Float
+  estimatedWeightGrams Float
+  failureRisk          Int
+  needsManualReview    Boolean         @default(false)
+  materialCost         Float
+  machineCost          Float
+  energyCost           Float
+  laborCost            Float
+  finishingCost        Float
+  packagingCost        Float
+  subtotal             Float
+  marginPercent        Float
+  totalPrice           Float
+  realCost             Float?
+  grossMargin          Float?
+  dueDate              DateTime?
+  approvedByCustomerAt DateTime?
+  paidAt               DateTime?
+  shippedAt            DateTime?
+  deliveredAt          DateTime?
+  shippingCarrier      String?
+  trackingCode         String?
+  invoiceNumber        String?
+  queuePosition        Int?
+  materialName         String
+  materialId           String?
+  customerId           String
+  assignedMachineId    String?
+  assignedOperatorId   String?
+  reprintOfId          String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  customer             User            @relation("CustomerOrders", fields: [customerId], references: [id])
+  material             Material?       @relation(fields: [materialId], references: [id])
+  assignedMachine      Machine?        @relation(fields: [assignedMachineId], references: [id])
+  assignedOperator     User?           @relation("OperatorOrders", fields: [assignedOperatorId], references: [id])
+  reprintOf            Order?          @relation("OrderReprints", fields: [reprintOfId], references: [id])
+  reprints             Order[]         @relation("OrderReprints")
+  payments             Payment[]
+  comments             OrderComment[]
+  timeline             OrderTimeline[]
+  qualityChecks        QualityCheck[]
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  amount        Float
+  dueDate       DateTime?
+  paidAt        DateTime?
+  referenceCode String?
+  gateway       String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model OrderComment {
+  id        String   @id @default(cuid())
+  orderId   String
+  authorId  String?
+  message   String
+  internal  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+}
+
+model OrderTimeline {
+  id             String      @id @default(cuid())
+  orderId        String
+  actorId        String?
+  label          String
+  details        String
+  statusSnapshot OrderStatus
+  createdAt      DateTime    @default(now())
+  order          Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor          User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
+}
+
+model QualityCheck {
+  id              String   @id @default(cuid())
+  orderId         String
+  inspectorId     String?
+  dimensionsOk    Boolean
+  finishOk        Boolean
+  deformationFree Boolean
+  colorOk         Boolean
+  strengthOk      Boolean
+  packagingOk     Boolean
+  notes           String?
+  approved        Boolean
+  createdAt       DateTime @default(now())
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  inspector       User?    @relation("InspectorChecks", fields: [inspectorId], references: [id], onDelete: SetNull)
+}
+
+model MaintenanceRecord {
+  id          String   @id @default(cuid())
+  machineId   String
+  type        String
+  summary     String
+  status      String
+  scheduledAt DateTime
+  completedAt DateTime?
+  cost        Float?
+  createdAt   DateTime @default(now())
+  machine     Machine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
+}
