@@ -67,6 +67,7 @@ O app cria automaticamente o arquivo `storage/printflow-db.json` no primeiro ace
 
 O caminho mais direto para este projeto hoje e usar o Render com disco persistente.
 
+- [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/gutemberggomes42-sys/PrintFlow-3D)
 - o projeto ja tem um `render.yaml` na raiz
 - o disco deve ser montado em `/opt/render/project/src/storage`
 - isso preserva o banco local `printflow-db.json` e os uploads do sistema
