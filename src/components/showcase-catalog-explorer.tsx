@@ -120,22 +120,22 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
       <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.24),_transparent_30%),radial-gradient(circle_at_center_right,_rgba(89,185,255,0.18),_transparent_28%),linear-gradient(145deg,_rgba(5,7,12,0.98),_rgba(8,14,22,0.94))]">
         <div className="grid gap-0 xl:grid-cols-[0.95fr_1.05fr]">
           <div className="p-6 sm:p-8 lg:p-9">
-            <p className="text-xs uppercase tracking-[0.28em] text-orange-200/70">Colecao PrintFlow 3D</p>
+            <p className="text-xs uppercase tracking-[0.28em] text-orange-200/70">Bem-vindo a nossa loja</p>
             <h3 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
-              Uma vitrine mais limpa, premium e pronta para converter no WhatsApp
+              Pecas 3D criativas, feitas para decorar, presentear e surpreender
             </h3>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-white/72 sm:text-base">
-              Menos poluicao visual, preco mais forte, filtros rapidos e mais foco no que realmente vende: foto, prazo, material e compra facil.
+              Seja bem-vindo. Aqui voce encontra produtos impressos em 3D com acabamento caprichado, modelos exclusivos e atendimento direto no WhatsApp para comprar ou encomendar com facilidade.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/80">
                 <ShieldCheck className="h-4 w-4 text-emerald-300" />
-                Informacoes reais
+                Atendimento direto
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/80">
                 <MessageCircleMore className="h-4 w-4 text-cyan-300" />
-                Compra no WhatsApp
+                Compra facil no WhatsApp
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/80">
                 <PackageCheck className="h-4 w-4 text-orange-300" />
@@ -267,8 +267,8 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
       <section className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Filtro rapido</p>
-            <h3 className="mt-2 text-2xl font-semibold">Encontre a peca ideal sem perder tempo</h3>
+            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Explore a loja</p>
+            <h3 className="mt-2 text-2xl font-semibold">Escolha sua peca favorita</h3>
             <p className="mt-3 text-sm text-white/60">{resultsLabel}</p>
           </div>
 
