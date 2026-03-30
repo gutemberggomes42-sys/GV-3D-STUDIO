@@ -893,8 +893,9 @@ function canAccessOrder(order: DbOrder, userId: string, role: UserRole) {
 
 export async function loginAction(_previousState: ActionState, formData: FormData): Promise<ActionState> {
   const redirectTo = normalizeRedirectTarget(formData.get("redirectTo"));
+  const normalizedEmail = String(formData.get("email") ?? "").trim().toLowerCase();
   const parsed = authSchema.safeParse({
-    email: formData.get("email"),
+    email: normalizedEmail,
     password: formData.get("password"),
   });
 
@@ -911,7 +912,10 @@ export async function loginAction(_previousState: ActionState, formData: FormDat
   if (!user) {
     return {
       ok: false,
-      error: "Usuário não encontrado.",
+      error:
+        normalizedEmail === ownerEmail
+          ? "Conta administrativa ainda não foi localizada. Recarregue a página e, se preciso, use o cadastro abaixo com o mesmo e-mail do dono."
+          : "Usuário não encontrado.",
     };
   }
 
@@ -933,11 +937,12 @@ export async function loginAction(_previousState: ActionState, formData: FormDat
 
 export async function registerAction(_previousState: ActionState, formData: FormData): Promise<ActionState> {
   const redirectTo = normalizeRedirectTarget(formData.get("redirectTo"));
+  const normalizedEmail = String(formData.get("email") ?? "").trim().toLowerCase();
   const parsed = registerSchema.safeParse({
     name: formData.get("name"),
     company: formData.get("company"),
     phone: formData.get("phone"),
-    email: formData.get("email"),
+    email: normalizedEmail,
     password: formData.get("password"),
     address: formData.get("address"),
     projectType: formData.get("projectType"),
@@ -955,7 +960,6 @@ export async function registerAction(_previousState: ActionState, formData: Form
     const passwordHash = await hashPassword(parsed.data.password);
 
     const user = await updateDb((db) => {
-      const normalizedEmail = parsed.data.email.toLowerCase();
       const emailExists = db.users.some(
         (item) => item.email.toLowerCase() === normalizedEmail,
       );

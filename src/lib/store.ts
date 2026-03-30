@@ -32,13 +32,33 @@ async function ensureDataFile() {
   }
 }
 
-async function ensureOwnerBootstrap(data: PrintFlowDb) {
-  const bootstrapPassword = process.env.OWNER_BOOTSTRAP_PASSWORD?.trim();
+async function findOwnerFromBackups(ownerAccountEmail: string) {
+  await mkdir(backupDirectory, { recursive: true });
 
-  if (!bootstrapPassword) {
-    return data;
+  const backupFiles = (await readdir(backupDirectory))
+    .filter((entry) => entry.endsWith(".json"))
+    .sort((left, right) => right.localeCompare(left));
+
+  for (const fileName of backupFiles) {
+    try {
+      const backupContents = await readFile(path.join(backupDirectory, fileName), "utf8");
+      const parsedBackup = JSON.parse(backupContents) as Partial<PrintFlowDb>;
+      const backupUser = parsedBackup.users?.find(
+        (user) => user.email?.toLowerCase() === ownerAccountEmail,
+      );
+
+      if (backupUser?.passwordHash) {
+        return backupUser;
+      }
+    } catch {
+      continue;
+    }
   }
 
+  return null;
+}
+
+async function ensureOwnerBootstrap(data: PrintFlowDb) {
   const bootstrapEmail = (process.env.OWNER_BOOTSTRAP_EMAIL?.trim() || ownerEmail).toLowerCase();
   const bootstrapName = process.env.OWNER_BOOTSTRAP_NAME?.trim() || "Guto";
   const bootstrapPhone = process.env.OWNER_BOOTSTRAP_PHONE?.trim() || "64996435078";
@@ -55,6 +75,33 @@ async function ensureOwnerBootstrap(data: PrintFlowDb) {
       await writeDb(data);
     }
 
+    return data;
+  }
+
+  const restoredOwner = await findOwnerFromBackups(bootstrapEmail);
+
+  if (restoredOwner) {
+    data.users.unshift({
+      ...restoredOwner,
+      email: bootstrapEmail,
+      role: UserRole.ADMIN,
+      phone: restoredOwner.phone || bootstrapPhone,
+      company: restoredOwner.company || "PrintFlow 3D",
+      address: restoredOwner.address || "A configurar",
+      projectType: restoredOwner.projectType || "Vitrine e vendas",
+      avatarColor: restoredOwner.avatarColor || "#ffc857",
+      passwordChangedAt: restoredOwner.passwordChangedAt ?? now,
+      createdAt: restoredOwner.createdAt ?? now,
+      updatedAt: now,
+    });
+
+    await writeDb(data);
+    return data;
+  }
+
+  const bootstrapPassword = process.env.OWNER_BOOTSTRAP_PASSWORD?.trim();
+
+  if (!bootstrapPassword) {
     return data;
   }
 
