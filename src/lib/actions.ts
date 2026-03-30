@@ -34,6 +34,7 @@ import {
   recommendMachine,
 } from "@/lib/pricing";
 import { formatDateTime, formatDurationMinutes } from "@/lib/format";
+import { parseShowcaseListField } from "@/lib/showcase";
 import { createId, readDb, updateDb } from "@/lib/store";
 import { saveUploadedFile } from "@/lib/upload-storage";
 
@@ -151,16 +152,34 @@ const expenseSchema = z.object({
   notes: z.string().trim().optional(),
 });
 
-const showcaseItemSchema = z.object({
-  name: z.string().min(2, "Informe o nome do item."),
-  description: z.string().min(10, "Descreva o item exposto."),
-  price: z.coerce.number().positive("Informe o valor do item."),
-  estimatedPrintHours: z.coerce.number().positive("Informe o tempo de impressão cadastrado."),
-  fulfillmentType: z.enum(["STOCK", "MADE_TO_ORDER"]),
-  stockQuantity: z.coerce.number().int().nonnegative("Informe o estoque disponível."),
-  imageUrl: z.string().trim().optional(),
-  active: z.boolean(),
-});
+const showcaseItemSchema = z
+  .object({
+    name: z.string().min(2, "Informe o nome do item."),
+    category: z.string().min(2, "Informe a categoria do item."),
+    tagline: z.string().trim().optional(),
+    description: z.string().min(10, "Descreva o item exposto."),
+    price: z.coerce.number().positive("Informe o valor do item."),
+    estimatedPrintHours: z.coerce.number().positive("Informe o tempo de impressão cadastrado."),
+    fulfillmentType: z.enum(["STOCK", "MADE_TO_ORDER"]),
+    stockQuantity: z.coerce.number().int().nonnegative("Informe o estoque disponível."),
+    leadTimeDays: z.coerce.number().int().nonnegative("Informe o prazo estimado."),
+    materialLabel: z.string().trim().optional(),
+    colorOptions: z.array(z.string().trim()).default([]),
+    dimensionSummary: z.string().trim().optional(),
+    imageUrl: z.string().trim().optional(),
+    galleryImageUrls: z.array(z.string().trim()).default([]),
+    featured: z.boolean(),
+    active: z.boolean(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.fulfillmentType === "MADE_TO_ORDER" && data.leadTimeDays <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Informe um prazo estimado para itens sob encomenda.",
+        path: ["leadTimeDays"],
+      });
+    }
+  });
 
 const showcaseInquiryStatusSchema = z.enum(["PENDING", "CLOSED", "NOT_CLOSED"]);
 const showcaseOrderStageSchema = z.enum([
@@ -294,12 +313,20 @@ function parseExpenseFormData(formData: FormData) {
 function parseShowcaseItemFormData(formData: FormData) {
   return showcaseItemSchema.safeParse({
     name: formData.get("name"),
+    category: formData.get("category"),
+    tagline: formData.get("tagline")?.toString(),
     description: formData.get("description"),
     price: formData.get("price"),
     estimatedPrintHours: formData.get("estimatedPrintHours"),
     fulfillmentType: formData.get("fulfillmentType"),
     stockQuantity: formData.get("stockQuantity"),
+    leadTimeDays: formData.get("leadTimeDays") || 0,
+    materialLabel: formData.get("materialLabel")?.toString(),
+    colorOptions: parseShowcaseListField(formData.get("colorOptions")),
+    dimensionSummary: formData.get("dimensionSummary")?.toString(),
     imageUrl: formData.get("imageUrl")?.toString(),
+    galleryImageUrls: parseShowcaseListField(formData.get("galleryImageUrls")),
+    featured: formData.get("featured") === "on",
     active: formData.get("active") === "on",
   });
 }
@@ -402,12 +429,20 @@ function buildShowcaseItemPayload(data: z.infer<typeof showcaseItemSchema>): DbS
   return {
     id: createId("vit"),
     name: data.name,
+    category: data.category,
+    tagline: data.tagline?.trim() || undefined,
     description: data.description,
     price: data.price,
+    materialLabel: data.materialLabel?.trim() || undefined,
+    colorOptions: data.colorOptions,
+    dimensionSummary: data.dimensionSummary?.trim() || undefined,
+    leadTimeDays: data.fulfillmentType === "MADE_TO_ORDER" ? data.leadTimeDays : 0,
     estimatedPrintHours: data.estimatedPrintHours,
     fulfillmentType: data.fulfillmentType,
     stockQuantity: data.fulfillmentType === "STOCK" ? data.stockQuantity : 0,
     imageUrl: data.imageUrl?.trim() || undefined,
+    galleryImageUrls: data.galleryImageUrls,
+    featured: data.featured,
     active: data.active,
     createdAt: now,
     updatedAt: now,
@@ -510,6 +545,27 @@ async function resolveShowcaseImageUrl(formData: FormData) {
   }
 
   return saveUpload(imageFile);
+}
+
+async function resolveShowcaseGalleryImageUrls(formData: FormData) {
+  const manualGalleryUrls = parseShowcaseListField(formData.get("galleryImageUrls"));
+  const uploadedGalleryFiles = formData
+    .getAll("galleryFiles")
+    .filter((entry): entry is File => entry instanceof File && Boolean(entry.name));
+
+  const uploadedGalleryUrls: string[] = [];
+
+  for (const galleryFile of uploadedGalleryFiles) {
+    const fileExtension = getFileExtension(galleryFile.name);
+
+    if (!allowedImageFormats.includes(fileExtension as (typeof allowedImageFormats)[number])) {
+      throw new Error("Use imagens PNG, JPG, JPEG, WEBP ou GIF na galeria.");
+    }
+
+    uploadedGalleryUrls.push(await saveUpload(galleryFile));
+  }
+
+  return Array.from(new Set([...manualGalleryUrls, ...uploadedGalleryUrls])).slice(0, 8);
 }
 
 async function saveUpload(file: File) {
@@ -1310,11 +1366,13 @@ export async function createShowcaseItemAction(
 
   try {
     const uploadedImageUrl = await resolveShowcaseImageUrl(formData);
+    const galleryImageUrls = await resolveShowcaseGalleryImageUrls(formData);
     await updateDb((db) => {
       db.showcaseItems.unshift(
         buildShowcaseItemPayload({
           ...parsed.data,
           imageUrl: uploadedImageUrl ?? parsed.data.imageUrl,
+          galleryImageUrls,
         }),
       );
     });
@@ -1361,6 +1419,7 @@ export async function updateShowcaseItemAction(
 
   try {
     const uploadedImageUrl = await resolveShowcaseImageUrl(formData);
+    const galleryImageUrls = await resolveShowcaseGalleryImageUrls(formData);
     await updateDb((db) => {
       const item = db.showcaseItems.find((candidate) => candidate.id === itemId);
 
@@ -1369,8 +1428,15 @@ export async function updateShowcaseItemAction(
       }
 
       item.name = parsed.data.name;
+      item.category = parsed.data.category;
+      item.tagline = parsed.data.tagline?.trim() || undefined;
       item.description = parsed.data.description;
       item.price = parsed.data.price;
+      item.materialLabel = parsed.data.materialLabel?.trim() || undefined;
+      item.colorOptions = parsed.data.colorOptions;
+      item.dimensionSummary = parsed.data.dimensionSummary?.trim() || undefined;
+      item.leadTimeDays =
+        parsed.data.fulfillmentType === "MADE_TO_ORDER" ? parsed.data.leadTimeDays : 0;
       item.estimatedPrintHours = parsed.data.estimatedPrintHours;
       item.fulfillmentType = parsed.data.fulfillmentType;
       item.stockQuantity =
@@ -1378,6 +1444,8 @@ export async function updateShowcaseItemAction(
           ? parsed.data.stockQuantity + restockQuantity
           : 0;
       item.imageUrl = uploadedImageUrl ?? (parsed.data.imageUrl?.trim() || undefined);
+      item.galleryImageUrls = galleryImageUrls;
+      item.featured = parsed.data.featured;
       item.active = parsed.data.active;
       item.updatedAt = new Date().toISOString();
     });

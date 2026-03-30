@@ -249,12 +249,20 @@ export type ShowcaseOrderStage =
 export type DbShowcaseItem = {
   id: string;
   name: string;
+  category: string;
+  tagline?: string;
   description: string;
   price: number;
+  materialLabel?: string;
+  colorOptions: string[];
+  dimensionSummary?: string;
+  leadTimeDays: number;
   imageUrl?: string;
+  galleryImageUrls: string[];
   fulfillmentType: ShowcaseFulfillmentType;
   stockQuantity: number;
   estimatedPrintHours: number;
+  featured: boolean;
   active: boolean;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;

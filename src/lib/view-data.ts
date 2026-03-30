@@ -28,7 +28,11 @@ export async function getHydratedData() {
     machines: db.machines,
     expenses: db.expenses,
     orders,
-    showcaseItems: [...db.showcaseItems].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    showcaseItems: [...db.showcaseItems].sort(
+      (a, b) =>
+        Number(b.featured) - Number(a.featured) ||
+        b.updatedAt.localeCompare(a.updatedAt),
+    ),
     showcaseInquiries: [...db.showcaseInquiries].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
   };
 }

@@ -121,10 +121,22 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
       const normalizedItem = item as Partial<PrintFlowDb["showcaseItems"][number]>;
       return {
         ...item,
+        category: normalizedItem.category?.trim() || "Colecao PrintFlow",
+        tagline: normalizedItem.tagline?.trim() || undefined,
         imageUrl: normalizedItem.imageUrl ?? undefined,
+        materialLabel: normalizedItem.materialLabel?.trim() || undefined,
+        colorOptions:
+          normalizedItem.colorOptions?.map((entry) => entry.trim()).filter(Boolean) ?? [],
+        dimensionSummary: normalizedItem.dimensionSummary?.trim() || undefined,
+        leadTimeDays:
+          normalizedItem.leadTimeDays ??
+          (normalizedItem.fulfillmentType === "MADE_TO_ORDER" ? 5 : 0),
+        galleryImageUrls:
+          normalizedItem.galleryImageUrls?.map((entry) => entry.trim()).filter(Boolean) ?? [],
         fulfillmentType: normalizedItem.fulfillmentType ?? "STOCK",
         stockQuantity: normalizedItem.stockQuantity ?? 0,
         estimatedPrintHours: normalizedItem.estimatedPrintHours ?? 1,
+        featured: normalizedItem.featured ?? false,
         active: normalizedItem.active ?? true,
       };
     }),

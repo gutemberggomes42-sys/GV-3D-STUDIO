@@ -1,9 +1,16 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Clock3, PackageCheck, Ruler, SwatchBook } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { getCurrentUser } from "@/lib/auth";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatHours } from "@/lib/format";
+import {
+  getShowcaseAvailabilityLabel,
+  getShowcaseColorSummary,
+  getShowcaseGallery,
+  getShowcaseLeadTimeLabel,
+} from "@/lib/showcase";
 import { getHydratedData } from "@/lib/view-data";
 
 type BuyItemPageProps = {
@@ -45,6 +52,7 @@ export default async function BuyItemPage({
   }
 
   const quantity = managesStock ? Math.min(requestedQuantity, item.stockQuantity) : requestedQuantity;
+  const heroImage = getShowcaseGallery(item)[0];
 
   return (
     <AppShell
@@ -61,9 +69,9 @@ export default async function BuyItemPage({
 
       <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <article className="overflow-hidden rounded-[28px] border border-white/10 bg-white/5">
-          {item.imageUrl ? (
+          {heroImage ? (
             <img
-              src={item.imageUrl}
+              src={heroImage}
               alt={item.name}
               className="h-72 w-full border-b border-white/10 object-cover"
             />
@@ -72,10 +80,21 @@ export default async function BuyItemPage({
           )}
 
           <div className="p-6">
-            <p className="text-xs uppercase tracking-[0.24em] text-white/45">
-              Item selecionado
-            </p>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80">
+                {item.category}
+              </span>
+              <span className="rounded-full border border-emerald-400/25 bg-emerald-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100">
+                {getShowcaseAvailabilityLabel(item)}
+              </span>
+              <span className="rounded-full border border-cyan-400/25 bg-cyan-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                {getShowcaseLeadTimeLabel(item)}
+              </span>
+            </div>
             <h3 className="mt-3 text-3xl font-semibold">{item.name}</h3>
+            {item.tagline ? (
+              <p className="mt-3 text-base leading-7 text-white/78">{item.tagline}</p>
+            ) : null}
             <p className="mt-3 text-sm leading-6 text-white/68">
               {item.description}
             </p>
@@ -96,6 +115,37 @@ export default async function BuyItemPage({
                 <p className="mt-2 text-2xl font-semibold">
                   {managesStock ? item.stockQuantity : "Sob encomenda"}
                 </p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 rounded-[24px] border border-white/10 bg-white/[0.03] p-4 sm:grid-cols-2">
+              <div>
+                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/45">
+                  <PackageCheck className="h-3.5 w-3.5" />
+                  Material
+                </div>
+                <p className="mt-2 text-sm font-semibold text-white/88">{item.materialLabel ?? "Sob consulta"}</p>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/45">
+                  <SwatchBook className="h-3.5 w-3.5" />
+                  Cores
+                </div>
+                <p className="mt-2 text-sm font-semibold text-white/88">{getShowcaseColorSummary(item)}</p>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/45">
+                  <Ruler className="h-3.5 w-3.5" />
+                  Medidas
+                </div>
+                <p className="mt-2 text-sm font-semibold text-white/88">{item.dimensionSummary ?? "Sob consulta"}</p>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/45">
+                  <Clock3 className="h-3.5 w-3.5" />
+                  Impressao
+                </div>
+                <p className="mt-2 text-sm font-semibold text-white/88">{formatHours(item.estimatedPrintHours)}</p>
               </div>
             </div>
           </div>
@@ -146,10 +196,10 @@ export default async function BuyItemPage({
           </button>
 
           <Link
-            href="/"
+            href={`/produto/${item.id}`}
             className="inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
           >
-            Voltar para a vitrine
+            Voltar para a pagina do produto
           </Link>
         </form>
       </section>
