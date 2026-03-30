@@ -1,9 +1,8 @@
-import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { NextResponse } from "next/server";
 import { UserRole } from "@prisma/client";
 import { requireRoles } from "@/lib/auth";
-import { getBackupFilePath } from "@/lib/store";
+import { getBackupSnapshotContent } from "@/lib/store";
 
 export async function GET(
   _request: Request,
@@ -14,10 +13,13 @@ export async function GET(
   const safeFileName = basename(fileName);
 
   try {
-    const filePath = getBackupFilePath(safeFileName);
-    const fileBuffer = await readFile(filePath);
+    const backupSnapshot = await getBackupSnapshotContent(safeFileName);
 
-    return new NextResponse(fileBuffer, {
+    if (!backupSnapshot) {
+      return NextResponse.json({ error: "Backup não encontrado." }, { status: 404 });
+    }
+
+    return new NextResponse(backupSnapshot.content, {
       headers: {
         "Content-Type": "application/json; charset=utf-8",
         "Content-Disposition": `attachment; filename="${safeFileName}"`,

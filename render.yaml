@@ -16,6 +16,10 @@ services:
         value: production
       - key: NODE_VERSION
         value: 20
+      - key: PRINTFLOW_STORAGE_PROVIDER
+        value: local
+      - key: PRINTFLOW_POSTGRES_SSL
+        value: require
       - key: OWNER_BOOTSTRAP_EMAIL
         value: gutemberggg10@gmail.com
       - key: OWNER_BOOTSTRAP_NAME
@@ -24,3 +28,21 @@ services:
         value: 64996435078
       - key: OWNER_BOOTSTRAP_PASSWORD
         sync: false
+      - key: PRINTFLOW_POSTGRES_URL
+        sync: false
+      - key: PRINTFLOW_S3_BUCKET
+        sync: false
+      - key: PRINTFLOW_S3_REGION
+        sync: false
+      - key: PRINTFLOW_S3_ACCESS_KEY_ID
+        sync: false
+      - key: PRINTFLOW_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: PRINTFLOW_S3_ENDPOINT
+        sync: false
+      - key: PRINTFLOW_S3_PUBLIC_BASE_URL
+        sync: false
+      - key: PRINTFLOW_S3_PREFIX
+        sync: false
+      - key: PRINTFLOW_S3_FORCE_PATH_STYLE
+        value: "false"

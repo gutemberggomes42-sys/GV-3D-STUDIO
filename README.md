@@ -16,6 +16,8 @@ Sistema completo para centralizar a operação de impressão 3D em um único lug
 - TypeScript
 - Tailwind CSS 4
 - persistência local em `storage/printflow-db.json`
+- backend opcional em PostgreSQL para o `store` principal
+- uploads locais ou storage profissional em S3/R2
 - autenticação por sessão HTTP com cadastro real de usuários
 
 ## Como rodar
@@ -61,16 +63,53 @@ Com isso o sistema calcula automaticamente:
 
 ## Persistência
 
-O app cria automaticamente o arquivo `storage/printflow-db.json` no primeiro acesso. Os uploads enviados pelo portal ficam em `public/uploads`.
+O app cria automaticamente o arquivo `storage/printflow-db.json` no primeiro acesso.
+
+Modos suportados:
+
+- `local`: usa JSON em disco e uploads em `storage/uploads`
+- `postgres`: salva todo o `snapshot` principal em PostgreSQL e mantém backups no banco
+- `s3`: envia fotos e vídeos para um bucket externo, retornando URL pública no sistema
+
+Se `PRINTFLOW_POSTGRES_URL` estiver configurado, o sistema migra automaticamente o conteúdo do JSON local para o banco na primeira leitura. Se `PRINTFLOW_STORAGE_PROVIDER=s3`, os novos uploads passam a ser enviados para o bucket externo.
+
+## Variáveis de ambiente
+
+Banco principal opcional:
+
+- `PRINTFLOW_POSTGRES_URL`
+- `PRINTFLOW_POSTGRES_SSL`
+
+Storage profissional opcional:
+
+- `PRINTFLOW_STORAGE_PROVIDER=local|s3`
+- `PRINTFLOW_S3_BUCKET`
+- `PRINTFLOW_S3_REGION`
+- `PRINTFLOW_S3_ACCESS_KEY_ID`
+- `PRINTFLOW_S3_SECRET_ACCESS_KEY`
+- `PRINTFLOW_S3_ENDPOINT`
+- `PRINTFLOW_S3_PUBLIC_BASE_URL`
+- `PRINTFLOW_S3_PREFIX`
+- `PRINTFLOW_S3_FORCE_PATH_STYLE`
+
+Observação importante:
+
+- o projeto ainda usa `DATABASE_URL` do Prisma para geração local do client e enums
+- para o banco principal do app em produção, use `PRINTFLOW_POSTGRES_URL`
+- isso evita conflito com o build atual do projeto
 
 ## Hospedagem 24h
 
-O caminho mais direto para este projeto hoje e usar o Render com disco persistente.
+Agora o projeto pode rodar de 3 formas no Render:
+
+- `fallback local`: disco persistente + JSON local
+- `PostgreSQL`: banco principal no Render/Supabase/Neon usando `PRINTFLOW_POSTGRES_URL`
+- `S3`: mídia profissional em bucket externo para fotos e vídeos
 
 - [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/gutemberggomes42-sys/PrintFlow-3D)
 - o projeto ja tem um `render.yaml` na raiz
-- o disco deve ser montado em `/opt/render/project/src/storage`
-- isso preserva o banco local `printflow-db.json` e os uploads do sistema
+- se você ficar no modo local, o disco deve ser montado em `/opt/render/project/src/storage`
+- se usar PostgreSQL e S3, o disco vira apenas fallback e cache local
 
 Passos resumidos:
 
@@ -78,7 +117,9 @@ Passos resumidos:
 2. criar uma conta no Render
 3. abrir `Blueprints` no Render e conectar o repositório
 4. sincronizar o `render.yaml` e informar `OWNER_BOOTSTRAP_PASSWORD`
-5. aguardar o primeiro deploy e usar a URL publica do serviço
+5. para banco profissional, preencher `PRINTFLOW_POSTGRES_URL`
+6. para mídia profissional, preencher as variáveis `PRINTFLOW_S3_*`
+7. aguardar o primeiro deploy e usar a URL publica do serviço
 
 No primeiro deploy, o Render vai criar automaticamente o admin com:
 

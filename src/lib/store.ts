@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path";
 import { hashSync } from "bcryptjs";
 import { UserRole } from "@prisma/client";
+import { Pool } from "pg";
 import { ownerEmail } from "@/lib/constants";
 import type { DbBackupSnapshot, PrintFlowDb } from "@/lib/db-types";
 import { createInitialData } from "@/lib/seed-data";
@@ -11,6 +12,20 @@ const dataDirectory = path.join(process.cwd(), "storage");
 const dataPath = path.join(dataDirectory, "printflow-db.json");
 const backupDirectory = path.join(dataDirectory, "backups");
 const maxBackupFiles = 30;
+const postgresStateKey = "default";
+const postgresStateTable = "printflow_app_state";
+const postgresBackupTable = "printflow_backups";
+
+type PgStateRow = {
+  payload: Partial<PrintFlowDb>;
+};
+
+type PgBackupRow = {
+  file_name: string;
+  payload: Partial<PrintFlowDb>;
+  size_bytes: number;
+  created_at: Date | string;
+};
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -20,7 +35,82 @@ function sortByDateDesc<T extends { createdAt: string }>(items: T[]) {
   return [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-async function ensureDataFile() {
+function getPostgresConnectionString() {
+  return process.env.PRINTFLOW_POSTGRES_URL?.trim() || process.env.POSTGRES_DATABASE_URL?.trim() || "";
+}
+
+function shouldUsePostgresBackend() {
+  return Boolean(getPostgresConnectionString());
+}
+
+function resolvePostgresSsl() {
+  const sslMode = (process.env.PRINTFLOW_POSTGRES_SSL?.trim() || "require").toLowerCase();
+
+  if (sslMode === "disable" || sslMode === "off" || sslMode === "false" || sslMode === "0") {
+    return undefined;
+  }
+
+  return { rejectUnauthorized: false };
+}
+
+let postgresPool: Pool | null = null;
+let postgresSchemaPromise: Promise<void> | null = null;
+
+function getPostgresPool() {
+  const connectionString = getPostgresConnectionString();
+
+  if (!connectionString) {
+    throw new Error("Configure PRINTFLOW_POSTGRES_URL para usar o banco PostgreSQL.");
+  }
+
+  if (!postgresPool) {
+    postgresPool = new Pool({
+      connectionString,
+      ssl: resolvePostgresSsl(),
+    });
+  }
+
+  return postgresPool;
+}
+
+async function ensurePostgresSchema() {
+  if (!shouldUsePostgresBackend()) {
+    return;
+  }
+
+  if (!postgresSchemaPromise) {
+    postgresSchemaPromise = (async () => {
+      const pool = getPostgresPool();
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS ${postgresStateTable} (
+          state_key TEXT PRIMARY KEY,
+          payload JSONB NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS ${postgresBackupTable} (
+          id TEXT PRIMARY KEY,
+          file_name TEXT NOT NULL UNIQUE,
+          payload JSONB NOT NULL,
+          size_bytes INTEGER NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS ${postgresBackupTable}_created_at_idx
+        ON ${postgresBackupTable} (created_at DESC)
+      `);
+    })().catch((error) => {
+      postgresSchemaPromise = null;
+      throw error;
+    });
+  }
+
+  await postgresSchemaPromise;
+}
+
+async function ensureLocalDataFile() {
   await mkdir(dataDirectory, { recursive: true });
   await mkdir(backupDirectory, { recursive: true });
 
@@ -32,7 +122,16 @@ async function ensureDataFile() {
   }
 }
 
-async function findOwnerFromBackups(ownerAccountEmail: string) {
+async function readLocalStateSource(): Promise<Partial<PrintFlowDb>> {
+  try {
+    const contents = await readFile(dataPath, "utf8");
+    return JSON.parse(contents) as Partial<PrintFlowDb>;
+  } catch {
+    return createInitialData();
+  }
+}
+
+async function findOwnerFromLocalBackups(ownerAccountEmail: string) {
   await mkdir(backupDirectory, { recursive: true });
 
   const backupFiles = (await readdir(backupDirectory))
@@ -56,6 +155,40 @@ async function findOwnerFromBackups(ownerAccountEmail: string) {
   }
 
   return null;
+}
+
+async function findOwnerFromPostgresBackups(ownerAccountEmail: string) {
+  await ensurePostgresSchema();
+  const pool = getPostgresPool();
+  const { rows } = await pool.query<PgBackupRow>(
+    `
+      SELECT file_name, payload, size_bytes, created_at
+      FROM ${postgresBackupTable}
+      ORDER BY created_at DESC
+      LIMIT $1
+    `,
+    [maxBackupFiles],
+  );
+
+  for (const row of rows) {
+    const backupUser = row.payload.users?.find(
+      (user) => user.email?.toLowerCase() === ownerAccountEmail,
+    );
+
+    if (backupUser?.passwordHash) {
+      return backupUser;
+    }
+  }
+
+  return null;
+}
+
+async function findOwnerFromBackups(ownerAccountEmail: string) {
+  if (shouldUsePostgresBackend()) {
+    return findOwnerFromPostgresBackups(ownerAccountEmail);
+  }
+
+  return findOwnerFromLocalBackups(ownerAccountEmail);
 }
 
 async function ensureOwnerBootstrap(data: PrintFlowDb) {
@@ -243,21 +376,71 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
   };
 }
 
-export async function readDb() {
-  await ensureDataFile();
-  const contents = await readFile(dataPath, "utf8");
-  const normalizedData = normalizeDb(JSON.parse(contents) as Partial<PrintFlowDb>);
-  return ensureOwnerBootstrap(normalizedData);
+async function readPostgresState() {
+  await ensurePostgresSchema();
+  const pool = getPostgresPool();
+  const { rows } = await pool.query<PgStateRow>(
+    `SELECT payload FROM ${postgresStateTable} WHERE state_key = $1 LIMIT 1`,
+    [postgresStateKey],
+  );
+
+  if (rows.length === 0) {
+    const localData = normalizeDb(await readLocalStateSource());
+    await writePostgresState(localData);
+    return localData;
+  }
+
+  return normalizeDb(rows[0].payload ?? {});
 }
 
-export async function writeDb(data: PrintFlowDb) {
-  await ensureDataFile();
+async function writePostgresState(data: PrintFlowDb) {
+  await ensurePostgresSchema();
+  const pool = getPostgresPool();
   const serialized = JSON.stringify(data, null, 2);
-  await writeFile(dataPath, serialized, "utf8");
-  await saveBackupSnapshot(serialized);
+  const fileName = `printflow-backup-${new Date().toISOString().replace(/[:.]/g, "-")}-${createId("snap")}.json`;
+  const sizeBytes = Buffer.byteLength(serialized, "utf8");
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `
+        INSERT INTO ${postgresStateTable} (state_key, payload, updated_at)
+        VALUES ($1, $2::jsonb, NOW())
+        ON CONFLICT (state_key)
+        DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
+      `,
+      [postgresStateKey, serialized],
+    );
+    await client.query(
+      `
+        INSERT INTO ${postgresBackupTable} (id, file_name, payload, size_bytes, created_at)
+        VALUES ($1, $2, $3::jsonb, $4, NOW())
+      `,
+      [createId("bkp"), fileName, serialized, sizeBytes],
+    );
+    await client.query(
+      `
+        DELETE FROM ${postgresBackupTable}
+        WHERE id IN (
+          SELECT id
+          FROM ${postgresBackupTable}
+          ORDER BY created_at DESC
+          OFFSET $1
+        )
+      `,
+      [maxBackupFiles],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
-async function saveBackupSnapshot(serialized: string) {
+async function saveLocalBackupSnapshot(serialized: string) {
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const fileName = `printflow-backup-${stamp}.json`;
   const backupPath = path.join(backupDirectory, fileName);
@@ -274,8 +457,52 @@ async function saveBackupSnapshot(serialized: string) {
   );
 }
 
+export async function readDb() {
+  let normalizedData: PrintFlowDb;
+
+  if (shouldUsePostgresBackend()) {
+    normalizedData = await readPostgresState();
+  } else {
+    await ensureLocalDataFile();
+    normalizedData = normalizeDb(await readLocalStateSource());
+  }
+
+  return ensureOwnerBootstrap(normalizedData);
+}
+
+export async function writeDb(data: PrintFlowDb) {
+  if (shouldUsePostgresBackend()) {
+    await writePostgresState(data);
+    return;
+  }
+
+  await ensureLocalDataFile();
+  const serialized = JSON.stringify(data, null, 2);
+  await writeFile(dataPath, serialized, "utf8");
+  await saveLocalBackupSnapshot(serialized);
+}
+
 export async function listBackupSnapshots(): Promise<DbBackupSnapshot[]> {
-  await ensureDataFile();
+  if (shouldUsePostgresBackend()) {
+    await ensurePostgresSchema();
+    const pool = getPostgresPool();
+    const { rows } = await pool.query<PgBackupRow>(
+      `
+        SELECT file_name, payload, size_bytes, created_at
+        FROM ${postgresBackupTable}
+        ORDER BY created_at DESC
+      `,
+    );
+
+    return rows.map((row) => ({
+      fileName: row.file_name,
+      createdAt:
+        row.created_at instanceof Date ? row.created_at.toISOString() : new Date(row.created_at).toISOString(),
+      sizeBytes: row.size_bytes,
+    }));
+  }
+
+  await ensureLocalDataFile();
   const entries = await readdir(backupDirectory);
   const jsonFiles = entries.filter((entry) => entry.endsWith(".json"));
   const snapshots = await Promise.all(
@@ -293,8 +520,47 @@ export async function listBackupSnapshots(): Promise<DbBackupSnapshot[]> {
   return snapshots.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
-export function getBackupFilePath(fileName: string) {
-  return path.join(backupDirectory, path.basename(fileName));
+export async function getBackupSnapshotContent(fileName: string) {
+  const safeFileName = path.basename(fileName);
+
+  if (!safeFileName || safeFileName !== fileName) {
+    return null;
+  }
+
+  if (shouldUsePostgresBackend()) {
+    await ensurePostgresSchema();
+    const pool = getPostgresPool();
+    const { rows } = await pool.query<PgBackupRow>(
+      `
+        SELECT file_name, payload, size_bytes, created_at
+        FROM ${postgresBackupTable}
+        WHERE file_name = $1
+        LIMIT 1
+      `,
+      [safeFileName],
+    );
+
+    if (!rows.length) {
+      return null;
+    }
+
+    return {
+      fileName: safeFileName,
+      content: JSON.stringify(rows[0].payload ?? {}, null, 2),
+    };
+  }
+
+  const filePath = path.join(backupDirectory, safeFileName);
+
+  try {
+    const content = await readFile(filePath, "utf8");
+    return {
+      fileName: safeFileName,
+      content,
+    };
+  } catch {
+    return null;
+  }
 }
 
 let updateQueue = Promise.resolve();
