@@ -402,6 +402,32 @@ function parseShowcaseItemFormData(formData: FormData) {
   });
 }
 
+function getShowcaseItemFormFields(formData: FormData) {
+  return {
+    itemId: String(formData.get("itemId") ?? ""),
+    name: String(formData.get("name") ?? ""),
+    category: String(formData.get("category") ?? ""),
+    tagline: String(formData.get("tagline") ?? ""),
+    description: String(formData.get("description") ?? ""),
+    price: String(formData.get("price") ?? ""),
+    estimatedPrintHours: String(formData.get("estimatedPrintHours") ?? ""),
+    estimatedMaterialGrams: String(formData.get("estimatedMaterialGrams") ?? ""),
+    fulfillmentType: String(formData.get("fulfillmentType") ?? "STOCK"),
+    stockQuantity: String(formData.get("stockQuantity") ?? ""),
+    restockQuantity: String(formData.get("restockQuantity") ?? "0"),
+    leadTimeDays: String(formData.get("leadTimeDays") ?? ""),
+    materialLabel: String(formData.get("materialLabel") ?? ""),
+    materialId: String(formData.get("materialId") ?? ""),
+    colorOptions: String(formData.get("colorOptions") ?? ""),
+    dimensionSummary: String(formData.get("dimensionSummary") ?? ""),
+    imageUrl: String(formData.get("imageUrl") ?? ""),
+    videoUrl: String(formData.get("videoUrl") ?? ""),
+    galleryImageUrls: String(formData.get("galleryImageUrls") ?? ""),
+    featured: formData.get("featured") === "on" ? "true" : "false",
+    active: formData.get("active") === "on" ? "true" : "false",
+  };
+}
+
 function parseShowcaseInquiryFormData(formData: FormData) {
   return showcaseInquirySchema.safeParse({
     itemId: formData.get("itemId"),
@@ -1895,12 +1921,14 @@ export async function createShowcaseItemAction(
   formData: FormData,
 ): Promise<ActionState> {
   const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const fields = getShowcaseItemFormFields(formData);
   const parsed = parseShowcaseItemFormData(formData);
 
   if (!parsed.success) {
     return {
       ok: false,
       error: parsed.error.issues[0]?.message ?? "Não foi possível salvar o item da vitrine.",
+      fields,
     };
   }
 
@@ -1932,6 +1960,7 @@ export async function createShowcaseItemAction(
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Não foi possível salvar o item da vitrine.",
+      fields,
     };
   }
 }
@@ -1941,6 +1970,7 @@ export async function updateShowcaseItemAction(
   formData: FormData,
 ): Promise<ActionState> {
   const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const fields = getShowcaseItemFormFields(formData);
   const itemId = String(formData.get("itemId") ?? "");
   const parsed = parseShowcaseItemFormData(formData);
   const requestedRestock = Number(formData.get("restockQuantity") ?? "0");
@@ -1953,6 +1983,7 @@ export async function updateShowcaseItemAction(
     return {
       ok: false,
       error: "Item da vitrine não encontrado para atualização.",
+      fields,
     };
   }
 
@@ -1960,6 +1991,7 @@ export async function updateShowcaseItemAction(
     return {
       ok: false,
       error: parsed.error.issues[0]?.message ?? "Não foi possível atualizar o item da vitrine.",
+      fields,
     };
   }
 
@@ -2020,6 +2052,7 @@ export async function updateShowcaseItemAction(
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Não foi possível atualizar o item da vitrine.",
+      fields,
     };
   }
 }

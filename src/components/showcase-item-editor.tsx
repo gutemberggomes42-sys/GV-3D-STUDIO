@@ -30,8 +30,47 @@ const initialState: ActionState = { ok: false };
 export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseItemEditorProps) {
   const [updateState, updateAction] = useActionState(updateShowcaseItemAction, initialState);
   const [deleteState, deleteAction] = useActionState(deleteShowcaseItemAction, initialState);
-  const [price, setPrice] = useState(item.price.toFixed(2));
-  const [fulfillmentType, setFulfillmentType] = useState<"STOCK" | "MADE_TO_ORDER">(item.fulfillmentType);
+  const formKey = JSON.stringify(updateState.fields ?? {});
+
+  return (
+    <ShowcaseItemEditorContent
+      key={formKey}
+      item={item}
+      interestCount={interestCount}
+      materials={materials}
+      updateState={updateState}
+      updateAction={updateAction}
+      deleteState={deleteState}
+      deleteAction={deleteAction}
+    />
+  );
+}
+
+type ShowcaseItemEditorContentProps = ShowcaseItemEditorProps & {
+  updateState: ActionState;
+  updateAction: (payload: FormData) => void;
+  deleteState: ActionState;
+  deleteAction: (payload: FormData) => void;
+};
+
+function ShowcaseItemEditorContent({
+  item,
+  interestCount,
+  materials,
+  updateState,
+  updateAction,
+  deleteState,
+  deleteAction,
+}: ShowcaseItemEditorContentProps) {
+  const fields = updateState.fields ?? {};
+  const [price, setPrice] = useState(fields.price ?? item.price.toFixed(2));
+  const [fulfillmentType, setFulfillmentType] = useState<"STOCK" | "MADE_TO_ORDER">(
+    fields.fulfillmentType === "MADE_TO_ORDER"
+      ? "MADE_TO_ORDER"
+      : fields.fulfillmentType === "STOCK"
+        ? "STOCK"
+        : item.fulfillmentType,
+  );
   const managesStock = fulfillmentType === "STOCK";
   const gallery = getShowcaseGallery(item);
   const primaryImage = getShowcasePrimaryImage(item);
@@ -134,7 +173,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                   Nome do item
                   <input
                     name="name"
-                    defaultValue={item.name}
+                    defaultValue={fields.name ?? item.name}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                   />
                 </label>
@@ -143,7 +182,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                   <input
                     name="category"
                     list={`showcase-category-options-${item.id}`}
-                    defaultValue={item.category}
+                    defaultValue={fields.category ?? item.category}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                   />
                 </label>
@@ -166,7 +205,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                     type="number"
                     step="0.1"
                     min="0.1"
-                    defaultValue={item.estimatedPrintHours}
+                    defaultValue={fields.estimatedPrintHours ?? String(item.estimatedPrintHours)}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                   />
                 </label>
@@ -195,7 +234,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                         type="number"
                         min="0"
                         step="1"
-                        defaultValue={item.stockQuantity}
+                        defaultValue={fields.stockQuantity ?? String(item.stockQuantity)}
                         className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                       />
                     </label>
@@ -206,7 +245,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                         type="number"
                         min="0"
                         step="1"
-                        defaultValue={0}
+                        defaultValue={fields.restockQuantity ?? "0"}
                         className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                       />
                     </label>
@@ -223,7 +262,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                         type="number"
                         min="1"
                         step="1"
-                        defaultValue={item.leadTimeDays || 7}
+                        defaultValue={fields.leadTimeDays ?? String(item.leadTimeDays || 7)}
                         className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                       />
                     </label>
@@ -234,7 +273,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                   Material principal
                   <input
                     name="materialLabel"
-                    defaultValue={item.materialLabel ?? ""}
+                    defaultValue={fields.materialLabel ?? item.materialLabel ?? ""}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                   />
                 </label>
@@ -243,7 +282,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                   Medidas
                   <input
                     name="dimensionSummary"
-                    defaultValue={item.dimensionSummary ?? ""}
+                    defaultValue={fields.dimensionSummary ?? item.dimensionSummary ?? ""}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                   />
                 </label>
@@ -254,7 +293,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                   Filamento / material vinculado
                   <select
                     name="materialId"
-                    defaultValue={item.materialId ?? ""}
+                    defaultValue={fields.materialId ?? item.materialId ?? ""}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                   >
                     <option value="">Selecionar depois</option>
@@ -273,7 +312,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                     type="number"
                     min="0"
                     step="0.01"
-                    defaultValue={item.estimatedMaterialGrams}
+                    defaultValue={fields.estimatedMaterialGrams ?? String(item.estimatedMaterialGrams)}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                   />
                 </label>
@@ -290,7 +329,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                   Resumo curto / chamada
                   <input
                     name="tagline"
-                    defaultValue={item.tagline ?? ""}
+                    defaultValue={fields.tagline ?? item.tagline ?? ""}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                   />
                 </label>
@@ -298,7 +337,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                   Cores disponiveis
                   <input
                     name="colorOptions"
-                    defaultValue={item.colorOptions.join(", ")}
+                    defaultValue={fields.colorOptions ?? item.colorOptions.join(", ")}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                   />
                 </label>
@@ -309,7 +348,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                 <textarea
                   name="description"
                   rows={5}
-                  defaultValue={item.description}
+                  defaultValue={fields.description ?? item.description}
                   className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                 />
               </label>
@@ -321,7 +360,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                   Imagem principal por URL
                   <input
                     name="imageUrl"
-                    defaultValue={item.imageUrl ?? ""}
+                    defaultValue={fields.imageUrl ?? item.imageUrl ?? ""}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                   />
                 </label>
@@ -329,7 +368,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                   Video principal por URL
                   <input
                     name="videoUrl"
-                    defaultValue={item.videoUrl ?? ""}
+                    defaultValue={fields.videoUrl ?? item.videoUrl ?? ""}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                   />
                 </label>
@@ -362,7 +401,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                   <textarea
                     name="galleryImageUrls"
                     rows={4}
-                    defaultValue={serializeShowcaseList(item.galleryImageUrls)}
+                    defaultValue={fields.galleryImageUrls ?? serializeShowcaseList(item.galleryImageUrls)}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                   />
                 </label>
@@ -380,12 +419,22 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
 
               <div className="grid gap-3 md:grid-cols-2">
                 <label className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/75">
-                  <input type="checkbox" name="featured" defaultChecked={item.featured} className="h-4 w-4 rounded border-white/20" />
+                  <input
+                    type="checkbox"
+                    name="featured"
+                    defaultChecked={fields.featured ? fields.featured === "true" : item.featured}
+                    className="h-4 w-4 rounded border-white/20"
+                  />
                   Destacar no topo da vitrine
                 </label>
 
                 <label className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white/75">
-                  <input type="checkbox" name="active" defaultChecked={item.active} className="h-4 w-4 rounded border-white/20" />
+                  <input
+                    type="checkbox"
+                    name="active"
+                    defaultChecked={fields.active ? fields.active === "true" : item.active}
+                    className="h-4 w-4 rounded border-white/20"
+                  />
                   Exibir na vitrine
                 </label>
               </div>

@@ -15,8 +15,30 @@ type ShowcaseItemFormProps = {
 
 export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
   const [state, formAction] = useActionState(createShowcaseItemAction, initialState);
-  const [price, setPrice] = useState("");
-  const [fulfillmentType, setFulfillmentType] = useState<"STOCK" | "MADE_TO_ORDER">("STOCK");
+  const formKey = JSON.stringify(state.fields ?? {});
+
+  return (
+    <ShowcaseItemFormContent
+      key={formKey}
+      state={state}
+      formAction={formAction}
+      materials={materials}
+    />
+  );
+}
+
+type ShowcaseItemFormContentProps = {
+  state: ActionState;
+  formAction: (payload: FormData) => void;
+  materials: DbMaterial[];
+};
+
+function ShowcaseItemFormContent({ state, formAction, materials }: ShowcaseItemFormContentProps) {
+  const fields = state.fields ?? {};
+  const [price, setPrice] = useState(fields.price ?? "");
+  const [fulfillmentType, setFulfillmentType] = useState<"STOCK" | "MADE_TO_ORDER">(
+    fields.fulfillmentType === "MADE_TO_ORDER" ? "MADE_TO_ORDER" : "STOCK",
+  );
   const managesStock = fulfillmentType === "STOCK";
 
   return (
@@ -50,6 +72,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
             Nome do item
             <input
               name="name"
+              defaultValue={fields.name ?? ""}
               placeholder="Fidget Ovo de Dragao"
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             />
@@ -59,6 +82,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
             <input
               name="category"
               list="showcase-category-options"
+              defaultValue={fields.category ?? ""}
               placeholder="Geek"
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             />
@@ -83,7 +107,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
               type="number"
               step="0.1"
               min="0.1"
-              defaultValue="1"
+              defaultValue={fields.estimatedPrintHours ?? "1"}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             />
           </label>
@@ -111,7 +135,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
                 type="number"
                 min="0"
                 step="1"
-                defaultValue="0"
+                defaultValue={fields.stockQuantity ?? "0"}
                 className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
               />
             </label>
@@ -125,7 +149,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
                   type="number"
                   min="1"
                   step="1"
-                  defaultValue="7"
+                  defaultValue={fields.leadTimeDays ?? "7"}
                   className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
                 />
               </label>
@@ -138,6 +162,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
             Material principal
             <input
               name="materialLabel"
+              defaultValue={fields.materialLabel ?? ""}
               placeholder="PLA Premium"
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             />
@@ -147,6 +172,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
             Medidas
             <input
               name="dimensionSummary"
+              defaultValue={fields.dimensionSummary ?? ""}
               placeholder="18 x 12 x 8 cm"
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             />
@@ -158,7 +184,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
             Filamento / material vinculado
             <select
               name="materialId"
-              defaultValue=""
+              defaultValue={fields.materialId ?? ""}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             >
               <option value="">Selecionar depois</option>
@@ -177,7 +203,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
               type="number"
               min="0"
               step="0.01"
-              defaultValue="0"
+              defaultValue={fields.estimatedMaterialGrams ?? "0"}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             />
           </label>
@@ -199,6 +225,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
             Resumo curto / chamada
             <input
               name="tagline"
+              defaultValue={fields.tagline ?? ""}
               placeholder="Peca decorativa impressa em 3D com acabamento elegante."
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             />
@@ -207,6 +234,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
             Cores disponiveis
             <input
               name="colorOptions"
+              defaultValue={fields.colorOptions ?? ""}
               placeholder="Preto, Branco, Dourado"
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             />
@@ -218,6 +246,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
           <textarea
             name="description"
             rows={5}
+            defaultValue={fields.description ?? ""}
             placeholder="Explique o item, o material, as aplicacoes, as possibilidades de cor e por que essa peca chama atencao."
             className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
           />
@@ -235,6 +264,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
             Imagem principal por URL
             <input
               name="imageUrl"
+              defaultValue={fields.imageUrl ?? ""}
               placeholder="/uploads/minha-peca.jpg"
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             />
@@ -255,6 +285,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
             Video por URL
             <input
               name="videoUrl"
+              defaultValue={fields.videoUrl ?? ""}
               placeholder="/uploads/peca.mp4"
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             />
@@ -276,6 +307,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
             <textarea
               name="galleryImageUrls"
               rows={4}
+              defaultValue={fields.galleryImageUrls ?? ""}
               placeholder={"/uploads/angulo-1.jpg\n/uploads/angulo-2.jpg"}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             />
@@ -299,12 +331,22 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
 
       <div className="grid gap-3 md:grid-cols-2">
         <label className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white/75">
-          <input type="checkbox" name="featured" className="h-4 w-4 rounded border-white/20" />
+          <input
+            type="checkbox"
+            name="featured"
+            defaultChecked={fields.featured === "true"}
+            className="h-4 w-4 rounded border-white/20"
+          />
           Destacar no topo da vitrine
         </label>
 
         <label className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white/75">
-          <input type="checkbox" name="active" defaultChecked className="h-4 w-4 rounded border-white/20" />
+          <input
+            type="checkbox"
+            name="active"
+            defaultChecked={fields.active ? fields.active === "true" : true}
+            className="h-4 w-4 rounded border-white/20"
+          />
           Exibir na vitrine
         </label>
       </div>
