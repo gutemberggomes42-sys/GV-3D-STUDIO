@@ -78,6 +78,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const user = await requireRoles([UserRole.SUPERVISOR, UserRole.ADMIN]);
   const params = searchParams ? await searchParams : {};
   const rawSection = typeof params.section === "string" ? params.section : undefined;
+  const message = typeof params.message === "string" ? params.message : undefined;
   const activeSection = isAdminSection(rawSection) ? rawSection : "summary";
   const { orders, materials, machines, users, showcaseItems, showcaseInquiries, auditLogs } =
     await getHydratedData();
@@ -307,6 +308,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       title="Painel administrativo"
       subtitle="Separei o administrativo em áreas com botões próprios para você abrir só o que precisa, sem deixar tudo misturado no mesmo lugar."
     >
+      {message ? (
+        <div className="rounded-[24px] border border-emerald-400/20 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-50">
+          {message}
+        </div>
+      ) : null}
+
       <section className="grid gap-4 xl:grid-cols-4">
         <MetricCard label="Receita da operação" value={formatCurrency(summaryRevenue)} caption="Pedidos pagos e pedidos da vitrine já finalizados." accent="orange" />
         <MetricCard label="Pedidos ativos" value={String(summaryActiveOrders)} caption="Pedidos internos e da vitrine ainda não encerrados." accent="mint" />

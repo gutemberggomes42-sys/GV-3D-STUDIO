@@ -447,6 +447,10 @@ function normalizeRedirectTarget(value: FormDataEntryValue | null) {
   return target;
 }
 
+function buildAdminShowcaseSectionUrl(message: string) {
+  return `/admin?section=vitrine&message=${encodeURIComponent(message)}`;
+}
+
 function generateOrderNumber(existingOrders: DbOrder[]) {
   const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const todaysOrders = existingOrders.filter((order) => order.orderNumber.includes(datePart)).length + 1;
@@ -1923,10 +1927,7 @@ export async function createShowcaseItemAction(
     });
 
     revalidateAll();
-    return {
-      ok: true,
-      message: "Item da vitrine salvo com sucesso.",
-    };
+    redirect(buildAdminShowcaseSectionUrl("Item da vitrine salvo com sucesso."));
   } catch (error) {
     return {
       ok: false,
@@ -2008,13 +2009,13 @@ export async function updateShowcaseItemAction(
     });
 
     revalidateAll();
-    return {
-      ok: true,
-      message:
+    redirect(
+      buildAdminShowcaseSectionUrl(
         parsed.data.fulfillmentType === "STOCK" && restockQuantity > 0
           ? "Item da vitrine atualizado com reposição de estoque aplicada."
           : "Item da vitrine atualizado com sucesso.",
-    };
+      ),
+    );
   } catch (error) {
     return {
       ok: false,
@@ -2056,10 +2057,7 @@ export async function deleteShowcaseItemAction(
     });
 
     revalidateAll();
-    return {
-      ok: true,
-      message: "Item da vitrine excluído com sucesso.",
-    };
+    redirect(buildAdminShowcaseSectionUrl("Item da vitrine excluído com sucesso."));
   } catch (error) {
     return {
       ok: false,
