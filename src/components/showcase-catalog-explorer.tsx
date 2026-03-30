@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
-import { ArrowRight, Boxes, Clock3, MessageCircleMore, PackageCheck, Search, ShieldCheck, Sparkles, SwatchBook } from "lucide-react";
+import { ArrowRight, Boxes, Clock3, MessageCircleMore, PackageCheck, Play, Search, ShieldCheck, Sparkles, SwatchBook } from "lucide-react";
 import type { DbShowcaseItem } from "@/lib/db-types";
 import { formatCurrency } from "@/lib/format";
 import {
@@ -163,14 +163,25 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                       Produto destaque
                     </span>
                     {getShowcasePrimaryVideo(featuredItem) ? (
-                      <span className="rounded-full border border-cyan-300/30 bg-cyan-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
-                        Com video
+                      <span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                        <Play className="h-3.5 w-3.5 fill-current" />
+                        Assista ao video
                       </span>
                     ) : null}
                     <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80">
                       {getShowcaseCategoryLabel(featuredItem)}
                     </span>
                   </div>
+
+                  {getShowcasePrimaryVideo(featuredItem) ? (
+                    <div className="absolute right-4 top-16 rounded-[22px] border border-cyan-300/25 bg-slate-950/72 px-4 py-3 text-right backdrop-blur">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-100/80">Midia em destaque</p>
+                      <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-white">
+                        <Play className="h-4 w-4 fill-cyan-300 text-cyan-300" />
+                        Veja o produto em movimento
+                      </p>
+                    </div>
+                  ) : null}
 
                   <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
                     <div className="flex items-end justify-between gap-4">
@@ -372,14 +383,24 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                       {getShowcaseCategoryLabel(item)}
                     </span>
                     {primaryVideo ? (
-                      <span className="rounded-full border border-cyan-400/25 bg-cyan-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100 backdrop-blur">
-                        Video
+                      <span className="inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-cyan-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100 backdrop-blur">
+                        <Play className="h-3.5 w-3.5 fill-current" />
+                        Assista ao video
                       </span>
                     ) : null}
                     <span className="rounded-full border border-emerald-400/25 bg-emerald-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100 backdrop-blur">
                       {availabilityLabel}
                     </span>
                   </div>
+
+                  {primaryVideo ? (
+                    <div className="absolute left-4 right-4 top-16 flex">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-slate-950/78 px-4 py-2 text-xs font-semibold text-white shadow-[0_12px_30px_rgba(0,0,0,0.25)] backdrop-blur">
+                        <Play className="h-4 w-4 fill-cyan-300 text-cyan-300" />
+                        Assista ao video deste produto
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="absolute inset-x-0 bottom-0 p-5">
                     <div className="flex items-end justify-between gap-4">
@@ -423,6 +444,12 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                   </div>
 
                   <div className="mt-auto pt-5">
+                    {primaryVideo ? (
+                      <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100">
+                        <Play className="h-3.5 w-3.5 fill-current" />
+                        Este item tem video na pagina completa
+                      </p>
+                    ) : null}
                     <Link
                       href={`/produto/${item.id}`}
                       className="inline-flex items-center gap-2 text-sm font-semibold text-orange-200 transition hover:text-orange-100"
