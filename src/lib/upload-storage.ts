@@ -1,17 +1,54 @@
 import { access, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { Pool } from "pg";
 import { sanitizeFileName } from "@/lib/pricing";
 
 const runtimeUploadsDirectory = path.join(process.cwd(), "storage", "uploads");
 const legacyUploadsDirectory = path.join(process.cwd(), "public", "uploads");
+const postgresUploadsTable = "printflow_upload_objects";
+
+export type ResolvedUpload =
+  | {
+      kind: "inline";
+      body: Buffer;
+      contentType: string;
+    }
+  | {
+      kind: "path";
+      path: string;
+      contentType: string;
+    };
+
+type PgUploadRow = {
+  file_name: string;
+  content_type: string;
+  payload: Buffer;
+};
 
 function getSafeUploadFileName(fileName: string) {
   return path.basename(fileName).trim();
 }
 
 function getStorageProvider() {
-  return (process.env.PRINTFLOW_STORAGE_PROVIDER?.trim().toLowerCase() || "local") as "local" | "s3";
+  return (process.env.PRINTFLOW_STORAGE_PROVIDER?.trim().toLowerCase() || "local") as
+    | "local"
+    | "s3"
+    | "postgres";
+}
+
+function getPostgresConnectionString() {
+  return process.env.PRINTFLOW_POSTGRES_URL?.trim() || process.env.POSTGRES_DATABASE_URL?.trim() || "";
+}
+
+function resolvePostgresSsl() {
+  const sslMode = (process.env.PRINTFLOW_POSTGRES_SSL?.trim() || "require").toLowerCase();
+
+  if (sslMode === "disable" || sslMode === "off" || sslMode === "false" || sslMode === "0") {
+    return undefined;
+  }
+
+  return { rejectUnauthorized: false };
 }
 
 function encodeObjectKey(objectKey: string) {
@@ -48,6 +85,8 @@ function getS3Config() {
 }
 
 let s3Client: S3Client | null = null;
+let postgresPool: Pool | null = null;
+let postgresSchemaPromise: Promise<void> | null = null;
 
 function getS3Client() {
   const config = getS3Config();
@@ -67,8 +106,54 @@ function getS3Client() {
   return s3Client;
 }
 
+function getPostgresPool() {
+  const connectionString = getPostgresConnectionString();
+
+  if (!connectionString) {
+    throw new Error("Configure PRINTFLOW_POSTGRES_URL para usar storage em PostgreSQL.");
+  }
+
+  if (!postgresPool) {
+    postgresPool = new Pool({
+      connectionString,
+      ssl: resolvePostgresSsl(),
+    });
+  }
+
+  return postgresPool;
+}
+
+async function ensurePostgresUploadSchema() {
+  if (getStorageProvider() !== "postgres") {
+    return;
+  }
+
+  if (!postgresSchemaPromise) {
+    postgresSchemaPromise = (async () => {
+      const pool = getPostgresPool();
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS ${postgresUploadsTable} (
+          file_name TEXT PRIMARY KEY,
+          content_type TEXT NOT NULL,
+          payload BYTEA NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+    })().catch((error) => {
+      postgresSchemaPromise = null;
+      throw error;
+    });
+  }
+
+  await postgresSchemaPromise;
+}
+
+function buildRuntimeUploadName(fileName: string) {
+  return `${Date.now()}-${sanitizeFileName(fileName)}`;
+}
+
 function buildS3ObjectKey(fileName: string) {
-  const sanitizedName = `${Date.now()}-${sanitizeFileName(fileName)}`;
+  const sanitizedName = buildRuntimeUploadName(fileName);
   const { prefix } = getS3Config();
   return prefix ? `${prefix}/${sanitizedName}` : sanitizedName;
 }
@@ -99,7 +184,7 @@ function buildS3PublicUrl(objectKey: string) {
 
 async function saveUploadedFileLocally(file: File) {
   await mkdir(runtimeUploadsDirectory, { recursive: true });
-  const sanitizedName = `${Date.now()}-${sanitizeFileName(file.name)}`;
+  const sanitizedName = buildRuntimeUploadName(file.name);
   const absolutePath = path.join(runtimeUploadsDirectory, sanitizedName);
   const bytes = await file.arrayBuffer();
   await writeFile(absolutePath, Buffer.from(bytes));
@@ -124,24 +209,40 @@ async function saveUploadedFileToS3(file: File) {
   return buildS3PublicUrl(objectKey);
 }
 
+async function saveUploadedFileToPostgres(file: File) {
+  await ensurePostgresUploadSchema();
+  const pool = getPostgresPool();
+  const fileName = buildRuntimeUploadName(file.name);
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const contentType = file.type || getUploadContentType(file.name);
+
+  await pool.query(
+    `
+      INSERT INTO ${postgresUploadsTable} (file_name, content_type, payload, created_at)
+      VALUES ($1, $2, $3, NOW())
+    `,
+    [fileName, contentType, bytes],
+  );
+
+  return `/uploads/${fileName}`;
+}
+
 export async function saveUploadedFile(file: File) {
   if (getStorageProvider() === "s3") {
     return saveUploadedFileToS3(file);
   }
 
+  if (getStorageProvider() === "postgres") {
+    return saveUploadedFileToPostgres(file);
+  }
+
   return saveUploadedFileLocally(file);
 }
 
-export async function resolveUploadPath(fileName: string) {
-  const safeFileName = getSafeUploadFileName(fileName);
-
-  if (!safeFileName || safeFileName !== fileName) {
-    return null;
-  }
-
+async function resolveLocalUploadPath(fileName: string) {
   const candidatePaths = [
-    path.join(runtimeUploadsDirectory, safeFileName),
-    path.join(legacyUploadsDirectory, safeFileName),
+    path.join(runtimeUploadsDirectory, fileName),
+    path.join(legacyUploadsDirectory, fileName),
   ];
 
   for (const candidatePath of candidatePaths) {
@@ -151,6 +252,67 @@ export async function resolveUploadPath(fileName: string) {
     } catch {
       continue;
     }
+  }
+
+  return null;
+}
+
+async function resolvePostgresUpload(fileName: string) {
+  const connectionString = getPostgresConnectionString();
+
+  if (!connectionString) {
+    return null;
+  }
+
+  const pool = getPostgresPool();
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ${postgresUploadsTable} (
+      file_name TEXT PRIMARY KEY,
+      content_type TEXT NOT NULL,
+      payload BYTEA NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  const { rows } = await pool.query<PgUploadRow>(
+    `
+      SELECT file_name, content_type, payload
+      FROM ${postgresUploadsTable}
+      WHERE file_name = $1
+      LIMIT 1
+    `,
+    [fileName],
+  );
+
+  if (!rows.length) {
+    return null;
+  }
+
+  return {
+    kind: "inline" as const,
+    body: rows[0].payload,
+    contentType: rows[0].content_type || getUploadContentType(fileName),
+  };
+}
+
+export async function resolveStoredUpload(fileName: string): Promise<ResolvedUpload | null> {
+  const safeFileName = getSafeUploadFileName(fileName);
+
+  if (!safeFileName || safeFileName !== fileName) {
+    return null;
+  }
+
+  const postgresUpload = await resolvePostgresUpload(safeFileName);
+  if (postgresUpload) {
+    return postgresUpload;
+  }
+
+  const localPath = await resolveLocalUploadPath(safeFileName);
+  if (localPath) {
+    return {
+      kind: "path",
+      path: localPath,
+      contentType: getUploadContentType(safeFileName),
+    };
   }
 
   return null;

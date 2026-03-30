@@ -69,9 +69,10 @@ Modos suportados:
 
 - `local`: usa JSON em disco e uploads em `storage/uploads`
 - `postgres`: salva todo o `snapshot` principal em PostgreSQL e mantém backups no banco
+- `postgres` também pode armazenar fotos e vídeos na tabela de uploads do próprio banco
 - `s3`: envia fotos e vídeos para um bucket externo, retornando URL pública no sistema
 
-Se `PRINTFLOW_POSTGRES_URL` estiver configurado, o sistema migra automaticamente o conteúdo do JSON local para o banco na primeira leitura. Se `PRINTFLOW_STORAGE_PROVIDER=s3`, os novos uploads passam a ser enviados para o bucket externo.
+Se `PRINTFLOW_POSTGRES_URL` estiver configurado, o sistema migra automaticamente o conteúdo do JSON local para o banco na primeira leitura. Se `PRINTFLOW_STORAGE_PROVIDER=postgres`, os novos uploads passam a ser armazenados no próprio PostgreSQL. Se `PRINTFLOW_STORAGE_PROVIDER=s3`, os novos uploads passam a ser enviados para o bucket externo.
 
 ## Variáveis de ambiente
 
@@ -82,7 +83,7 @@ Banco principal opcional:
 
 Storage profissional opcional:
 
-- `PRINTFLOW_STORAGE_PROVIDER=local|s3`
+- `PRINTFLOW_STORAGE_PROVIDER=local|postgres|s3`
 - `PRINTFLOW_S3_BUCKET`
 - `PRINTFLOW_S3_REGION`
 - `PRINTFLOW_S3_ACCESS_KEY_ID`
@@ -104,6 +105,7 @@ Agora o projeto pode rodar de 3 formas no Render:
 
 - `fallback local`: disco persistente + JSON local
 - `PostgreSQL`: banco principal no Render/Supabase/Neon usando `PRINTFLOW_POSTGRES_URL`
+- `PostgreSQL + uploads`: banco principal e mídia no próprio Postgres do Render
 - `S3`: mídia profissional em bucket externo para fotos e vídeos
 
 - [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/gutemberggomes42-sys/PrintFlow-3D)

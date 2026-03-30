@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { getUploadContentType, resolveUploadPath } from "@/lib/upload-storage";
+import { resolveStoredUpload } from "@/lib/upload-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -8,17 +8,20 @@ export async function GET(
   { params }: { params: Promise<{ filename: string }> },
 ) {
   const { filename } = await params;
-  const uploadPath = await resolveUploadPath(filename);
+  const upload = await resolveStoredUpload(filename);
 
-  if (!uploadPath) {
+  if (!upload) {
     return new Response("Arquivo não encontrado.", { status: 404 });
   }
 
-  const fileBuffer = await readFile(uploadPath);
+  const fileBytes =
+    upload.kind === "inline"
+      ? Uint8Array.from(upload.body)
+      : new Uint8Array(await readFile(upload.path));
 
-  return new Response(fileBuffer, {
+  return new Response(fileBytes, {
     headers: {
-      "Content-Type": getUploadContentType(filename),
+      "Content-Type": upload.contentType,
       "Cache-Control": "public, max-age=31536000, immutable",
     },
   });
