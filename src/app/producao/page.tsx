@@ -122,11 +122,16 @@ export default async function ProductionPage() {
                 <article key={inquiry.id} className="rounded-[24px] border border-emerald-400/15 bg-slate-950/60 p-4">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <p className="text-sm text-white/45">Pedido WhatsApp</p>
+                      <p className="text-sm text-white/45">{inquiry.orderNumber ?? "Pedido WhatsApp"}</p>
                       <h4 className="text-xl font-semibold">{inquiry.itemName}</h4>
                       <p className="mt-1 text-sm text-white/60">
                         {inquiry.customerName} · Quantidade {inquiry.quantity}
                       </p>
+                      {inquiry.dueDate ? (
+                        <p className="mt-1 text-sm text-white/55">
+                          Prazo {formatDateOnly(new Date(inquiry.dueDate))}
+                        </p>
+                      ) : null}
                     </div>
                     <StatusPill {...showcaseOrderStageMeta[inquiry.stage]} />
                   </div>
@@ -243,11 +248,16 @@ export default async function ProductionPage() {
                 <article key={inquiry.id} className="rounded-[24px] border border-emerald-400/15 bg-slate-950/60 p-4">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <p className="text-sm text-white/45">Pedido WhatsApp</p>
+                      <p className="text-sm text-white/45">{inquiry.orderNumber ?? "Pedido WhatsApp"}</p>
                       <h4 className="text-xl font-semibold">{inquiry.itemName}</h4>
                       <p className="mt-1 text-sm text-white/60">
                         {inquiry.customerName} · Quantidade {inquiry.quantity}
                       </p>
+                      {inquiry.dueDate ? (
+                        <p className="mt-1 text-sm text-white/55">
+                          Prazo {formatDateOnly(new Date(inquiry.dueDate))}
+                        </p>
+                      ) : null}
                     </div>
                     <StatusPill {...showcaseOrderStageMeta[inquiry.stage]} />
                   </div>

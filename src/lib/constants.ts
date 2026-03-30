@@ -10,6 +10,7 @@ import {
 } from "@prisma/client";
 import type {
   DbExpenseCategory,
+  DbPayableStatus,
   ShowcaseLeadTemperature,
   ShowcaseInquiryStatus,
   ShowcaseOrderStage,
@@ -63,6 +64,12 @@ export const expenseCategoryLabels: Record<DbExpenseCategory, string> = {
   MACHINE_PARTS: "Peças / manutenção",
   SOFTWARE: "Software / serviços",
   OTHER: "Outro gasto",
+};
+
+export const payableStatusLabels: Record<DbPayableStatus, string> = {
+  PENDING: "Pendente",
+  PAID: "Pago",
+  OVERDUE: "Vencido",
 };
 
 export const finishLabels: Record<FinishLevel, string> = {

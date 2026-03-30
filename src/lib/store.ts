@@ -1,14 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { hashSync } from "bcryptjs";
 import { UserRole } from "@prisma/client";
 import { ownerEmail } from "@/lib/constants";
-import type { PrintFlowDb } from "@/lib/db-types";
+import type { DbBackupSnapshot, PrintFlowDb } from "@/lib/db-types";
 import { createInitialData } from "@/lib/seed-data";
 
 const dataDirectory = path.join(process.cwd(), "storage");
 const dataPath = path.join(dataDirectory, "printflow-db.json");
+const backupDirectory = path.join(dataDirectory, "backups");
+const maxBackupFiles = 30;
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -20,6 +22,7 @@ function sortByDateDesc<T extends { createdAt: string }>(items: T[]) {
 
 async function ensureDataFile() {
   await mkdir(dataDirectory, { recursive: true });
+  await mkdir(backupDirectory, { recursive: true });
 
   try {
     await readFile(dataPath, "utf8");
@@ -105,6 +108,18 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
       ...expense,
       notes: expense.notes ?? undefined,
     })),
+    payables: (data.payables ?? initial.payables).map((payable) => ({
+      ...payable,
+      status:
+        payable.status === "PAID"
+          ? "PAID"
+          : new Date(payable.dueDate).getTime() < Date.now()
+            ? "OVERDUE"
+            : "PENDING",
+      paidAt: payable.paidAt ?? undefined,
+      vendor: payable.vendor ?? undefined,
+      notes: payable.notes ?? undefined,
+    })),
     orders: (data.orders ?? initial.orders).map((order) => {
       const normalizedOrder = order as Partial<PrintFlowDb["orders"][number]>;
       return {
@@ -150,6 +165,7 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
       const normalizedInquiry = inquiry as Partial<PrintFlowDb["showcaseInquiries"][number]>;
       return {
         ...inquiry,
+        orderNumber: normalizedInquiry.orderNumber ?? undefined,
         customerEmail: normalizedInquiry.customerEmail ?? "",
         customerPhone: normalizedInquiry.customerPhone ?? undefined,
         source: normalizedInquiry.source ?? "CATALOG",
@@ -170,6 +186,7 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
         materialConsumedAt: normalizedInquiry.materialConsumedAt ?? undefined,
         materialConsumptionGrams: normalizedInquiry.materialConsumptionGrams ?? 0,
         materialConsumptionValue: normalizedInquiry.materialConsumptionValue ?? 0,
+        dueDate: normalizedInquiry.dueDate ?? undefined,
       };
     }),
     auditLogs: (data.auditLogs ?? initial.auditLogs).map((entry) => ({
@@ -188,7 +205,49 @@ export async function readDb() {
 
 export async function writeDb(data: PrintFlowDb) {
   await ensureDataFile();
-  await writeFile(dataPath, JSON.stringify(data, null, 2), "utf8");
+  const serialized = JSON.stringify(data, null, 2);
+  await writeFile(dataPath, serialized, "utf8");
+  await saveBackupSnapshot(serialized);
+}
+
+async function saveBackupSnapshot(serialized: string) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const fileName = `printflow-backup-${stamp}.json`;
+  const backupPath = path.join(backupDirectory, fileName);
+  await writeFile(backupPath, serialized, "utf8");
+
+  const backupFiles = (await readdir(backupDirectory))
+    .filter((entry) => entry.endsWith(".json"))
+    .sort((left, right) => right.localeCompare(left));
+
+  const staleFiles = backupFiles.slice(maxBackupFiles);
+
+  await Promise.all(
+    staleFiles.map((entry) => rm(path.join(backupDirectory, entry), { force: true })),
+  );
+}
+
+export async function listBackupSnapshots(): Promise<DbBackupSnapshot[]> {
+  await ensureDataFile();
+  const entries = await readdir(backupDirectory);
+  const jsonFiles = entries.filter((entry) => entry.endsWith(".json"));
+  const snapshots = await Promise.all(
+    jsonFiles.map(async (fileName) => {
+      const filePath = path.join(backupDirectory, fileName);
+      const fileStat = await stat(filePath);
+      return {
+        fileName,
+        createdAt: fileStat.birthtime.toISOString(),
+        sizeBytes: fileStat.size,
+      };
+    }),
+  );
+
+  return snapshots.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+export function getBackupFilePath(fileName: string) {
+  return path.join(backupDirectory, path.basename(fileName));
 }
 
 let updateQueue = Promise.resolve();
@@ -222,6 +281,7 @@ export async function getSnapshot() {
     materials: clone(db.materials),
     machines: clone(db.machines),
     expenses: clone(db.expenses),
+    payables: clone(db.payables),
     orders: sortByDateDesc(db.orders),
     showcaseItems: sortByDateDesc(db.showcaseItems),
     showcaseInquiries: sortByDateDesc(db.showcaseInquiries),

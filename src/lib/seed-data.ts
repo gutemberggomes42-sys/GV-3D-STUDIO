@@ -7,6 +7,7 @@ export function createInitialData(): PrintFlowDb {
     materials: [],
     machines: [],
     expenses: [],
+    payables: [],
     orders: [],
     showcaseItems: [],
     showcaseInquiries: [],

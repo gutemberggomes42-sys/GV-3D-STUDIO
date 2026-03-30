@@ -1,16 +1,23 @@
 import { PaymentStatus, UserRole } from "@prisma/client";
-import { deleteExpenseAction } from "@/lib/actions";
+import {
+  deleteExpenseAction,
+  deletePayableAction,
+  updatePayableStatusAction,
+} from "@/lib/actions";
 import { AppShell } from "@/components/app-shell";
 import { ExpenseForm } from "@/components/expense-form";
 import { MetricCard } from "@/components/metric-card";
+import { PayableForm } from "@/components/payable-form";
+import { SubmitButton } from "@/components/submit-button";
 import { requireRoles } from "@/lib/auth";
 import {
   expenseCategoryLabels,
   paymentMethodLabels,
   paymentStatusLabels,
+  payableStatusLabels,
   showcaseOrderStageMeta,
 } from "@/lib/constants";
-import type { ShowcaseOrderStage } from "@/lib/db-types";
+import type { DbPayableStatus, ShowcaseOrderStage } from "@/lib/db-types";
 import { formatCurrency, formatDateOnly, formatMonthYear, formatWeight } from "@/lib/format";
 import { getHydratedData } from "@/lib/view-data";
 
@@ -45,8 +52,10 @@ function getMonthLabel(monthKey: string) {
 
 export default async function FinancePage() {
   const user = await requireRoles([UserRole.SUPERVISOR, UserRole.ADMIN]);
-  const { orders, showcaseItems, showcaseInquiries, materials, machines, expenses } =
+  const { orders, showcaseItems, showcaseInquiries, materials, machines, expenses, payables } =
     await getHydratedData();
+  const nowIso = new Date().toISOString();
+  const nowTime = new Date(nowIso).getTime();
   const showcaseItemMap = new Map(showcaseItems.map((item) => [item.id, item]));
   const materialMap = new Map(materials.map((material) => [material.id, material]));
   const showcaseReceivableStages = new Set<ShowcaseOrderStage>([
@@ -103,7 +112,7 @@ export default async function FinancePage() {
       .filter((inquiry) => showcaseRevenueStages.has(inquiry.stage))
       .map((inquiry) => ({
         id: inquiry.id,
-        orderLabel: `WhatsApp · ${inquiry.itemName}`,
+        orderLabel: inquiry.orderNumber ? `${inquiry.orderNumber} · ${inquiry.itemName}` : `WhatsApp · ${inquiry.itemName}`,
         customerLabel: inquiry.customerName,
         methodLabel: "WhatsApp",
         statusLabel: showcaseOrderStageMeta[inquiry.stage].label,
@@ -121,6 +130,25 @@ export default async function FinancePage() {
     0,
   );
   const receivable = receivableFromOrders + receivableFromShowcase;
+  const accountsPayable = payables
+    .map((payable) => {
+      const status: DbPayableStatus =
+        payable.status === "PAID"
+          ? "PAID"
+          : new Date(payable.dueDate).getTime() < nowTime
+            ? "OVERDUE"
+            : "PENDING";
+
+      return {
+        ...payable,
+        status,
+      };
+    })
+    .sort((left, right) => left.dueDate.localeCompare(right.dueDate));
+  const payableTotal = accountsPayable
+    .filter((entry) => entry.status !== "PAID")
+    .reduce((sum, entry) => sum + entry.amount, 0);
+  const overduePayables = accountsPayable.filter((entry) => entry.status === "OVERDUE");
 
   const machineInvestmentTotal = machines.reduce((sum, machine) => sum + machine.purchasePrice, 0);
   const machinePaidTotal = machines.reduce((sum, machine) => sum + machine.amountPaid, 0);
@@ -246,7 +274,7 @@ export default async function FinancePage() {
     })),
     ...showcaseFinancialOrders.map((inquiry) => ({
       id: inquiry.id,
-      orderLabel: `WhatsApp · ${inquiry.itemName}`,
+      orderLabel: inquiry.orderNumber ? `${inquiry.orderNumber} · ${inquiry.itemName}` : `WhatsApp · ${inquiry.itemName}`,
       customerLabel: inquiry.customerName,
       methodLabel: "WhatsApp",
       statusLabel: showcaseOrderStageMeta[inquiry.stage].label,
@@ -280,6 +308,16 @@ export default async function FinancePage() {
     string,
     { monthKey: string; revenue: number; expenses: number; result: number }
   >();
+  const dreMap = new Map<
+    string,
+    {
+      monthKey: string;
+      revenue: number;
+      materialCost: number;
+      operatingExpenses: number;
+      operatingProfit: number;
+    }
+  >();
 
   revenueEntries.forEach((entry) => {
     const monthKey = getMonthKey(entry.date);
@@ -292,6 +330,18 @@ export default async function FinancePage() {
     current.revenue += entry.value;
     current.result = current.revenue - current.expenses;
     monthlyMap.set(monthKey, current);
+
+    const dreCurrent = dreMap.get(monthKey) ?? {
+      monthKey,
+      revenue: 0,
+      materialCost: 0,
+      operatingExpenses: 0,
+      operatingProfit: 0,
+    };
+    dreCurrent.revenue += entry.value;
+    dreCurrent.operatingProfit =
+      dreCurrent.revenue - dreCurrent.materialCost - dreCurrent.operatingExpenses;
+    dreMap.set(monthKey, dreCurrent);
   });
 
   expenseEntries.forEach((entry) => {
@@ -305,12 +355,58 @@ export default async function FinancePage() {
     current.expenses += entry.value;
     current.result = current.revenue - current.expenses;
     monthlyMap.set(monthKey, current);
+
+    const dreCurrent = dreMap.get(monthKey) ?? {
+      monthKey,
+      revenue: 0,
+      materialCost: 0,
+      operatingExpenses: 0,
+      operatingProfit: 0,
+    };
+    dreCurrent.operatingExpenses += entry.value;
+    dreCurrent.operatingProfit =
+      dreCurrent.revenue - dreCurrent.materialCost - dreCurrent.operatingExpenses;
+    dreMap.set(monthKey, dreCurrent);
+  });
+
+  orders.forEach((order) => {
+    const date = order.paidAt ?? order.updatedAt;
+    const monthKey = getMonthKey(date);
+    const dreCurrent = dreMap.get(monthKey) ?? {
+      monthKey,
+      revenue: 0,
+      materialCost: 0,
+      operatingExpenses: 0,
+      operatingProfit: 0,
+    };
+    dreCurrent.materialCost += order.materialConsumptionValue ?? 0;
+    dreCurrent.operatingProfit =
+      dreCurrent.revenue - dreCurrent.materialCost - dreCurrent.operatingExpenses;
+    dreMap.set(monthKey, dreCurrent);
+  });
+
+  showcaseFinancialOrders.forEach((inquiry) => {
+    const monthKey = getMonthKey(inquiry.financialDate);
+    const dreCurrent = dreMap.get(monthKey) ?? {
+      monthKey,
+      revenue: 0,
+      materialCost: 0,
+      operatingExpenses: 0,
+      operatingProfit: 0,
+    };
+    dreCurrent.materialCost += inquiry.materialConsumptionValue ?? 0;
+    dreCurrent.operatingProfit =
+      dreCurrent.revenue - dreCurrent.materialCost - dreCurrent.operatingExpenses;
+    dreMap.set(monthKey, dreCurrent);
   });
 
   const monthlyPerformance = [...monthlyMap.values()].sort((left, right) =>
     right.monthKey.localeCompare(left.monthKey),
   );
   const monthsWithLoss = monthlyPerformance.filter((month) => month.result < 0).length;
+  const drePerformance = [...dreMap.values()].sort((left, right) =>
+    right.monthKey.localeCompare(left.monthKey),
+  );
   const productProfitabilityMap = new Map<
     string,
     {
@@ -397,6 +493,18 @@ export default async function FinancePage() {
           accent="blue"
         />
         <MetricCard
+          label="Contas a pagar"
+          value={formatCurrency(payableTotal)}
+          caption="Compromissos ainda não pagos."
+          accent="orange"
+        />
+        <MetricCard
+          label="Vencidas"
+          value={String(overduePayables.length)}
+          caption="Contas a pagar já vencidas."
+          accent="rose"
+        />
+        <MetricCard
           label="Gastos totais"
           value={formatCurrency(totalExpenses)}
           caption="Materiais, impressoras, manutenções e despesas manuais."
@@ -444,7 +552,8 @@ export default async function FinancePage() {
         />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <section className="grid gap-6 xl:grid-cols-[0.85fr_0.85fr_1.3fr]">
+        <PayableForm />
         <ExpenseForm />
 
         <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
@@ -513,6 +622,47 @@ export default async function FinancePage() {
 
       <section className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
         <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+          <p className="text-xs uppercase tracking-[0.24em] text-white/45">DRE mensal</p>
+          <h3 className="mt-2 text-2xl font-semibold">Receita, custo e operação</h3>
+          <div className="mt-6 overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="text-white/45">
+                <tr>
+                  <th className="pb-3 pr-4 font-medium">Mês</th>
+                  <th className="pb-3 pr-4 font-medium">Receita</th>
+                  <th className="pb-3 pr-4 font-medium">Material consumido</th>
+                  <th className="pb-3 pr-4 font-medium">Despesas</th>
+                  <th className="pb-3 font-medium">Resultado operacional</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drePerformance.length ? (
+                  drePerformance.map((entry) => (
+                    <tr key={entry.monthKey} className="border-t border-white/10">
+                      <td className="py-3 pr-4 text-white capitalize">
+                        {getMonthLabel(entry.monthKey)}
+                      </td>
+                      <td className="py-3 pr-4 text-emerald-100">{formatCurrency(entry.revenue)}</td>
+                      <td className="py-3 pr-4 text-amber-100">{formatCurrency(entry.materialCost)}</td>
+                      <td className="py-3 pr-4 text-rose-100">{formatCurrency(entry.operatingExpenses)}</td>
+                      <td className={`py-3 font-semibold ${entry.operatingProfit >= 0 ? "text-emerald-100" : "text-rose-100"}`}>
+                        {formatCurrency(entry.operatingProfit)}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr className="border-t border-white/10">
+                    <td colSpan={5} className="py-6 text-center text-white/60">
+                      Ainda não há dados suficientes para montar a DRE mensal.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
           <p className="text-xs uppercase tracking-[0.24em] text-white/45">Impressoras</p>
           <h3 className="mt-2 text-2xl font-semibold">Investimento em máquinas</h3>
           <div className="mt-6 overflow-x-auto">
@@ -556,6 +706,95 @@ export default async function FinancePage() {
                   <tr className="border-t border-white/10">
                     <td colSpan={5} className="py-6 text-center text-white/60">
                       Nenhuma impressora cadastrada ainda.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+          <p className="text-xs uppercase tracking-[0.24em] text-white/45">Contas a pagar</p>
+          <h3 className="mt-2 text-2xl font-semibold">Agenda financeira</h3>
+          <p className="mt-2 text-sm text-white/60">
+            Controle o que ainda vai vencer, marque como pago e acompanhe o que está atrasado.
+          </p>
+          <div className="mt-6 overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="text-white/45">
+                <tr>
+                  <th className="pb-3 pr-4 font-medium">Conta</th>
+                  <th className="pb-3 pr-4 font-medium">Categoria</th>
+                  <th className="pb-3 pr-4 font-medium">Vencimento</th>
+                  <th className="pb-3 pr-4 font-medium">Valor</th>
+                  <th className="pb-3 pr-4 font-medium">Status</th>
+                  <th className="pb-3 font-medium">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {accountsPayable.length ? (
+                  accountsPayable.map((entry) => (
+                    <tr key={entry.id} className="border-t border-white/10 align-top">
+                      <td className="py-3 pr-4">
+                        <p className="text-white">{entry.title}</p>
+                        {entry.vendor ? <p className="mt-1 text-xs text-white/55">{entry.vendor}</p> : null}
+                        {entry.notes ? <p className="mt-1 text-xs text-white/45">{entry.notes}</p> : null}
+                      </td>
+                      <td className="py-3 pr-4 text-white/70">{expenseCategoryLabels[entry.category]}</td>
+                      <td className="py-3 pr-4 text-white/70">{formatDateOnly(new Date(entry.dueDate))}</td>
+                      <td className="py-3 pr-4 text-white">{formatCurrency(entry.amount)}</td>
+                      <td className="py-3 pr-4">
+                        <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
+                          entry.status === "PAID"
+                            ? "border-emerald-400/25 bg-emerald-500/15 text-emerald-100"
+                            : entry.status === "OVERDUE"
+                              ? "border-rose-400/25 bg-rose-500/15 text-rose-100"
+                              : "border-amber-400/25 bg-amber-500/15 text-amber-100"
+                        }`}>
+                          {payableStatusLabels[entry.status]}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        <div className="flex flex-wrap gap-2">
+                          {entry.status !== "PAID" ? (
+                            <form action={updatePayableStatusAction}>
+                              <input type="hidden" name="payableId" value={entry.id} />
+                              <input type="hidden" name="status" value="PAID" />
+                              <SubmitButton
+                                label="Marcar pago"
+                                pendingLabel="Salvando..."
+                                className="bg-emerald-500/85 text-white hover:bg-emerald-400"
+                              />
+                            </form>
+                          ) : (
+                            <form action={updatePayableStatusAction}>
+                              <input type="hidden" name="payableId" value={entry.id} />
+                              <input type="hidden" name="status" value="PENDING" />
+                              <SubmitButton
+                                label="Reabrir"
+                                pendingLabel="Salvando..."
+                                className="bg-white/10 text-white hover:bg-white/15"
+                              />
+                            </form>
+                          )}
+                          <form action={deletePayableAction}>
+                            <input type="hidden" name="payableId" value={entry.id} />
+                            <button
+                              type="submit"
+                              className="rounded-full border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-rose-100 transition hover:bg-rose-500/20"
+                            >
+                              Excluir
+                            </button>
+                          </form>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr className="border-t border-white/10">
+                    <td colSpan={6} className="py-6 text-center text-white/60">
+                      Ainda não há contas a pagar lançadas.
                     </td>
                   </tr>
                 )}

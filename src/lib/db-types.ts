@@ -109,12 +109,28 @@ export type DbExpenseCategory =
   | "SOFTWARE"
   | "OTHER";
 
+export type DbPayableStatus = "PENDING" | "PAID" | "OVERDUE";
+
 export type DbExpense = {
   id: string;
   title: string;
   category: DbExpenseCategory;
   amount: number;
   paidAt: IsoDateString;
+  notes?: string;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+};
+
+export type DbPayable = {
+  id: string;
+  title: string;
+  category: DbExpenseCategory;
+  amount: number;
+  dueDate: IsoDateString;
+  status: DbPayableStatus;
+  paidAt?: IsoDateString;
+  vendor?: string;
   notes?: string;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
@@ -280,6 +296,7 @@ export type DbShowcaseInquiry = {
   id: string;
   itemId: string;
   itemName: string;
+  orderNumber?: string;
   quantity: number;
   customerId: string;
   customerName: string;
@@ -303,6 +320,7 @@ export type DbShowcaseInquiry = {
   materialConsumedAt?: IsoDateString;
   materialConsumptionGrams?: number;
   materialConsumptionValue?: number;
+  dueDate?: IsoDateString;
   closedAt?: IsoDateString;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
@@ -317,12 +335,19 @@ export type DbAuditLog = {
   createdAt: IsoDateString;
 };
 
+export type DbBackupSnapshot = {
+  fileName: string;
+  createdAt: IsoDateString;
+  sizeBytes: number;
+};
+
 export type PrintFlowDb = {
   users: DbUser[];
   sessions: DbSession[];
   materials: DbMaterial[];
   machines: DbMachine[];
   expenses: DbExpense[];
+  payables: DbPayable[];
   orders: DbOrder[];
   showcaseItems: DbShowcaseItem[];
   showcaseInquiries: DbShowcaseInquiry[];

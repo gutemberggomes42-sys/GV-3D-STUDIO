@@ -36,6 +36,7 @@ import {
   groupOrdersByStatus,
 } from "@/lib/view-data";
 import { isGeneratedCustomerEmail } from "@/lib/customer-records";
+import { listBackupSnapshots } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 type AdminSection =
@@ -80,6 +81,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const activeSection = isAdminSection(rawSection) ? rawSection : "summary";
   const { orders, materials, machines, users, showcaseItems, showcaseInquiries, auditLogs } =
     await getHydratedData();
+  const backupSnapshots = await listBackupSnapshots();
   const now = new Date().getTime();
   const dayInMs = 24 * 60 * 60 * 1000;
   const overview = getOverviewMetrics(orders, machines, materials);
@@ -525,6 +527,51 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </section>
       ) : null}
 
+      {activeSection === "summary" ? (
+        <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-white/45">Backups automáticos</p>
+              <h3 className="mt-2 text-2xl font-semibold">Snapshots do sistema</h3>
+              <p className="mt-2 text-sm leading-6 text-white/65">
+                Cada atualização salva um backup automático do banco local para facilitar recuperação em caso de erro.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white/70">
+              {backupSnapshots.length} backups disponíveis
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-3">
+            {backupSnapshots.length ? (
+              backupSnapshots.slice(0, 8).map((snapshot) => (
+                <div
+                  key={snapshot.fileName}
+                  className="flex flex-col gap-3 rounded-[22px] border border-white/10 bg-slate-950/60 p-4 md:flex-row md:items-center md:justify-between"
+                >
+                  <div>
+                    <p className="font-semibold text-white">{snapshot.fileName}</p>
+                    <p className="mt-1 text-sm text-white/55">
+                      Gerado em {formatDateTime(new Date(snapshot.createdAt))} · {(snapshot.sizeBytes / 1024).toFixed(1)} KB
+                    </p>
+                  </div>
+                  <a
+                    href={`/backups/${snapshot.fileName}`}
+                    className="rounded-2xl border border-sky-400/25 bg-sky-500/10 px-4 py-3 text-sm font-semibold text-sky-100 transition hover:bg-sky-500/20"
+                  >
+                    Baixar backup
+                  </a>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-4 text-sm text-white/60">
+                Ainda não há backups disponíveis.
+              </div>
+            )}
+          </div>
+        </section>
+      ) : null}
+
       {activeSection === "vitrine" ? (
         <>
           <section className="grid gap-4 xl:grid-cols-4">
@@ -630,7 +677,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div>
                         <p className="text-sm text-white/45">
-                          {inquiry.source === "MANUAL" ? "Pedido manual" : "Pedido da vitrine"}
+                          {inquiry.orderNumber ?? (inquiry.source === "MANUAL" ? "Pedido manual" : "Pedido da vitrine")}
                         </p>
                         <h4 className="mt-1 text-xl font-semibold">{inquiry.itemName}</h4>
                         <p className="mt-2 text-sm text-white/65">
@@ -642,6 +689,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                         <p className="mt-2 text-sm text-white/60">
                           Quantidade: {inquiry.quantity}
                         </p>
+                        {inquiry.dueDate ? (
+                          <p className="mt-1 text-sm text-white/55">
+                            Prazo estimado: {formatDateTime(new Date(inquiry.dueDate))}
+                          </p>
+                        ) : null}
                         {inquiry.notes ? (
                           <p className="mt-2 text-sm text-white/55">{inquiry.notes}</p>
                         ) : null}
@@ -744,7 +796,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                           <div>
                             <p className="text-sm text-white/45">
-                              Pedido WhatsApp · {entry.inquiry.source === "MANUAL" ? "Manual" : "Catálogo"}
+                              {entry.inquiry.orderNumber
+                                ? `${entry.inquiry.orderNumber} · ${entry.inquiry.source === "MANUAL" ? "Manual" : "Catálogo"}`
+                                : `Pedido WhatsApp · ${entry.inquiry.source === "MANUAL" ? "Manual" : "Catálogo"}`}
                             </p>
                             <h4 className="mt-1 text-xl font-semibold">{entry.inquiry.itemName}</h4>
                             <p className="mt-2 text-sm text-white/60">
@@ -754,6 +808,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                               Quantidade: {entry.inquiry.quantity}
                               {" · "}Total estimado: {formatCurrency((showcaseItems.find((item) => item.id === entry.inquiry.itemId)?.price ?? 0) * entry.inquiry.quantity)}
                             </p>
+                            {entry.inquiry.dueDate ? (
+                              <p className="mt-1 text-sm text-white/55">
+                                Prazo estimado: {formatDateTime(new Date(entry.inquiry.dueDate))}
+                              </p>
+                            ) : null}
                             {entry.inquiry.notes ? (
                               <p className="mt-2 text-sm text-white/55">{entry.inquiry.notes}</p>
                             ) : null}

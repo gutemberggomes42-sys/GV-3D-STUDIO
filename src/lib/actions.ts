@@ -19,12 +19,14 @@ import { ensureCustomerRecord, isGeneratedCustomerEmail } from "@/lib/customer-r
 import type {
   DbAuditLog,
   DbExpense,
+  DbPayable,
   DbMaterial,
   DbOrder,
   DbQualityCheck,
   DbShowcaseInquiry,
   DbShowcaseItem,
   DbExpenseCategory,
+  DbPayableStatus,
   ShowcaseFulfillmentType,
   ShowcaseInquiryStatus,
   ShowcaseLeadTemperature,
@@ -178,6 +180,21 @@ const expenseSchema = z.object({
     .refine((value) => !Number.isNaN(new Date(value).getTime()), "Informe uma data válida."),
   notes: z.string().trim().optional(),
 });
+
+const payableSchema = z.object({
+  title: z.string().trim().min(2, "Informe o nome da conta a pagar."),
+  category: z.enum(expenseCategoryOptions),
+  amount: z.coerce.number().positive("Informe o valor da conta."),
+  dueDate: z
+    .string()
+    .trim()
+    .min(1, "Informe a data de vencimento.")
+    .refine((value) => !Number.isNaN(new Date(value).getTime()), "Informe uma data válida."),
+  vendor: z.string().trim().optional(),
+  notes: z.string().trim().optional(),
+});
+
+const payableStatusSchema = z.enum(["PENDING", "PAID", "OVERDUE"]);
 
 const showcaseItemSchema = z
   .object({
@@ -401,6 +418,17 @@ function parseShowcaseInquiryFormData(formData: FormData) {
   });
 }
 
+function parsePayableFormData(formData: FormData) {
+  return payableSchema.safeParse({
+    title: formData.get("title"),
+    category: formData.get("category"),
+    amount: formData.get("amount"),
+    dueDate: formData.get("dueDate"),
+    vendor: formData.get("vendor")?.toString(),
+    notes: formData.get("notes")?.toString(),
+  });
+}
+
 function redirectAfterAuth(role: UserRole): never {
   if (role === UserRole.CLIENT) {
     redirect("/portal");
@@ -423,6 +451,13 @@ function generateOrderNumber(existingOrders: DbOrder[]) {
   const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const todaysOrders = existingOrders.filter((order) => order.orderNumber.includes(datePart)).length + 1;
   return `PF-${datePart}-${String(todaysOrders).padStart(3, "0")}`;
+}
+
+function generateShowcaseOrderNumber(existingInquiries: DbShowcaseInquiry[]) {
+  const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const todaysOrders =
+    existingInquiries.filter((inquiry) => inquiry.orderNumber?.includes(`WH-${datePart}`)).length + 1;
+  return `WH-${datePart}-${String(todaysOrders).padStart(3, "0")}`;
 }
 
 function normalizeOptionalIsoDate(value?: string) {
@@ -464,6 +499,26 @@ function buildExpensePayload(data: z.infer<typeof expenseSchema>): DbExpense {
     category: data.category as DbExpenseCategory,
     amount: data.amount,
     paidAt: new Date(data.paidAt).toISOString(),
+    notes: data.notes?.trim() || undefined,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function buildPayablePayload(data: z.infer<typeof payableSchema>): DbPayable {
+  const now = new Date().toISOString();
+  const dueDate = new Date(data.dueDate).toISOString();
+  const dueTimestamp = new Date(dueDate).getTime();
+  const status: DbPayableStatus = dueTimestamp < Date.now() ? "OVERDUE" : "PENDING";
+
+  return {
+    id: createId("payb"),
+    title: data.title,
+    category: data.category as DbExpenseCategory,
+    amount: data.amount,
+    dueDate,
+    status,
+    vendor: data.vendor?.trim() || undefined,
     notes: data.notes?.trim() || undefined,
     createdAt: now,
     updatedAt: now,
@@ -803,6 +858,25 @@ function consumeShowcaseInquiryMaterial(
     action: "consume_showcase",
     summary: `Material baixado para ${inquiry.itemName}: ${consumedAmount.toFixed(0)} ${material.unit} de ${material.name}.`,
   });
+}
+
+function applyShowcaseOperationalMetadata(
+  db: Awaited<ReturnType<typeof readDb>>,
+  inquiry: DbShowcaseInquiry,
+  item: DbShowcaseItem | undefined,
+  now: string,
+) {
+  inquiry.orderNumber ??= generateShowcaseOrderNumber(db.showcaseInquiries);
+
+  if (!inquiry.dueDate) {
+    const leadDays =
+      item?.leadTimeDays && item.leadTimeDays > 0
+        ? item.leadTimeDays
+        : Math.max(1, Math.ceil(((item?.estimatedPrintHours ?? 1) * inquiry.quantity) / 8));
+    const dueDate = new Date(now);
+    dueDate.setDate(dueDate.getDate() + leadDays);
+    inquiry.dueDate = dueDate.toISOString();
+  }
 }
 
 function findOrder(db: Awaited<ReturnType<typeof readDb>>, orderId: string) {
@@ -1680,6 +1754,106 @@ export async function createExpenseAction(
   }
 }
 
+export async function createPayableAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const parsed = parsePayableFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Não foi possível lançar a conta a pagar.",
+    };
+  }
+
+  try {
+    await updateDb((db) => {
+      const payable = buildPayablePayload(parsed.data);
+      db.payables.unshift(payable);
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "finance",
+        action: "create_payable",
+        summary: `Conta a pagar lançada: ${payable.title}.`,
+      });
+    });
+
+    revalidateAll();
+    return {
+      ok: true,
+      message: "Conta a pagar lançada com sucesso.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Não foi possível lançar a conta a pagar.",
+    };
+  }
+}
+
+export async function updatePayableStatusAction(formData: FormData) {
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const payableId = String(formData.get("payableId") ?? "");
+  const parsedStatus = payableStatusSchema.safeParse(formData.get("status"));
+
+  if (!payableId || !parsedStatus.success) {
+    throw new Error("Conta a pagar não encontrada.");
+  }
+
+  const nextStatus = parsedStatus.data as DbPayableStatus;
+
+  await updateDb((db) => {
+    const payable = db.payables.find((entry) => entry.id === payableId);
+
+    if (!payable) {
+      throw new Error("Conta a pagar não encontrada.");
+    }
+
+    const now = new Date().toISOString();
+    payable.status = nextStatus;
+    payable.paidAt = nextStatus === "PAID" ? now : undefined;
+    payable.updatedAt = now;
+    pushAuditLog(db, {
+      actorId: user.id,
+      area: "finance",
+      action: "update_payable_status",
+      summary: `Conta ${payable.title} movida para ${nextStatus}.`,
+    });
+  });
+
+  revalidateAll();
+}
+
+export async function deletePayableAction(formData: FormData) {
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const payableId = String(formData.get("payableId") ?? "");
+
+  if (!payableId) {
+    throw new Error("Conta a pagar não encontrada.");
+  }
+
+  await updateDb((db) => {
+    const payableIndex = db.payables.findIndex((entry) => entry.id === payableId);
+
+    if (payableIndex === -1) {
+      throw new Error("Conta a pagar não encontrada.");
+    }
+
+    const payable = db.payables[payableIndex];
+    db.payables.splice(payableIndex, 1);
+    pushAuditLog(db, {
+      actorId: user.id,
+      area: "finance",
+      action: "delete_payable",
+      summary: `Conta removida: ${payable.title}.`,
+    });
+  });
+
+  revalidateAll();
+}
+
 export async function deleteExpenseAction(formData: FormData) {
   const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const expenseId = String(formData.get("expenseId") ?? "");
@@ -1931,6 +2105,7 @@ export async function createShowcaseInquiryAction(
         id: createId("ldw"),
         itemId: item.id,
         itemName: item.name,
+        orderNumber: status === "CLOSED" ? generateShowcaseOrderNumber(db.showcaseInquiries) : undefined,
         quantity: parsed.data.quantity,
         customerId: customer.id,
         customerName,
@@ -1954,6 +2129,13 @@ export async function createShowcaseInquiryAction(
         lastContactAt: normalizeOptionalIsoDate(parsed.data.lastContactAt),
         orderStage: status === "CLOSED" ? "RECEIVED" : undefined,
         plannedPrintMinutes: getPlannedMinutesFromHours(item.estimatedPrintHours * parsed.data.quantity),
+        dueDate:
+          status === "CLOSED"
+            ? new Date(
+                new Date(now).getTime() +
+                  Math.max(item.leadTimeDays || 1, 1) * 24 * 60 * 60 * 1000,
+              ).toISOString()
+            : undefined,
         closedAt: status === "CLOSED" ? now : undefined,
         createdAt: now,
         updatedAt: now,
@@ -2062,6 +2244,12 @@ export async function updateShowcaseInquiryAction(
         customerName,
         customerPhone,
       });
+      if (nextStatus === "CLOSED") {
+        applyShowcaseOperationalMetadata(db, inquiry, nextItem, now);
+      } else {
+        inquiry.orderNumber = undefined;
+        inquiry.dueDate = undefined;
+      }
       inquiry.updatedAt = now;
       pushAuditLog(db, {
         actorId: user.id,
@@ -2181,6 +2369,12 @@ export async function updateShowcaseInquiryStatusAction(formData: FormData) {
     inquiry.assignedMachineId = nextStatus === "CLOSED" ? inquiry.assignedMachineId : undefined;
     inquiry.closedAt = nextStatus === "CLOSED" ? now : undefined;
     inquiry.lastContactAt = now;
+    if (nextStatus === "CLOSED") {
+      applyShowcaseOperationalMetadata(db, inquiry, item, now);
+    } else {
+      inquiry.orderNumber = undefined;
+      inquiry.dueDate = undefined;
+    }
     inquiry.updatedAt = now;
     pushAuditLog(db, {
       actorId: user.id,
@@ -2232,6 +2426,7 @@ export async function updateShowcaseInquiryOrderStageAction(formData: FormData) 
       reserveShowcaseStock(item, inquiry.quantity, now);
     }
 
+    applyShowcaseOperationalMetadata(db, inquiry, item, now);
     inquiry.orderStage = nextOrderStage;
     if (nextOrderStage === "PRINTING") {
       inquiry.printingStartedAt = now;
