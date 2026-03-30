@@ -10,5 +10,6 @@ export function createInitialData(): PrintFlowDb {
     orders: [],
     showcaseItems: [],
     showcaseInquiries: [],
+    auditLogs: [],
   };
 }

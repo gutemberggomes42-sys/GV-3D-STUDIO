@@ -122,6 +122,10 @@ export async function POST(
         whatsappNumber: ownerWhatsAppNumber,
         whatsappUrl: url,
         status: "PENDING",
+        tags: [],
+        leadTemperature: "WARM",
+        followUpAt: undefined,
+        lastContactAt: undefined,
         createdAt: now,
         updatedAt: now,
       });

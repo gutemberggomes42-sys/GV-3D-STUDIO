@@ -10,6 +10,7 @@ import {
 } from "@prisma/client";
 import type {
   DbExpenseCategory,
+  ShowcaseLeadTemperature,
   ShowcaseInquiryStatus,
   ShowcaseOrderStage,
 } from "@/lib/db-types";
@@ -173,6 +174,24 @@ export const showcaseInquiryStatusMeta: Record<
   },
   NOT_CLOSED: {
     label: "Não fechado",
+    className: "bg-rose-500/15 text-rose-100 ring-rose-400/30",
+  },
+};
+
+export const showcaseLeadTemperatureMeta: Record<
+  ShowcaseLeadTemperature,
+  { label: string; className: string }
+> = {
+  COLD: {
+    label: "Frio",
+    className: "bg-slate-500/15 text-slate-100 ring-slate-400/30",
+  },
+  WARM: {
+    label: "Morno",
+    className: "bg-amber-500/15 text-amber-100 ring-amber-400/30",
+  },
+  HOT: {
+    label: "Quente",
     className: "bg-rose-500/15 text-rose-100 ring-rose-400/30",
   },
 };

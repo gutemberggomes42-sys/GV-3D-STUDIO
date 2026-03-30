@@ -62,7 +62,7 @@ export function MaterialEditor({ material, linkedOrderCount, redirectTo }: Mater
           </p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
-          <p className="text-xs uppercase tracking-[0.18em] text-white/45">Pedidos vinculados</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-white/45">Vinculações</p>
           <p className="mt-2 text-lg font-semibold">{linkedOrderCount}</p>
         </div>
       </div>
@@ -247,8 +247,8 @@ export function MaterialEditor({ material, linkedOrderCount, redirectTo }: Mater
             <p className="font-semibold text-rose-100">Excluir material</p>
             <p className="mt-1 text-sm text-rose-100/75">
               {canDelete
-                ? "Este material ainda não foi usado em pedidos e pode ser removido."
-                : "A exclusão fica bloqueada enquanto existir pedido vinculado a este material."}
+                ? "Este material ainda não foi usado em pedidos ou produtos da vitrine e pode ser removido."
+                : "A exclusão fica bloqueada enquanto existir pedido ou produto da vitrine vinculado a este material."}
             </p>
           </div>
           <SubmitButton

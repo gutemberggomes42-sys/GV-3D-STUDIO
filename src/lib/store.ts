@@ -115,6 +115,9 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
         plannedPrintMinutes:
           normalizedOrder.plannedPrintMinutes ??
           Math.max(Math.round((normalizedOrder.estimatedHours ?? order.estimatedHours ?? 0) * 60), 0),
+        materialConsumedAt: normalizedOrder.materialConsumedAt ?? undefined,
+        materialConsumptionGrams: normalizedOrder.materialConsumptionGrams ?? 0,
+        materialConsumptionValue: normalizedOrder.materialConsumptionValue ?? 0,
       };
     }),
     showcaseItems: (data.showcaseItems ?? initial.showcaseItems).map((item) => {
@@ -125,6 +128,7 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
         tagline: normalizedItem.tagline?.trim() || undefined,
         imageUrl: normalizedItem.imageUrl ?? undefined,
         materialLabel: normalizedItem.materialLabel?.trim() || undefined,
+        materialId: normalizedItem.materialId ?? undefined,
         colorOptions:
           normalizedItem.colorOptions?.map((entry) => entry.trim()).filter(Boolean) ?? [],
         dimensionSummary: normalizedItem.dimensionSummary?.trim() || undefined,
@@ -137,6 +141,7 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
         fulfillmentType: normalizedItem.fulfillmentType ?? "STOCK",
         stockQuantity: normalizedItem.stockQuantity ?? 0,
         estimatedPrintHours: normalizedItem.estimatedPrintHours ?? 1,
+        estimatedMaterialGrams: normalizedItem.estimatedMaterialGrams ?? 0,
         featured: normalizedItem.featured ?? false,
         active: normalizedItem.active ?? true,
       };
@@ -150,6 +155,10 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
         source: normalizedInquiry.source ?? "CATALOG",
         notes: normalizedInquiry.notes ?? undefined,
         status: normalizedInquiry.status ?? "PENDING",
+        tags: normalizedInquiry.tags?.map((entry) => entry.trim()).filter(Boolean) ?? [],
+        leadTemperature: normalizedInquiry.leadTemperature ?? "WARM",
+        followUpAt: normalizedInquiry.followUpAt ?? undefined,
+        lastContactAt: normalizedInquiry.lastContactAt ?? undefined,
         orderStage:
           normalizedInquiry.status === "CLOSED"
             ? normalizedInquiry.orderStage ?? "RECEIVED"
@@ -158,8 +167,15 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
         printingStartedAt: normalizedInquiry.printingStartedAt ?? undefined,
         printingCompletedAt: normalizedInquiry.printingCompletedAt ?? undefined,
         plannedPrintMinutes: normalizedInquiry.plannedPrintMinutes ?? 0,
+        materialConsumedAt: normalizedInquiry.materialConsumedAt ?? undefined,
+        materialConsumptionGrams: normalizedInquiry.materialConsumptionGrams ?? 0,
+        materialConsumptionValue: normalizedInquiry.materialConsumptionValue ?? 0,
       };
     }),
+    auditLogs: (data.auditLogs ?? initial.auditLogs).map((entry) => ({
+      ...entry,
+      actorId: entry.actorId ?? undefined,
+    })),
   };
 }
 
@@ -209,6 +225,7 @@ export async function getSnapshot() {
     orders: sortByDateDesc(db.orders),
     showcaseItems: sortByDateDesc(db.showcaseItems),
     showcaseInquiries: sortByDateDesc(db.showcaseInquiries),
+    auditLogs: sortByDateDesc(db.auditLogs),
   };
 }
 

@@ -9,7 +9,10 @@ import {
   updateShowcaseInquiryStatusAction,
   type ActionState,
 } from "@/lib/actions";
-import { showcaseInquiryStatusMeta } from "@/lib/constants";
+import {
+  showcaseInquiryStatusMeta,
+  showcaseLeadTemperatureMeta,
+} from "@/lib/constants";
 import type { DbShowcaseInquiry, DbShowcaseItem } from "@/lib/db-types";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -31,6 +34,10 @@ export function ShowcaseInquiryEditor({
     .filter((value) => Boolean(value))
     .join(" · ");
   const sourceLabel = inquiry.source === "MANUAL" ? "Manual" : "Catálogo";
+  const followUpLabel = inquiry.followUpAt ? formatDateTime(new Date(inquiry.followUpAt)) : "Sem follow-up";
+  const lastContactLabel = inquiry.lastContactAt
+    ? formatDateTime(new Date(inquiry.lastContactAt))
+    : "Sem contato registrado";
 
   return (
     <article className="rounded-[24px] border border-white/10 bg-slate-950/60 p-5">
@@ -41,6 +48,7 @@ export function ShowcaseInquiryEditor({
             <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs text-white/65">
               {sourceLabel}
             </span>
+            <StatusPill {...showcaseLeadTemperatureMeta[inquiry.leadTemperature]} />
           </div>
           <p className="mt-1 text-sm text-white/60">
             {contactDetails || "Contato informado no clique da vitrine"}
@@ -49,6 +57,28 @@ export function ShowcaseInquiryEditor({
             Produto: <span className="font-semibold text-white">{inquiry.itemName}</span>
             {" · "}Quantidade: {inquiry.quantity}
           </p>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/55">
+            <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1">
+              Follow-up: {followUpLabel}
+            </span>
+            <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1">
+              Último contato: {lastContactLabel}
+            </span>
+            {inquiry.tags.length ? (
+              inquiry.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full border border-sky-400/20 bg-sky-500/10 px-3 py-1 text-sky-100"
+                >
+                  {tag}
+                </span>
+              ))
+            ) : (
+              <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1">
+                Sem etiquetas
+              </span>
+            )}
+          </div>
           <p className="mt-2 text-xs uppercase tracking-[0.18em] text-white/40">
             Clique registrado em {formatDateTime(new Date(inquiry.createdAt))}
           </p>
@@ -148,6 +178,52 @@ export function ShowcaseInquiryEditor({
             className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
           />
         </label>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <label className="block text-sm text-white/70">
+            Temperatura do lead
+            <select
+              name="leadTemperature"
+              defaultValue={inquiry.leadTemperature}
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
+            >
+              {(["COLD", "WARM", "HOT"] as const).map((temperature) => (
+                <option key={temperature} value={temperature}>
+                  {showcaseLeadTemperatureMeta[temperature].label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block text-sm text-white/70">
+            Próximo follow-up
+            <input
+              name="followUpAt"
+              type="datetime-local"
+              defaultValue={inquiry.followUpAt?.slice(0, 16) ?? ""}
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
+            />
+          </label>
+
+          <label className="block text-sm text-white/70">
+            Último contato
+            <input
+              name="lastContactAt"
+              type="datetime-local"
+              defaultValue={inquiry.lastContactAt?.slice(0, 16) ?? ""}
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
+            />
+          </label>
+
+          <label className="block text-sm text-white/70">
+            Etiquetas
+            <input
+              name="tags"
+              defaultValue={inquiry.tags.join(", ")}
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
+            />
+          </label>
+        </div>
 
         {state.error ? <p className="text-sm text-rose-300">{state.error}</p> : null}
         {state.message ? <p className="text-sm text-emerald-300">{state.message}</p> : null}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MachineStatus, OrderStatus, UserRole } from "@prisma/client";
+import { AccountSecurityForm } from "@/components/account-security-form";
 import { AppShell } from "@/components/app-shell";
 import { MachineEditor } from "@/components/machine-editor";
 import { MachineForm } from "@/components/machine-form";
@@ -77,8 +78,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const params = searchParams ? await searchParams : {};
   const rawSection = typeof params.section === "string" ? params.section : undefined;
   const activeSection = isAdminSection(rawSection) ? rawSection : "summary";
-  const { orders, materials, machines, users, showcaseItems, showcaseInquiries } =
+  const { orders, materials, machines, users, showcaseItems, showcaseInquiries, auditLogs } =
     await getHydratedData();
+  const now = new Date().getTime();
+  const dayInMs = 24 * 60 * 60 * 1000;
   const overview = getOverviewMetrics(orders, machines, materials);
   const ordersByStatus = groupOrdersByStatus(orders);
 
@@ -91,11 +94,36 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   );
   const leadsPendingCount = showcaseInquiries.filter((item) => item.status === "PENDING").length;
   const leadsClosedCount = showcaseInquiries.filter((item) => item.status === "CLOSED").length;
-  const leadsNotClosedCount = showcaseInquiries.filter((item) => item.status === "NOT_CLOSED").length;
+  const hotLeadCount = showcaseInquiries.filter(
+    (item) => item.status === "PENDING" && item.leadTemperature === "HOT",
+  ).length;
+  const dueFollowUpLeads = showcaseInquiries.filter(
+    (item) =>
+      item.status === "PENDING" &&
+      item.followUpAt &&
+      new Date(item.followUpAt).getTime() <= now,
+  );
+  const staleLeadCount = showcaseInquiries.filter((item) => {
+    if (item.status !== "PENDING") {
+      return false;
+    }
+
+    const lastTouch = item.lastContactAt ?? item.createdAt;
+    return now - new Date(lastTouch).getTime() >= 2 * dayInMs;
+  }).length;
   const closedShowcaseOrders = showcaseInquiries.filter((item) => item.status === "CLOSED");
   const showcaseItemPriceMap = new Map(showcaseItems.map((item) => [item.id, item.price]));
   const showcaseRevenueValue = closedShowcaseOrders
     .filter((item) => (item.orderStage ?? "RECEIVED") === "COMPLETED")
+    .reduce(
+      (sum, item) => sum + (showcaseItemPriceMap.get(item.itemId) ?? 0) * item.quantity,
+      0,
+    );
+  const showcasePendingRevenue = closedShowcaseOrders
+    .filter((item) => {
+      const stage = item.orderStage ?? "RECEIVED";
+      return stage !== "COMPLETED" && stage !== "CANCELED";
+    })
     .reduce(
       (sum, item) => sum + (showcaseItemPriceMap.get(item.itemId) ?? 0) * item.quantity,
       0,
@@ -105,6 +133,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     return stage !== "COMPLETED" && stage !== "CANCELED";
   }).length;
   const summaryRevenue = overview.revenue + showcaseRevenueValue;
+  const summaryPendingRevenue = overview.pendingRevenue + showcasePendingRevenue;
   const summaryActiveOrders = overview.activeOrders + showcaseActiveOrdersCount;
   const summaryMachinesBusy = new Set([
     ...machines.filter((machine) => machine.status === MachineStatus.BUSY).map((machine) => machine.id),
@@ -175,6 +204,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       machine.status === MachineStatus.MAINTENANCE ||
       machine.status === MachineStatus.OFFLINE,
   ).length;
+  const maintenanceDueMachines = machines.filter((machine) => {
+    const referenceDate = machine.lastMaintenanceAt ?? machine.createdAt;
+    const referenceTime = new Date(referenceDate).getTime();
+    return now - referenceTime >= machine.preventiveMaintenanceDays * dayInMs;
+  });
+  const staleOrders = orders.filter((order) => {
+    if (order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELED) {
+      return false;
+    }
+
+    return now - new Date(order.updatedAt).getTime() >= 3 * dayInMs;
+  });
   const waitingApprovalCount =
     (ordersByStatus[OrderStatus.WAITING_APPROVAL]?.length ?? 0) +
     (ordersByStatus[OrderStatus.WAITING_PAYMENT]?.length ?? 0);
@@ -229,6 +270,23 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
       return right.totalRevenue - left.totalRevenue;
     });
+  const materialLinksCount =
+    orders.filter((order) => order.materialId).length +
+    showcaseItems.filter((item) => item.materialId).length;
+  const crmQueue = [...showcaseInquiries].sort((left, right) => {
+    const leftFollowUpTime = left.followUpAt ? new Date(left.followUpAt).getTime() : Number.MAX_SAFE_INTEGER;
+    const rightFollowUpTime = right.followUpAt ? new Date(right.followUpAt).getTime() : Number.MAX_SAFE_INTEGER;
+    const leftWeight =
+      (left.status === "PENDING" ? 1000 : 0) +
+      (left.leadTemperature === "HOT" ? 300 : left.leadTemperature === "WARM" ? 150 : 40) -
+      leftFollowUpTime / 1_000_000;
+    const rightWeight =
+      (right.status === "PENDING" ? 1000 : 0) +
+      (right.leadTemperature === "HOT" ? 300 : right.leadTemperature === "WARM" ? 150 : 40) -
+      rightFollowUpTime / 1_000_000;
+
+    return rightWeight - leftWeight;
+  });
 
   const sectionCounts: Record<AdminSection, string> = {
     summary: "7 areas",
@@ -349,10 +407,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <div className="mt-6 space-y-3">
               {[
                 { label: "Leads sem resposta", value: `${leadsPendingCount} pendentes`, href: "/admin?section=leads" },
+                { label: "Follow-up vencido", value: `${dueFollowUpLeads.length} contatos`, href: "/admin?section=leads" },
+                { label: "Leads quentes", value: `${hotLeadCount} oportunidades`, href: "/admin?section=leads" },
+                { label: "Leads parados", value: `${staleLeadCount} contatos`, href: "/admin?section=leads" },
                 { label: "Pedidos aguardando retorno ou pagamento", value: `${waitingApprovalCount} em espera`, href: "/admin?section=pedidos" },
+                { label: "Pedidos parados há dias", value: `${staleOrders.length} pedidos`, href: "/admin?section=pedidos" },
                 { label: "Materiais em estoque baixo", value: `${overview.lowStockMaterials} materiais`, href: "/admin?section=materiais" },
                 { label: "Produtos da vitrine sem estoque", value: `${showcaseOutOfStockCount} itens`, href: "/admin?section=vitrine" },
                 { label: "Máquinas com atenção", value: `${machineAttentionCount} máquinas`, href: "/admin?section=maquinas" },
+                { label: "Manutenção preventiva vencida", value: `${maintenanceDueMachines.length} máquinas`, href: "/admin?section=maquinas" },
               ].map((item) => (
                 <Link key={item.label} href={item.href} className="flex items-center justify-between gap-4 rounded-[22px] border border-white/10 bg-slate-950/60 p-4 transition hover:bg-white/10">
                   <div>
@@ -383,7 +446,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 </div>
                 <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
                   <p className="text-sm text-white/55">Contas a receber</p>
-                  <p className="mt-2 text-2xl font-semibold">{formatCurrency(overview.pendingRevenue)}</p>
+                  <p className="mt-2 text-2xl font-semibold">{formatCurrency(summaryPendingRevenue)}</p>
+                </div>
+                <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                  <p className="text-sm text-white/55">Leads com follow-up vencido</p>
+                  <p className="mt-2 text-2xl font-semibold">{dueFollowUpLeads.length}</p>
+                </div>
+                <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                  <p className="text-sm text-white/55">Pedidos parados</p>
+                  <p className="mt-2 text-2xl font-semibold">{staleOrders.length}</p>
                 </div>
               </div>
             </div>
@@ -414,6 +485,43 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </div>
             </div>
           </div>
+        </section>
+      ) : null}
+
+      {activeSection === "summary" ? (
+        <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+          <AccountSecurityForm lastChangedAt={user.passwordChangedAt} />
+
+          <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Auditoria</p>
+            <h3 className="mt-2 text-2xl font-semibold">Últimas ações administrativas</h3>
+            <div className="mt-6 space-y-3">
+              {auditLogs.length ? (
+                auditLogs.slice(0, 6).map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4"
+                  >
+                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-white">{entry.summary}</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-white/45">
+                          {entry.area} · {entry.action}
+                        </p>
+                      </div>
+                      <p className="text-sm text-white/55">
+                        {formatDateTime(new Date(entry.createdAt))}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-4 text-sm text-white/60">
+                  Ainda não há ações registradas no histórico.
+                </div>
+              )}
+            </div>
+          </section>
         </section>
       ) : null}
 
@@ -455,8 +563,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <>
           <section className="grid gap-4 xl:grid-cols-4">
             <MetricCard label="Pendentes" value={String(leadsPendingCount)} caption="Aguardando seu retorno." accent="orange" />
-            <MetricCard label="Fechados" value={String(leadsClosedCount)} caption="Negócios marcados como fechados." accent="mint" />
-            <MetricCard label="Não fechados" value={String(leadsNotClosedCount)} caption="Conversas encerradas sem venda." accent="rose" />
+            <MetricCard label="Follow-up vencido" value={String(dueFollowUpLeads.length)} caption="Leads pedindo retorno imediato." accent="rose" />
+            <MetricCard label="Leads quentes" value={String(hotLeadCount)} caption="Oportunidades mais perto do fechamento." accent="mint" />
             <MetricCard label="Total de leads" value={String(showcaseInquiries.length)} caption="Histórico completo de contatos." accent="blue" />
           </section>
 
@@ -474,8 +582,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </div>
 
             <div className="mt-6 space-y-4">
-              {showcaseInquiries.length ? (
-                showcaseInquiries.map((inquiry) => (
+              {crmQueue.length ? (
+                crmQueue.map((inquiry) => (
                   <ShowcaseInquiryEditor
                     key={inquiry.id}
                     inquiry={inquiry}
@@ -498,7 +606,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <MetricCard label="Total de pedidos" value={String(orders.length + closedShowcaseOrders.length)} caption="Pedidos internos e fechados pelo WhatsApp." accent="orange" />
             <MetricCard label="Aguardando ação" value={String(waitingApprovalCount + showcaseWaitingHandlingCount)} caption="Aprovação, pagamento ou confirmação inicial." accent="rose" />
             <MetricCard label="Em produção" value={String(productionQueueCount + showcaseProductionCount)} caption="Fila, impressão e acabamento." accent="blue" />
-            <MetricCard label="Receita pendente" value={formatCurrency(overview.pendingRevenue)} caption="Valor ainda não compensado." accent="mint" />
+            <MetricCard label="Receita pendente" value={formatCurrency(summaryPendingRevenue)} caption="Valor ainda não compensado." accent="mint" />
           </section>
 
           <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
@@ -783,7 +891,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <section className="grid gap-4 xl:grid-cols-4">
             <MetricCard label="Materiais" value={String(materials.length)} caption="Filamentos e resinas cadastrados." accent="orange" />
             <MetricCard label="Estoque baixo" value={String(overview.lowStockMaterials)} caption="Abaixo do mínimo configurado." accent="rose" />
-            <MetricCard label="Pedidos vinculados" value={String(orders.filter((order) => order.materialId).length)} caption="Pedidos usando materiais cadastrados." accent="blue" />
+            <MetricCard label="Vinculações" value={String(materialLinksCount)} caption="Pedidos e produtos da vitrine usando materiais." accent="blue" />
             <MetricCard label="Compra registrada" value={formatCurrency(materials.reduce((sum, material) => sum + material.purchasePrice, 0))} caption="Soma dos valores pagos nos insumos." accent="mint" />
           </section>
 
@@ -798,7 +906,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <MaterialEditor
                     key={material.id}
                     material={material}
-                    linkedOrderCount={orders.filter((order) => order.materialId === material.id).length}
+                    linkedOrderCount={
+                      orders.filter((order) => order.materialId === material.id).length +
+                      showcaseItems.filter((item) => item.materialId === material.id).length
+                    }
                     redirectTo="/admin?section=materiais"
                   />
                 ))

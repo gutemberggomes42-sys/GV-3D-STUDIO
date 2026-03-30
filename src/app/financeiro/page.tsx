@@ -11,7 +11,7 @@ import {
   showcaseOrderStageMeta,
 } from "@/lib/constants";
 import type { ShowcaseOrderStage } from "@/lib/db-types";
-import { formatCurrency, formatDateOnly, formatMonthYear } from "@/lib/format";
+import { formatCurrency, formatDateOnly, formatMonthYear, formatWeight } from "@/lib/format";
 import { getHydratedData } from "@/lib/view-data";
 
 type RevenueEntry = {
@@ -48,6 +48,7 @@ export default async function FinancePage() {
   const { orders, showcaseItems, showcaseInquiries, materials, machines, expenses } =
     await getHydratedData();
   const showcaseItemMap = new Map(showcaseItems.map((item) => [item.id, item]));
+  const materialMap = new Map(materials.map((material) => [material.id, material]));
   const showcaseReceivableStages = new Set<ShowcaseOrderStage>([
     "QUEUED",
     "PRINTING",
@@ -185,6 +186,12 @@ export default async function FinancePage() {
   const totalExpenses = expenseEntries.reduce((sum, expense) => sum + expense.value, 0);
   const netResult = revenue - totalExpenses;
   const totalGrossMargin = orders.reduce((sum, order) => sum + (order.grossMargin ?? 0), 0);
+  const materialConsumptionValue =
+    orders.reduce((sum, order) => sum + (order.materialConsumptionValue ?? 0), 0) +
+    showcaseFinancialOrders.reduce(
+      (sum, inquiry) => sum + (inquiry.materialConsumptionValue ?? 0),
+      0,
+    );
 
   const recurringCustomersMap = new Map<
     string,
@@ -247,6 +254,27 @@ export default async function FinancePage() {
       date: inquiry.financialDate,
     })),
   ].sort((left, right) => right.date.localeCompare(left.date));
+  const cashFlowMap = new Map<string, { date: string; inflow: number; outflow: number; balance: number }>();
+
+  revenueEntries.forEach((entry) => {
+    const date = entry.date.slice(0, 10);
+    const current = cashFlowMap.get(date) ?? { date, inflow: 0, outflow: 0, balance: 0 };
+    current.inflow += entry.value;
+    current.balance = current.inflow - current.outflow;
+    cashFlowMap.set(date, current);
+  });
+
+  expenseEntries.forEach((entry) => {
+    const date = entry.date.slice(0, 10);
+    const current = cashFlowMap.get(date) ?? { date, inflow: 0, outflow: 0, balance: 0 };
+    current.outflow += entry.value;
+    current.balance = current.inflow - current.outflow;
+    cashFlowMap.set(date, current);
+  });
+
+  const cashFlowDays = [...cashFlowMap.values()]
+    .sort((left, right) => right.date.localeCompare(left.date))
+    .slice(0, 15);
 
   const monthlyMap = new Map<
     string,
@@ -283,6 +311,70 @@ export default async function FinancePage() {
     right.monthKey.localeCompare(left.monthKey),
   );
   const monthsWithLoss = monthlyPerformance.filter((month) => month.result < 0).length;
+  const productProfitabilityMap = new Map<
+    string,
+    {
+      label: string;
+      units: number;
+      revenue: number;
+      cost: number;
+      profit: number;
+      materialConsumed: number;
+    }
+  >();
+
+  orders.forEach((order) => {
+    const label = order.title;
+    const current = productProfitabilityMap.get(label) ?? {
+      label,
+      units: 0,
+      revenue: 0,
+      cost: 0,
+      profit: 0,
+      materialConsumed: 0,
+    };
+    const cost = order.realCost ?? order.subtotal;
+    current.units += order.quantity;
+    current.revenue += order.totalPrice;
+    current.cost += cost;
+    current.profit += order.totalPrice - cost;
+    current.materialConsumed += order.materialConsumptionGrams ?? order.estimatedWeightGrams;
+    productProfitabilityMap.set(label, current);
+  });
+
+  showcaseFinancialOrders.forEach((inquiry) => {
+    const item = showcaseItemMap.get(inquiry.itemId);
+    if (!item) {
+      return;
+    }
+
+    const material = item.materialId ? materialMap.get(item.materialId) : undefined;
+    const estimatedConsumption =
+      inquiry.materialConsumptionGrams ??
+      Number(((item.estimatedMaterialGrams || 0) * inquiry.quantity).toFixed(2));
+    const estimatedCost =
+      inquiry.materialConsumptionValue ??
+      Number((estimatedConsumption * (material?.costPerUnit ?? 0)).toFixed(2));
+    const current = productProfitabilityMap.get(item.name) ?? {
+      label: item.name,
+      units: 0,
+      revenue: 0,
+      cost: 0,
+      profit: 0,
+      materialConsumed: 0,
+    };
+
+    current.units += inquiry.quantity;
+    current.revenue += inquiry.totalValue;
+    current.cost += estimatedCost;
+    current.profit += inquiry.totalValue - estimatedCost;
+    current.materialConsumed += estimatedConsumption;
+    productProfitabilityMap.set(item.name, current);
+  });
+
+  const productProfitability = [...productProfitabilityMap.values()]
+    .sort((left, right) => right.profit - left.profit)
+    .slice(0, 10);
 
   return (
     <AppShell
@@ -343,6 +435,12 @@ export default async function FinancePage() {
           value={String(monthsWithLoss)}
           caption="Quantidade de meses em que os gastos passaram a receita."
           accent="orange"
+        />
+        <MetricCard
+          label="Material consumido"
+          value={formatCurrency(materialConsumptionValue)}
+          caption="Custo já baixado nos pedidos que entraram em impressão."
+          accent="blue"
         />
       </section>
 
@@ -610,6 +708,94 @@ export default async function FinancePage() {
             <p className="mt-2 text-sm text-white/60">
               Soma da margem bruta calculada nos pedidos internos já cadastrados no sistema.
             </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+          <p className="text-xs uppercase tracking-[0.24em] text-white/45">Fluxo de caixa</p>
+          <h3 className="mt-2 text-2xl font-semibold">Entradas e saídas por dia</h3>
+          <div className="mt-6 overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="text-white/45">
+                <tr>
+                  <th className="pb-3 pr-4 font-medium">Data</th>
+                  <th className="pb-3 pr-4 font-medium">Entradas</th>
+                  <th className="pb-3 pr-4 font-medium">Saídas</th>
+                  <th className="pb-3 font-medium">Saldo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cashFlowDays.length ? (
+                  cashFlowDays.map((entry) => (
+                    <tr key={entry.date} className="border-t border-white/10">
+                      <td className="py-3 pr-4 text-white">
+                        {formatDateOnly(new Date(`${entry.date}T12:00:00`))}
+                      </td>
+                      <td className="py-3 pr-4 text-emerald-100">
+                        {formatCurrency(entry.inflow)}
+                      </td>
+                      <td className="py-3 pr-4 text-rose-100">
+                        {formatCurrency(entry.outflow)}
+                      </td>
+                      <td
+                        className={`py-3 font-semibold ${
+                          entry.balance >= 0 ? "text-emerald-100" : "text-rose-100"
+                        }`}
+                      >
+                        {formatCurrency(entry.balance)}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr className="border-t border-white/10">
+                    <td colSpan={4} className="py-6 text-center text-white/60">
+                      Ainda não há movimentação diária suficiente para montar o fluxo de caixa.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+          <p className="text-xs uppercase tracking-[0.24em] text-white/45">Lucro por produto</p>
+          <h3 className="mt-2 text-2xl font-semibold">Peças mais lucrativas</h3>
+          <div className="mt-6 overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="text-white/45">
+                <tr>
+                  <th className="pb-3 pr-4 font-medium">Produto</th>
+                  <th className="pb-3 pr-4 font-medium">Unidades</th>
+                  <th className="pb-3 pr-4 font-medium">Receita</th>
+                  <th className="pb-3 pr-4 font-medium">Custo</th>
+                  <th className="pb-3 pr-4 font-medium">Lucro</th>
+                  <th className="pb-3 font-medium">Material</th>
+                </tr>
+              </thead>
+              <tbody>
+                {productProfitability.length ? (
+                  productProfitability.map((entry) => (
+                    <tr key={entry.label} className="border-t border-white/10">
+                      <td className="py-3 pr-4 text-white">{entry.label}</td>
+                      <td className="py-3 pr-4 text-white/70">{entry.units}</td>
+                      <td className="py-3 pr-4 text-emerald-100">{formatCurrency(entry.revenue)}</td>
+                      <td className="py-3 pr-4 text-rose-100">{formatCurrency(entry.cost)}</td>
+                      <td className="py-3 pr-4 font-semibold text-white">{formatCurrency(entry.profit)}</td>
+                      <td className="py-3 text-white/70">{formatWeight(entry.materialConsumed)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr className="border-t border-white/10">
+                    <td colSpan={6} className="py-6 text-center text-white/60">
+                      Ainda não há dados suficientes para calcular lucro por produto.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </section>

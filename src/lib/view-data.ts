@@ -27,6 +27,7 @@ export async function getHydratedData() {
     materials: db.materials,
     machines: db.machines,
     expenses: db.expenses,
+    auditLogs: db.auditLogs,
     orders,
     showcaseItems: [...db.showcaseItems].sort(
       (a, b) =>

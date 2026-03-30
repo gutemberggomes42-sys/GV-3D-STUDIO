@@ -10,7 +10,7 @@ import { getHydratedData } from "@/lib/view-data";
 
 export default async function FilamentsPage() {
   const user = await requireRoles([UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.ADMIN]);
-  const { materials, orders } = await getHydratedData();
+  const { materials, orders, showcaseItems, showcaseInquiries } = await getHydratedData();
   const canManageRegistry = user.role === UserRole.ADMIN || user.role === UserRole.SUPERVISOR;
   const lowStockCount = materials.filter(
     (material) => material.stockAmount <= material.minimumStock,
@@ -24,6 +24,12 @@ export default async function FilamentsPage() {
     const derived = getMaterialDerivedMetrics(material);
     return sum + (derived.stockMetersRemaining || 0);
   }, 0);
+  const consumedGramsTotal =
+    orders.reduce((sum, order) => sum + (order.materialConsumptionGrams ?? 0), 0) +
+    showcaseInquiries.reduce((sum, inquiry) => sum + (inquiry.materialConsumptionGrams ?? 0), 0);
+  const consumedValueTotal =
+    orders.reduce((sum, order) => sum + (order.materialConsumptionValue ?? 0), 0) +
+    showcaseInquiries.reduce((sum, inquiry) => sum + (inquiry.materialConsumptionValue ?? 0), 0);
 
   return (
     <AppShell
@@ -37,6 +43,8 @@ export default async function FilamentsPage() {
         <MetricCard label="Estoque baixo" value={String(lowStockCount)} caption="Abaixo do mínimo configurado." accent="rose" />
         <MetricCard label="Compra registrada" value={formatCurrency(totalInvestment)} caption="Soma dos valores pagos nos rolos e frascos." accent="mint" />
         <MetricCard label="Metragem restante" value={formatMeters(totalMetersRemaining)} caption="Estimativa total restante nos materiais FDM." accent="blue" />
+        <MetricCard label="Material consumido" value={consumedGramsTotal.toFixed(0)} caption="Baixas automáticas já registradas na produção." accent="orange" />
+        <MetricCard label="Custo consumido" value={formatCurrency(consumedValueTotal)} caption="Valor do material já usado nos pedidos." accent="blue" />
       </section>
 
       {canManageRegistry ? (
@@ -68,13 +76,30 @@ export default async function FilamentsPage() {
                 <MaterialEditor
                   key={material.id}
                   material={material}
-                  linkedOrderCount={orders.filter((order) => order.materialId === material.id).length}
+                  linkedOrderCount={
+                    orders.filter((order) => order.materialId === material.id).length +
+                    showcaseItems.filter((item) => item.materialId === material.id).length
+                  }
                   redirectTo="/filamentos"
                 />
               ))
             ) : (
               materials.map((material) => {
                 const derived = getMaterialDerivedMetrics(material);
+                const internalConsumedGrams = orders
+                  .filter((order) => order.materialId === material.id)
+                  .reduce((sum, order) => sum + (order.materialConsumptionGrams ?? 0), 0);
+                const showcaseConsumedGrams = showcaseInquiries
+                  .filter((inquiry) => showcaseItems.find((item) => item.id === inquiry.itemId)?.materialId === material.id)
+                  .reduce((sum, inquiry) => sum + (inquiry.materialConsumptionGrams ?? 0), 0);
+                const totalConsumedGrams = internalConsumedGrams + showcaseConsumedGrams;
+                const totalConsumedValue =
+                  orders
+                    .filter((order) => order.materialId === material.id)
+                    .reduce((sum, order) => sum + (order.materialConsumptionValue ?? 0), 0) +
+                  showcaseInquiries
+                    .filter((inquiry) => showcaseItems.find((item) => item.id === inquiry.itemId)?.materialId === material.id)
+                    .reduce((sum, inquiry) => sum + (inquiry.materialConsumptionValue ?? 0), 0);
                 return (
                   <article key={material.id} className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -110,6 +135,17 @@ export default async function FilamentsPage() {
                       <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
                         <p className="text-xs uppercase tracking-[0.18em] text-white/45">Metragem restante</p>
                         <p className="mt-2 text-lg font-semibold">{formatMeters(derived.stockMetersRemaining)}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
+                        <p className="text-xs uppercase tracking-[0.18em] text-white/45">Consumo registrado</p>
+                        <p className="mt-2 text-lg font-semibold">{totalConsumedGrams.toFixed(0)} {material.unit}</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
+                        <p className="text-xs uppercase tracking-[0.18em] text-white/45">Valor consumido</p>
+                        <p className="mt-2 text-lg font-semibold">{formatCurrency(totalConsumedValue)}</p>
                       </div>
                     </div>
                   </article>

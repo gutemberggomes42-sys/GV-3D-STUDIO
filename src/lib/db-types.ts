@@ -22,6 +22,7 @@ export type DbUser = {
   address?: string;
   projectType?: string;
   avatarColor: string;
+  passwordChangedAt?: IsoDateString;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
 };
@@ -214,6 +215,9 @@ export type DbOrder = {
   printingStartedAt?: IsoDateString;
   printingCompletedAt?: IsoDateString;
   plannedPrintMinutes?: number;
+  materialConsumedAt?: IsoDateString;
+  materialConsumptionGrams?: number;
+  materialConsumptionValue?: number;
   materialName: string;
   materialId?: string;
   customerId: string;
@@ -231,6 +235,7 @@ export type DbOrder = {
 export type ShowcaseInquiryStatus = "PENDING" | "CLOSED" | "NOT_CLOSED";
 export type ShowcaseInquirySource = "CATALOG" | "MANUAL";
 export type ShowcaseFulfillmentType = "STOCK" | "MADE_TO_ORDER";
+export type ShowcaseLeadTemperature = "COLD" | "WARM" | "HOT";
 export type ShowcaseOrderStage =
   | "RECEIVED"
   | "ANALYSIS"
@@ -254,6 +259,7 @@ export type DbShowcaseItem = {
   description: string;
   price: number;
   materialLabel?: string;
+  materialId?: string;
   colorOptions: string[];
   dimensionSummary?: string;
   leadTimeDays: number;
@@ -263,6 +269,7 @@ export type DbShowcaseItem = {
   fulfillmentType: ShowcaseFulfillmentType;
   stockQuantity: number;
   estimatedPrintHours: number;
+  estimatedMaterialGrams: number;
   featured: boolean;
   active: boolean;
   createdAt: IsoDateString;
@@ -284,14 +291,30 @@ export type DbShowcaseInquiry = {
   whatsappNumber: string;
   whatsappUrl: string;
   status: ShowcaseInquiryStatus;
+  tags: string[];
+  leadTemperature: ShowcaseLeadTemperature;
+  followUpAt?: IsoDateString;
+  lastContactAt?: IsoDateString;
   orderStage?: ShowcaseOrderStage;
   assignedMachineId?: string;
   printingStartedAt?: IsoDateString;
   printingCompletedAt?: IsoDateString;
   plannedPrintMinutes?: number;
+  materialConsumedAt?: IsoDateString;
+  materialConsumptionGrams?: number;
+  materialConsumptionValue?: number;
   closedAt?: IsoDateString;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
+};
+
+export type DbAuditLog = {
+  id: string;
+  actorId?: string;
+  area: string;
+  action: string;
+  summary: string;
+  createdAt: IsoDateString;
 };
 
 export type PrintFlowDb = {
@@ -303,4 +326,5 @@ export type PrintFlowDb = {
   orders: DbOrder[];
   showcaseItems: DbShowcaseItem[];
   showcaseInquiries: DbShowcaseInquiry[];
+  auditLogs: DbAuditLog[];
 };

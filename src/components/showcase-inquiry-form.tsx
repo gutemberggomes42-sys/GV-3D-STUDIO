@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { createShowcaseInquiryAction, type ActionState } from "@/lib/actions";
+import { showcaseLeadTemperatureMeta } from "@/lib/constants";
 import type { DbShowcaseItem } from "@/lib/db-types";
 
 type ShowcaseInquiryFormProps = {
@@ -99,6 +100,50 @@ export function ShowcaseInquiryForm({ items }: ShowcaseInquiryFormProps) {
           name="notes"
           rows={3}
           placeholder="Detalhes do pedido, cor combinada, prazo, observações..."
+          className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+        />
+      </label>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <label className="block text-sm text-white/70">
+          Temperatura do lead
+          <select
+            name="leadTemperature"
+            defaultValue="WARM"
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+          >
+            {(["COLD", "WARM", "HOT"] as const).map((temperature) => (
+              <option key={temperature} value={temperature}>
+                {showcaseLeadTemperatureMeta[temperature].label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block text-sm text-white/70">
+          Próximo follow-up
+          <input
+            name="followUpAt"
+            type="datetime-local"
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+          />
+        </label>
+
+        <label className="block text-sm text-white/70">
+          Último contato
+          <input
+            name="lastContactAt"
+            type="datetime-local"
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+          />
+        </label>
+      </div>
+
+      <label className="block text-sm text-white/70">
+        Etiquetas do lead
+        <input
+          name="tags"
+          placeholder="cliente recorrente, quer video, pediu desconto"
           className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
         />
       </label>

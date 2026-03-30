@@ -152,6 +152,40 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
             />
           </label>
         </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <label className="block text-sm text-white/70">
+            Filamento / material vinculado
+            <select
+              name="materialId"
+              defaultValue=""
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+            >
+              <option value="">Selecionar depois</option>
+              {materials.map((material) => (
+                <option key={material.id} value={material.id}>
+                  {material.name} · {material.brand} · {material.color}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block text-sm text-white/70">
+            Consumo estimado de material (g/ml)
+            <input
+              name="estimatedMaterialGrams"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue="0"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+            />
+          </label>
+
+          <div className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-white/60">
+            Quando você escolher o material e informar o consumo estimado, o sistema baixa esse filamento automaticamente assim que o pedido entrar em impressão.
+          </div>
+        </div>
       </section>
 
       <section className="space-y-4 rounded-[24px] border border-white/10 bg-black/20 p-5">

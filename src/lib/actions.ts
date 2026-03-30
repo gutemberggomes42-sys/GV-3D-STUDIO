@@ -17,14 +17,17 @@ import { createUserSession, destroySession, hashPassword, requireRoles, requireU
 import { allowed3dFormats, ownerEmail, ownerWhatsAppNumber } from "@/lib/constants";
 import { ensureCustomerRecord, isGeneratedCustomerEmail } from "@/lib/customer-records";
 import type {
+  DbAuditLog,
   DbExpense,
   DbMaterial,
   DbOrder,
   DbQualityCheck,
+  DbShowcaseInquiry,
   DbShowcaseItem,
   DbExpenseCategory,
   ShowcaseFulfillmentType,
   ShowcaseInquiryStatus,
+  ShowcaseLeadTemperature,
   ShowcaseOrderStage,
 } from "@/lib/db-types";
 import {
@@ -57,6 +60,30 @@ const registerSchema = authSchema.extend({
   address: z.string().min(5, "Informe o endereço."),
   projectType: z.string().min(3, "Descreva o tipo de projeto."),
 });
+
+const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(6, "Informe sua senha atual."),
+    newPassword: z.string().min(6, "A nova senha precisa ter pelo menos 6 caracteres."),
+    confirmPassword: z.string().min(6, "Confirme a nova senha."),
+  })
+  .superRefine((data, ctx) => {
+    if (data.newPassword !== data.confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "A confirmação da nova senha não confere.",
+        path: ["confirmPassword"],
+      });
+    }
+
+    if (data.currentPassword === data.newPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Escolha uma nova senha diferente da atual.",
+        path: ["newPassword"],
+      });
+    }
+  });
 
 const orderSchema = z.object({
   title: z.string().min(4, "Dê um nome para o projeto."),
@@ -160,10 +187,12 @@ const showcaseItemSchema = z
     description: z.string().min(10, "Descreva o item exposto."),
     price: z.coerce.number().positive("Informe o valor do item."),
     estimatedPrintHours: z.coerce.number().positive("Informe o tempo de impressão cadastrado."),
+    estimatedMaterialGrams: z.coerce.number().nonnegative("Informe o consumo estimado de material."),
     fulfillmentType: z.enum(["STOCK", "MADE_TO_ORDER"]),
     stockQuantity: z.coerce.number().int().nonnegative("Informe o estoque disponível."),
     leadTimeDays: z.coerce.number().int().nonnegative("Informe o prazo estimado."),
     materialLabel: z.string().trim().optional(),
+    materialId: z.string().trim().optional(),
     colorOptions: z.array(z.string().trim()).default([]),
     dimensionSummary: z.string().trim().optional(),
     imageUrl: z.string().trim().optional(),
@@ -183,6 +212,7 @@ const showcaseItemSchema = z
   });
 
 const showcaseInquiryStatusSchema = z.enum(["PENDING", "CLOSED", "NOT_CLOSED"]);
+const showcaseLeadTemperatureSchema = z.enum(["COLD", "WARM", "HOT"]);
 const showcaseOrderStageSchema = z.enum([
   "RECEIVED",
   "ANALYSIS",
@@ -206,6 +236,10 @@ const showcaseInquirySchema = z
     customerEmail: z.string().trim().optional(),
     customerPhone: z.string().trim().min(8, "Informe o telefone ou WhatsApp."),
     status: showcaseInquiryStatusSchema,
+    tags: z.array(z.string().trim()).default([]),
+    leadTemperature: showcaseLeadTemperatureSchema.default("WARM"),
+    followUpAt: z.string().trim().optional(),
+    lastContactAt: z.string().trim().optional(),
     notes: z.string().trim().optional(),
   })
   .superRefine((data, ctx) => {
@@ -215,6 +249,21 @@ const showcaseInquirySchema = z
         message: "Informe um e-mail válido ou deixe o campo em branco.",
         path: ["customerEmail"],
       });
+    }
+
+    for (const [field, label] of [
+      ["followUpAt", "follow-up"],
+      ["lastContactAt", "último contato"],
+    ] as const) {
+      const value = data[field];
+
+      if (value && Number.isNaN(new Date(value).getTime())) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Informe uma data válida para ${label}.`,
+          path: [field],
+        });
+      }
     }
   });
 const allowedImageFormats = ["png", "jpg", "jpeg", "webp", "gif"] as const;
@@ -320,10 +369,12 @@ function parseShowcaseItemFormData(formData: FormData) {
     description: formData.get("description"),
     price: formData.get("price"),
     estimatedPrintHours: formData.get("estimatedPrintHours"),
+    estimatedMaterialGrams: formData.get("estimatedMaterialGrams") || 0,
     fulfillmentType: formData.get("fulfillmentType"),
     stockQuantity: formData.get("stockQuantity"),
     leadTimeDays: formData.get("leadTimeDays") || 0,
     materialLabel: formData.get("materialLabel")?.toString(),
+    materialId: formData.get("materialId")?.toString(),
     colorOptions: parseShowcaseListField(formData.get("colorOptions")),
     dimensionSummary: formData.get("dimensionSummary")?.toString(),
     imageUrl: formData.get("imageUrl")?.toString(),
@@ -342,6 +393,10 @@ function parseShowcaseInquiryFormData(formData: FormData) {
     customerEmail: formData.get("customerEmail")?.toString(),
     customerPhone: formData.get("customerPhone")?.toString(),
     status: formData.get("status"),
+    tags: parseShowcaseListField(formData.get("tags")),
+    leadTemperature: formData.get("leadTemperature") || "WARM",
+    followUpAt: formData.get("followUpAt")?.toString(),
+    lastContactAt: formData.get("lastContactAt")?.toString(),
     notes: formData.get("notes")?.toString(),
   });
 }
@@ -376,6 +431,28 @@ function normalizeOptionalIsoDate(value?: string) {
   }
 
   return new Date(value).toISOString();
+}
+
+function pushAuditLog(
+  db: Awaited<ReturnType<typeof readDb>>,
+  {
+    actorId,
+    area,
+    action,
+    summary,
+  }: Omit<DbAuditLog, "id" | "createdAt">,
+) {
+  const entry: DbAuditLog = {
+    id: createId("log"),
+    actorId,
+    area,
+    action,
+    summary: summary.trim(),
+    createdAt: new Date().toISOString(),
+  };
+
+  db.auditLogs.unshift(entry);
+  db.auditLogs = db.auditLogs.slice(0, 250);
 }
 
 function buildExpensePayload(data: z.infer<typeof expenseSchema>): DbExpense {
@@ -437,10 +514,12 @@ function buildShowcaseItemPayload(data: z.infer<typeof showcaseItemSchema>): DbS
     description: data.description,
     price: data.price,
     materialLabel: data.materialLabel?.trim() || undefined,
+    materialId: data.materialId?.trim() || undefined,
     colorOptions: data.colorOptions,
     dimensionSummary: data.dimensionSummary?.trim() || undefined,
     leadTimeDays: data.fulfillmentType === "MADE_TO_ORDER" ? data.leadTimeDays : 0,
     estimatedPrintHours: data.estimatedPrintHours,
+    estimatedMaterialGrams: data.estimatedMaterialGrams,
     fulfillmentType: data.fulfillmentType,
     stockQuantity: data.fulfillmentType === "STOCK" ? data.stockQuantity : 0,
     imageUrl: data.imageUrl?.trim() || undefined,
@@ -618,6 +697,114 @@ function hasReservedShowcaseStock(status: ShowcaseInquiryStatus, orderStage?: Sh
   return status === "CLOSED" && orderStage !== "CANCELED";
 }
 
+function resolveShowcaseMaterialSelection(
+  db: Awaited<ReturnType<typeof readDb>>,
+  data: Pick<z.infer<typeof showcaseItemSchema>, "materialId" | "materialLabel">,
+) {
+  const materialId = data.materialId?.trim() || undefined;
+
+  if (!materialId) {
+    return {
+      materialId: undefined,
+      materialLabel: data.materialLabel?.trim() || undefined,
+    };
+  }
+
+  const material = db.materials.find((candidate) => candidate.id === materialId);
+
+  if (!material) {
+    throw new Error("O material principal escolhido não foi encontrado.");
+  }
+
+  return {
+    materialId: material.id,
+    materialLabel: data.materialLabel?.trim() || material.name,
+  };
+}
+
+function consumeMaterialStock(material: DbMaterial, amount: number, now: string) {
+  if (amount <= 0) {
+    return;
+  }
+
+  if (material.stockAmount < amount) {
+    throw new Error(
+      `Material insuficiente em ${material.name}. Disponível: ${material.stockAmount.toFixed(0)} ${material.unit}.`,
+    );
+  }
+
+  material.stockAmount = Number((material.stockAmount - amount).toFixed(2));
+  material.updatedAt = now;
+}
+
+function consumeInternalOrderMaterial(
+  db: Awaited<ReturnType<typeof readDb>>,
+  order: DbOrder,
+  actorId?: string,
+  now = new Date().toISOString(),
+) {
+  if (order.materialConsumedAt || !order.materialId || order.estimatedWeightGrams <= 0) {
+    return;
+  }
+
+  const material = db.materials.find((candidate) => candidate.id === order.materialId);
+
+  if (!material) {
+    return;
+  }
+
+  const consumedAmount = Number(order.estimatedWeightGrams.toFixed(2));
+  const consumedValue = Number((consumedAmount * material.costPerUnit).toFixed(2));
+
+  consumeMaterialStock(material, consumedAmount, now);
+  order.materialConsumedAt = now;
+  order.materialConsumptionGrams = consumedAmount;
+  order.materialConsumptionValue = consumedValue;
+  pushAuditLog(db, {
+    actorId,
+    area: "materials",
+    action: "consume_order",
+    summary: `Material baixado para ${order.orderNumber}: ${consumedAmount.toFixed(0)} ${material.unit} de ${material.name}.`,
+  });
+}
+
+function consumeShowcaseInquiryMaterial(
+  db: Awaited<ReturnType<typeof readDb>>,
+  inquiry: DbShowcaseInquiry,
+  item: DbShowcaseItem | undefined,
+  actorId?: string,
+  now = new Date().toISOString(),
+) {
+  if (inquiry.materialConsumedAt || !item?.materialId || item.estimatedMaterialGrams <= 0) {
+    return;
+  }
+
+  const material = db.materials.find((candidate) => candidate.id === item.materialId);
+
+  if (!material) {
+    return;
+  }
+
+  const consumedAmount = Number((item.estimatedMaterialGrams * inquiry.quantity).toFixed(2));
+
+  if (consumedAmount <= 0) {
+    return;
+  }
+
+  const consumedValue = Number((consumedAmount * material.costPerUnit).toFixed(2));
+
+  consumeMaterialStock(material, consumedAmount, now);
+  inquiry.materialConsumedAt = now;
+  inquiry.materialConsumptionGrams = consumedAmount;
+  inquiry.materialConsumptionValue = consumedValue;
+  pushAuditLog(db, {
+    actorId,
+    area: "materials",
+    action: "consume_showcase",
+    summary: `Material baixado para ${inquiry.itemName}: ${consumedAmount.toFixed(0)} ${material.unit} de ${material.name}.`,
+  });
+}
+
 function findOrder(db: Awaited<ReturnType<typeof readDb>>, orderId: string) {
   return db.orders.find((order) => order.id === orderId);
 }
@@ -716,11 +903,21 @@ export async function registerAction(_previousState: ActionState, formData: Form
         address: parsed.data.address,
         projectType: parsed.data.projectType,
         avatarColor: "#ffc857",
+        passwordChangedAt: now,
         createdAt: now,
         updatedAt: now,
       };
 
       db.users.push(newUser);
+      pushAuditLog(db, {
+        actorId: newUser.id,
+        area: "auth",
+        action: "register",
+        summary:
+          role === UserRole.ADMIN
+            ? `Conta administrativa criada para ${newUser.email}.`
+            : `Novo cliente cadastrado: ${newUser.name}.`,
+      });
       return newUser;
     });
 
@@ -740,6 +937,75 @@ export async function registerAction(_previousState: ActionState, formData: Form
 export async function logoutAction() {
   await destroySession();
   redirect("/");
+}
+
+export async function changeOwnPasswordAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await requireUser();
+  const parsed = changePasswordSchema.safeParse({
+    currentPassword: formData.get("currentPassword"),
+    newPassword: formData.get("newPassword"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Não foi possível atualizar a senha.",
+    };
+  }
+
+  try {
+    const db = await readDb();
+    const currentUser = db.users.find((candidate) => candidate.id === user.id);
+
+    if (!currentUser) {
+      throw new Error("Usuário não encontrado.");
+    }
+
+    const passwordMatches = await verifyPassword(
+      parsed.data.currentPassword,
+      currentUser.passwordHash,
+    );
+
+    if (!passwordMatches) {
+      throw new Error("A senha atual não confere.");
+    }
+
+    const newPasswordHash = await hashPassword(parsed.data.newPassword);
+
+    await updateDb((mutableDb) => {
+      const mutableUser = mutableDb.users.find((candidate) => candidate.id === user.id);
+
+      if (!mutableUser) {
+        throw new Error("Usuário não encontrado.");
+      }
+
+      const now = new Date().toISOString();
+      mutableUser.passwordHash = newPasswordHash;
+      mutableUser.passwordChangedAt = now;
+      mutableUser.updatedAt = now;
+      pushAuditLog(mutableDb, {
+        actorId: user.id,
+        area: "security",
+        action: "change_password",
+        summary: `Senha atualizada por ${mutableUser.email}.`,
+      });
+    });
+
+    revalidateAll();
+    return {
+      ok: true,
+      message: "Senha atualizada com sucesso.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Não foi possível atualizar a senha.",
+    };
+  }
 }
 
 export async function createOrderAction(
@@ -883,6 +1149,12 @@ export async function createOrderAction(
       };
 
       db.orders.unshift(order);
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "orders",
+        action: "create",
+        summary: `Novo pedido ${order.orderNumber} criado por ${user.name}.`,
+      });
     });
 
     revalidateAll();
@@ -917,6 +1189,12 @@ export async function approveOrderAction(formData: FormData) {
       details: "Cliente confirmou o início do pedido.",
       statusSnapshot: OrderStatus.WAITING_PAYMENT,
       createdAt: now,
+    });
+    pushAuditLog(db, {
+      actorId: user.id,
+      area: "orders",
+      action: "approve",
+      summary: `Pedido ${order.orderNumber} aprovado pelo cliente.`,
     });
   });
 
@@ -968,6 +1246,12 @@ export async function markOrderPaidAction(formData: FormData) {
       createdAt: now,
     });
     order.updatedAt = now;
+    pushAuditLog(db, {
+      actorId: user.id,
+      area: "finance",
+      action: "mark_paid",
+      summary: `Pagamento confirmado para ${order.orderNumber} via ${method}.`,
+    });
   });
 
   revalidateAll();
@@ -977,7 +1261,7 @@ export async function createMaterialAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const redirectTo = getSafeRedirectPath(formData);
   const fields = getMaterialFormFields(formData);
 
@@ -995,6 +1279,12 @@ export async function createMaterialAction(
     await updateDb((db) => {
       const material = buildMaterialPayload(parsed.data);
       db.materials.unshift(material);
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "materials",
+        action: "create",
+        summary: `Material ${material.name} cadastrado com custo real atualizado.`,
+      });
     });
 
     revalidateAll();
@@ -1018,7 +1308,7 @@ export async function updateMaterialAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const materialId = String(formData.get("materialId") ?? "");
   const redirectTo = getSafeRedirectPath(formData);
   const fields = getMaterialFormFields(formData);
@@ -1076,6 +1366,12 @@ export async function updateMaterialAction(
       material.minimumStock = parsed.data.minimumStock;
       material.supplier = parsed.data.supplier?.trim() || undefined;
       material.updatedAt = now;
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "materials",
+        action: "update",
+        summary: `Material ${material.name} atualizado no estoque.`,
+      });
     });
 
     revalidateAll();
@@ -1099,7 +1395,7 @@ export async function deleteMaterialAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const materialId = String(formData.get("materialId") ?? "");
   const redirectTo = getSafeRedirectPath(formData);
 
@@ -1119,12 +1415,20 @@ export async function deleteMaterialAction(
       }
 
       const linkedOrders = db.orders.filter((order) => order.materialId === materialId);
+      const linkedShowcaseItems = db.showcaseItems.filter((item) => item.materialId === materialId);
 
-      if (linkedOrders.length > 0) {
-        throw new Error("Não é possível excluir um material já vinculado a pedidos.");
+      if (linkedOrders.length > 0 || linkedShowcaseItems.length > 0) {
+        throw new Error("Não é possível excluir um material já vinculado a pedidos ou produtos da vitrine.");
       }
 
+      const material = db.materials[materialIndex];
       db.materials.splice(materialIndex, 1);
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "materials",
+        action: "delete",
+        summary: `Material ${material.name} excluído do cadastro.`,
+      });
     });
 
     revalidateAll();
@@ -1147,7 +1451,7 @@ export async function createMachineAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
 
   const parsed = parseMachineFormData(formData);
 
@@ -1161,7 +1465,7 @@ export async function createMachineAction(
   try {
     await updateDb((db) => {
       const now = new Date().toISOString();
-      db.machines.unshift({
+      const machine = {
         id: createId("mac"),
         name: parsed.data.name,
         model: parsed.data.model,
@@ -1189,6 +1493,13 @@ export async function createMachineAction(
         maintenanceRecords: [],
         createdAt: now,
         updatedAt: now,
+      };
+      db.machines.unshift(machine);
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "machines",
+        action: "create",
+        summary: `Impressora ${machine.name} cadastrada.`,
       });
     });
 
@@ -1209,7 +1520,7 @@ export async function updateMachineAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const machineId = String(formData.get("machineId") ?? "");
   const parsed = parseMachineFormData(formData);
 
@@ -1248,6 +1559,12 @@ export async function updateMachineAction(
       machine.location = parsed.data.location?.trim() || undefined;
       machine.notes = parsed.data.notes?.trim() || undefined;
       machine.updatedAt = new Date().toISOString();
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "machines",
+        action: "update",
+        summary: `Impressora ${machine.name} atualizada.`,
+      });
     });
 
     revalidateAll();
@@ -1267,7 +1584,7 @@ export async function deleteMachineAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const machineId = String(formData.get("machineId") ?? "");
 
   if (!machineId) {
@@ -1301,7 +1618,14 @@ export async function deleteMachineAction(
         throw new Error("Não é possível excluir uma impressora com pedidos ativos vinculados.");
       }
 
+      const machine = db.machines[machineIndex];
       db.machines.splice(machineIndex, 1);
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "machines",
+        action: "delete",
+        summary: `Impressora ${machine.name} excluída do cadastro.`,
+      });
     });
 
     revalidateAll();
@@ -1321,7 +1645,7 @@ export async function createExpenseAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const parsed = parseExpenseFormData(formData);
 
   if (!parsed.success) {
@@ -1333,7 +1657,14 @@ export async function createExpenseAction(
 
   try {
     await updateDb((db) => {
-      db.expenses.unshift(buildExpensePayload(parsed.data));
+      const expense = buildExpensePayload(parsed.data);
+      db.expenses.unshift(expense);
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "finance",
+        action: "create_expense",
+        summary: `Gasto lançado: ${expense.title}.`,
+      });
     });
 
     revalidateAll();
@@ -1350,7 +1681,7 @@ export async function createExpenseAction(
 }
 
 export async function deleteExpenseAction(formData: FormData) {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const expenseId = String(formData.get("expenseId") ?? "");
 
   if (!expenseId) {
@@ -1364,7 +1695,14 @@ export async function deleteExpenseAction(formData: FormData) {
       throw new Error("Gasto não encontrado.");
     }
 
+    const expense = db.expenses[expenseIndex];
     db.expenses.splice(expenseIndex, 1);
+    pushAuditLog(db, {
+      actorId: user.id,
+      area: "finance",
+      action: "delete_expense",
+      summary: `Gasto removido: ${expense.title}.`,
+    });
   });
 
   revalidateAll();
@@ -1374,7 +1712,7 @@ export async function createShowcaseItemAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const parsed = parseShowcaseItemFormData(formData);
 
   if (!parsed.success) {
@@ -1389,14 +1727,21 @@ export async function createShowcaseItemAction(
     const uploadedVideoUrl = await resolveShowcaseVideoUrl(formData);
     const galleryImageUrls = await resolveShowcaseGalleryImageUrls(formData);
     await updateDb((db) => {
-      db.showcaseItems.unshift(
-        buildShowcaseItemPayload({
-          ...parsed.data,
-          imageUrl: uploadedImageUrl ?? parsed.data.imageUrl,
-          videoUrl: uploadedVideoUrl ?? parsed.data.videoUrl,
-          galleryImageUrls,
-        }),
-      );
+      const materialSelection = resolveShowcaseMaterialSelection(db, parsed.data);
+      const item = buildShowcaseItemPayload({
+        ...parsed.data,
+        ...materialSelection,
+        imageUrl: uploadedImageUrl ?? parsed.data.imageUrl,
+        videoUrl: uploadedVideoUrl ?? parsed.data.videoUrl,
+        galleryImageUrls,
+      });
+      db.showcaseItems.unshift(item);
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "showcase",
+        action: "create_item",
+        summary: `Produto da vitrine cadastrado: ${item.name}.`,
+      });
     });
 
     revalidateAll();
@@ -1416,7 +1761,7 @@ export async function updateShowcaseItemAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const itemId = String(formData.get("itemId") ?? "");
   const parsed = parseShowcaseItemFormData(formData);
   const requestedRestock = Number(formData.get("restockQuantity") ?? "0");
@@ -1450,17 +1795,21 @@ export async function updateShowcaseItemAction(
         throw new Error("Item da vitrine não encontrado.");
       }
 
+      const materialSelection = resolveShowcaseMaterialSelection(db, parsed.data);
+
       item.name = parsed.data.name;
       item.category = parsed.data.category;
       item.tagline = parsed.data.tagline?.trim() || undefined;
       item.description = parsed.data.description;
       item.price = parsed.data.price;
-      item.materialLabel = parsed.data.materialLabel?.trim() || undefined;
+      item.materialLabel = materialSelection.materialLabel;
+      item.materialId = materialSelection.materialId;
       item.colorOptions = parsed.data.colorOptions;
       item.dimensionSummary = parsed.data.dimensionSummary?.trim() || undefined;
       item.leadTimeDays =
         parsed.data.fulfillmentType === "MADE_TO_ORDER" ? parsed.data.leadTimeDays : 0;
       item.estimatedPrintHours = parsed.data.estimatedPrintHours;
+      item.estimatedMaterialGrams = parsed.data.estimatedMaterialGrams;
       item.fulfillmentType = parsed.data.fulfillmentType;
       item.stockQuantity =
         parsed.data.fulfillmentType === "STOCK"
@@ -1472,6 +1821,12 @@ export async function updateShowcaseItemAction(
       item.featured = parsed.data.featured;
       item.active = parsed.data.active;
       item.updatedAt = new Date().toISOString();
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "showcase",
+        action: "update_item",
+        summary: `Produto da vitrine atualizado: ${item.name}.`,
+      });
     });
 
     revalidateAll();
@@ -1494,7 +1849,7 @@ export async function deleteShowcaseItemAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const itemId = String(formData.get("itemId") ?? "");
 
   if (!itemId) {
@@ -1512,7 +1867,14 @@ export async function deleteShowcaseItemAction(
         throw new Error("Item da vitrine não encontrado.");
       }
 
+      const item = db.showcaseItems[itemIndex];
       db.showcaseItems.splice(itemIndex, 1);
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "showcase",
+        action: "delete_item",
+        summary: `Produto da vitrine excluído: ${item.name}.`,
+      });
     });
 
     revalidateAll();
@@ -1532,7 +1894,7 @@ export async function createShowcaseInquiryAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const parsed = parseShowcaseInquiryFormData(formData);
 
   if (!parsed.success) {
@@ -1586,11 +1948,21 @@ export async function createShowcaseInquiryAction(
           customerPhone,
         }),
         status,
+        tags: parsed.data.tags,
+        leadTemperature: parsed.data.leadTemperature as ShowcaseLeadTemperature,
+        followUpAt: normalizeOptionalIsoDate(parsed.data.followUpAt),
+        lastContactAt: normalizeOptionalIsoDate(parsed.data.lastContactAt),
         orderStage: status === "CLOSED" ? "RECEIVED" : undefined,
         plannedPrintMinutes: getPlannedMinutesFromHours(item.estimatedPrintHours * parsed.data.quantity),
         closedAt: status === "CLOSED" ? now : undefined,
         createdAt: now,
         updatedAt: now,
+      });
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "crm",
+        action: "create_lead",
+        summary: `Lead manual criado para ${customerName} em ${item.name}.`,
       });
     });
 
@@ -1611,7 +1983,7 @@ export async function updateShowcaseInquiryAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const parsed = parseShowcaseInquiryFormData(formData);
 
@@ -1673,6 +2045,10 @@ export async function updateShowcaseInquiryAction(
       inquiry.customerPhone = customerPhone;
       inquiry.notes = parsed.data.notes?.trim() || undefined;
       inquiry.status = nextStatus;
+      inquiry.tags = parsed.data.tags;
+      inquiry.leadTemperature = parsed.data.leadTemperature as ShowcaseLeadTemperature;
+      inquiry.followUpAt = normalizeOptionalIsoDate(parsed.data.followUpAt);
+      inquiry.lastContactAt = normalizeOptionalIsoDate(parsed.data.lastContactAt);
       inquiry.orderStage = nextOrderStage;
       inquiry.plannedPrintMinutes = getPlannedMinutesFromHours(
         nextItem.estimatedPrintHours * parsed.data.quantity,
@@ -1687,6 +2063,12 @@ export async function updateShowcaseInquiryAction(
         customerPhone,
       });
       inquiry.updatedAt = now;
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "crm",
+        action: "update_lead",
+        summary: `Lead de ${customerName} atualizado para ${nextStatus}.`,
+      });
     });
 
     revalidateAll();
@@ -1706,7 +2088,7 @@ export async function deleteShowcaseInquiryAction(
   _previousState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const inquiryId = String(formData.get("inquiryId") ?? "");
 
   if (!inquiryId) {
@@ -1735,6 +2117,12 @@ export async function deleteShowcaseInquiryAction(
       }
 
       db.showcaseInquiries.splice(inquiryIndex, 1);
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "crm",
+        action: "delete_lead",
+        summary: `Lead de ${inquiry.customerName} excluído.`,
+      });
     });
 
     revalidateAll();
@@ -1751,7 +2139,7 @@ export async function deleteShowcaseInquiryAction(
 }
 
 export async function updateShowcaseInquiryStatusAction(formData: FormData) {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const parsedStatus = showcaseInquiryStatusSchema.safeParse(formData.get("status"));
 
@@ -1792,7 +2180,14 @@ export async function updateShowcaseInquiryStatusAction(formData: FormData) {
     inquiry.orderStage = nextOrderStage;
     inquiry.assignedMachineId = nextStatus === "CLOSED" ? inquiry.assignedMachineId : undefined;
     inquiry.closedAt = nextStatus === "CLOSED" ? now : undefined;
+    inquiry.lastContactAt = now;
     inquiry.updatedAt = now;
+    pushAuditLog(db, {
+      actorId: user.id,
+      area: "crm",
+      action: "update_lead_status",
+      summary: `Lead de ${inquiry.customerName} marcado como ${nextStatus}.`,
+    });
   });
 
   revalidateAll();
@@ -1803,7 +2198,7 @@ export async function updateShowcaseInquiryStatusAction(formData: FormData) {
 }
 
 export async function updateShowcaseInquiryOrderStageAction(formData: FormData) {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const parsedStage = showcaseOrderStageSchema.safeParse(formData.get("orderStage"));
 
@@ -1844,6 +2239,7 @@ export async function updateShowcaseInquiryOrderStageAction(formData: FormData) 
       inquiry.plannedPrintMinutes = getPlannedMinutesFromHours(
         (item?.estimatedPrintHours ?? 1) * inquiry.quantity,
       );
+      consumeShowcaseInquiryMaterial(db, inquiry, item, user.id, now);
       if (previousMachine) {
         previousMachine.status = MachineStatus.BUSY;
         previousMachine.progressPercent = Math.max(previousMachine.progressPercent, 8);
@@ -1873,6 +2269,12 @@ export async function updateShowcaseInquiryOrderStageAction(formData: FormData) 
       inquiry.assignedMachineId = undefined;
     }
     inquiry.updatedAt = now;
+    pushAuditLog(db, {
+      actorId: user.id,
+      area: "showcase_order",
+      action: "update_stage",
+      summary: `Pedido de ${inquiry.customerName} movido para ${nextOrderStage}.`,
+    });
   });
 
   revalidateAll();
@@ -1883,7 +2285,7 @@ export async function updateShowcaseInquiryOrderStageAction(formData: FormData) 
 }
 
 export async function assignShowcaseInquiryMachineAction(formData: FormData) {
-  await requireRoles([UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.ADMIN]);
+  const user = await requireRoles([UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.ADMIN]);
   const inquiryId = String(formData.get("inquiryId") ?? "");
   const machineId = String(formData.get("machineId") ?? "");
   const parsedStage = showcaseOrderStageSchema.safeParse(formData.get("orderStage"));
@@ -1922,6 +2324,7 @@ export async function assignShowcaseInquiryMachineAction(formData: FormData) {
       inquiry.plannedPrintMinutes = getPlannedMinutesFromHours(
         (item?.estimatedPrintHours ?? 1) * inquiry.quantity,
       );
+      consumeShowcaseInquiryMaterial(db, inquiry, item, user.id, now);
     }
     inquiry.updatedAt = now;
 
@@ -1931,6 +2334,13 @@ export async function assignShowcaseInquiryMachineAction(formData: FormData) {
       machine.timeRemainingMinutes = inquiry.plannedPrintMinutes ?? Math.max(machine.timeRemainingMinutes, 60);
       machine.updatedAt = now;
     }
+
+    pushAuditLog(db, {
+      actorId: user.id,
+      area: "machines",
+      action: "assign_showcase",
+      summary: `Pedido ${inquiry.itemName} vinculado à máquina ${machine.name}.`,
+    });
   });
 
   revalidateAll();
@@ -1968,6 +2378,7 @@ export async function assignMachineAction(formData: FormData) {
       order.printingStartedAt = now;
       order.printingCompletedAt = undefined;
       order.plannedPrintMinutes = getPlannedMinutesFromHours(order.estimatedHours);
+      consumeInternalOrderMaterial(db, order, user.id, now);
     }
     order.updatedAt = now;
     order.timeline.unshift({
@@ -1986,13 +2397,19 @@ export async function assignMachineAction(formData: FormData) {
         ? order.plannedPrintMinutes ?? Math.max(Math.round(order.estimatedHours * 60), 45)
         : machine.timeRemainingMinutes;
     machine.updatedAt = now;
+    pushAuditLog(db, {
+      actorId: user.id,
+      area: "machines",
+      action: "assign_order",
+      summary: `Pedido ${order.orderNumber} vinculado à máquina ${machine.name}.`,
+    });
   });
 
   revalidateAll();
 }
 
 export async function advanceOrderStatusAction(formData: FormData) {
-  await requireRoles([UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.ADMIN]);
+  const user = await requireRoles([UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.ADMIN]);
   const orderId = String(formData.get("orderId") ?? "");
   const nextStatus = String(formData.get("nextStatus") ?? "") as OrderStatus;
   let completionNotificationUrl: string | null = null;
@@ -2015,6 +2432,7 @@ export async function advanceOrderStatusAction(formData: FormData) {
       order.printingStartedAt = now;
       order.printingCompletedAt = undefined;
       order.plannedPrintMinutes = getPlannedMinutesFromHours(order.estimatedHours);
+      consumeInternalOrderMaterial(db, order, user.id, now);
       if (assignedMachine) {
         assignedMachine.status = MachineStatus.BUSY;
         assignedMachine.progressPercent = Math.max(assignedMachine.progressPercent, 8);
@@ -2053,10 +2471,17 @@ export async function advanceOrderStatusAction(formData: FormData) {
 
     order.timeline.unshift({
       id: createId("tml"),
+      actorId: user.id,
       label: "Status atualizado",
       details: `Pedido movido para ${nextStatus}.`,
       statusSnapshot: nextStatus,
       createdAt: now,
+    });
+    pushAuditLog(db, {
+      actorId: user.id,
+      area: "orders",
+      action: "update_status",
+      summary: `Pedido ${order.orderNumber} movido para ${nextStatus}.`,
     });
   });
 
@@ -2199,7 +2624,7 @@ export async function reprintOrderAction(formData: FormData) {
 }
 
 export async function updateMachineStatusAction(formData: FormData) {
-  await requireRoles([UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.ADMIN]);
+  const user = await requireRoles([UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.ADMIN]);
   const machineId = String(formData.get("machineId") ?? "");
   const status = String(formData.get("status") ?? "") as MachineStatus;
 
@@ -2212,6 +2637,12 @@ export async function updateMachineStatusAction(formData: FormData) {
 
     machine.status = status;
     machine.updatedAt = new Date().toISOString();
+    pushAuditLog(db, {
+      actorId: user.id,
+      area: "machines",
+      action: "update_status",
+      summary: `Máquina ${machine.name} movida para ${status}.`,
+    });
   });
 
   revalidateAll();
