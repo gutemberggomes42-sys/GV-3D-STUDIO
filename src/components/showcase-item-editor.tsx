@@ -25,6 +25,15 @@ type ShowcaseItemEditorProps = {
   materials: DbMaterial[];
 };
 
+function getOptionalNumber(value?: string) {
+  if (!value?.trim()) {
+    return undefined;
+  }
+
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : undefined;
+}
+
 const initialState: ActionState = { ok: false };
 
 export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseItemEditorProps) {
@@ -365,7 +374,7 @@ function ShowcaseItemEditorContent({
                   />
                 </label>
                 <label className="block text-sm text-white/70">
-                  Video principal por URL
+                  Video principal por URL (opcional)
                   <input
                     name="videoUrl"
                     defaultValue={fields.videoUrl ?? item.videoUrl ?? ""}
@@ -385,7 +394,7 @@ function ShowcaseItemEditorContent({
                   />
                 </label>
                 <label className="block text-sm text-white/70">
-                  Trocar video principal
+                  Trocar video principal (opcional)
                   <input
                     name="videoFile"
                     type="file"
@@ -394,6 +403,10 @@ function ShowcaseItemEditorContent({
                   />
                 </label>
               </div>
+
+              <p className="text-sm text-white/50">
+                O video e opcional. Se houver erro em outro campo, o navegador pode pedir para selecionar arquivos novamente.
+              </p>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block text-sm text-white/70">
@@ -443,7 +456,34 @@ function ShowcaseItemEditorContent({
             {updateState.error ? <p className="text-sm text-rose-300">{updateState.error}</p> : null}
             {updateState.message ? <p className="text-sm text-emerald-300">{updateState.message}</p> : null}
 
-            <ShowcasePriceCalculator onApplyPrice={setPrice} materials={materials} />
+            <ShowcasePriceCalculator
+              onApplyPrice={setPrice}
+              materials={materials}
+              fieldNames={{
+                selectedMaterialId: "calculatorMaterialId",
+                filamentPricePerKilo: "calculatorFilamentPricePerKilo",
+                materialUsedGrams: "calculatorMaterialUsedGrams",
+                printDurationHours: "calculatorPrintDurationHours",
+                energyRate: "calculatorEnergyRate",
+                printerPowerWatts: "calculatorPrinterPowerWatts",
+                marginPercent: "calculatorMarginPercent",
+              }}
+              initialValues={{
+                selectedMaterialId: fields.calculatorMaterialId ?? fields.materialId ?? item.materialId ?? "",
+                filamentPricePerKilo: getOptionalNumber(fields.calculatorFilamentPricePerKilo),
+                materialUsedGrams:
+                  getOptionalNumber(fields.calculatorMaterialUsedGrams) ??
+                  getOptionalNumber(fields.estimatedMaterialGrams) ??
+                  item.estimatedMaterialGrams,
+                printDurationHours:
+                  getOptionalNumber(fields.calculatorPrintDurationHours) ??
+                  getOptionalNumber(fields.estimatedPrintHours) ??
+                  item.estimatedPrintHours,
+                energyRate: getOptionalNumber(fields.calculatorEnergyRate) ?? 0.9,
+                printerPowerWatts: getOptionalNumber(fields.calculatorPrinterPowerWatts) ?? 95,
+                marginPercent: getOptionalNumber(fields.calculatorMarginPercent) ?? 10,
+              }}
+            />
 
             <SubmitButton
               label="Atualizar item"

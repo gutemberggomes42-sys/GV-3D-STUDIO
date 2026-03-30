@@ -13,6 +13,15 @@ type ShowcaseItemFormProps = {
   materials: DbMaterial[];
 };
 
+function getOptionalNumber(value?: string) {
+  if (!value?.trim()) {
+    return undefined;
+  }
+
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : undefined;
+}
+
 export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
   const [state, formAction] = useActionState(createShowcaseItemAction, initialState);
   const formKey = JSON.stringify(state.fields ?? {});
@@ -282,7 +291,7 @@ function ShowcaseItemFormContent({ state, formAction, materials }: ShowcaseItemF
 
         <div className="grid gap-4 md:grid-cols-2">
           <label className="block text-sm text-white/70">
-            Video por URL
+            Video por URL (opcional)
             <input
               name="videoUrl"
               defaultValue={fields.videoUrl ?? ""}
@@ -291,7 +300,7 @@ function ShowcaseItemFormContent({ state, formAction, materials }: ShowcaseItemF
             />
           </label>
           <label className="block text-sm text-white/70">
-            Video da galeria
+            Video da galeria (opcional)
             <input
               name="videoFile"
               type="file"
@@ -325,7 +334,7 @@ function ShowcaseItemFormContent({ state, formAction, materials }: ShowcaseItemF
         </div>
 
         <p className="text-sm text-white/50">
-          A foto enviada da galeria vira a imagem principal. Se enviar um video, ele aparece primeiro na vitrine. Nas URLs da galeria, use uma linha por imagem.
+          O video e opcional. A foto enviada da galeria vira a imagem principal. Se enviar um video, ele aparece primeiro na vitrine. Nas URLs da galeria, use uma linha por imagem. Se houver erro em outro campo, o navegador pode pedir para selecionar arquivos novamente.
         </p>
       </section>
 
@@ -354,7 +363,32 @@ function ShowcaseItemFormContent({ state, formAction, materials }: ShowcaseItemF
       {state.error ? <p className="text-sm text-rose-300">{state.error}</p> : null}
       {state.message ? <p className="text-sm text-emerald-300">{state.message}</p> : null}
 
-      <ShowcasePriceCalculator onApplyPrice={setPrice} materials={materials} />
+      <ShowcasePriceCalculator
+        onApplyPrice={setPrice}
+        materials={materials}
+        fieldNames={{
+          selectedMaterialId: "calculatorMaterialId",
+          filamentPricePerKilo: "calculatorFilamentPricePerKilo",
+          materialUsedGrams: "calculatorMaterialUsedGrams",
+          printDurationHours: "calculatorPrintDurationHours",
+          energyRate: "calculatorEnergyRate",
+          printerPowerWatts: "calculatorPrinterPowerWatts",
+          marginPercent: "calculatorMarginPercent",
+        }}
+        initialValues={{
+          selectedMaterialId: fields.calculatorMaterialId ?? fields.materialId ?? "",
+          filamentPricePerKilo: getOptionalNumber(fields.calculatorFilamentPricePerKilo),
+          materialUsedGrams:
+            getOptionalNumber(fields.calculatorMaterialUsedGrams) ??
+            getOptionalNumber(fields.estimatedMaterialGrams),
+          printDurationHours:
+            getOptionalNumber(fields.calculatorPrintDurationHours) ??
+            getOptionalNumber(fields.estimatedPrintHours),
+          energyRate: getOptionalNumber(fields.calculatorEnergyRate) ?? 0.9,
+          printerPowerWatts: getOptionalNumber(fields.calculatorPrinterPowerWatts) ?? 95,
+          marginPercent: getOptionalNumber(fields.calculatorMarginPercent) ?? 10,
+        }}
+      />
 
       <SubmitButton
         label="Salvar item da vitrine"

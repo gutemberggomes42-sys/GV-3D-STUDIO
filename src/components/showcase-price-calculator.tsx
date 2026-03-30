@@ -9,7 +9,17 @@ type ShowcasePriceCalculatorProps = {
   materials?: Array<
     Pick<DbMaterial, "id" | "name" | "brand" | "color" | "technology" | "purchasePrice" | "spoolWeightGrams">
   >;
+  fieldNames?: {
+    selectedMaterialId?: string;
+    filamentPricePerKilo?: string;
+    materialUsedGrams?: string;
+    printDurationHours?: string;
+    energyRate?: string;
+    printerPowerWatts?: string;
+    marginPercent?: string;
+  };
   initialValues?: {
+    selectedMaterialId?: string;
     filamentPricePerKilo?: number;
     materialUsedGrams?: number;
     printDurationHours?: number;
@@ -36,22 +46,30 @@ function getMaterialPricePerKilo(
 export function ShowcasePriceCalculator({
   onApplyPrice,
   materials = [],
+  fieldNames,
   initialValues,
 }: ShowcasePriceCalculatorProps) {
   const filamentMaterials = useMemo(
     () => materials.filter((material) => material.technology === "FDM"),
     [materials],
   );
-  const [selectedMaterialId, setSelectedMaterialId] = useState(filamentMaterials[0]?.id ?? "");
+  const initialSelectedMaterialId =
+    initialValues?.selectedMaterialId &&
+    filamentMaterials.some((material) => material.id === initialValues.selectedMaterialId)
+      ? initialValues.selectedMaterialId
+      : filamentMaterials[0]?.id ?? "";
+  const [selectedMaterialId, setSelectedMaterialId] = useState(initialSelectedMaterialId);
   const [filamentPricePerKilo, setFilamentPricePerKilo] = useState(
     () => {
       if (initialValues?.filamentPricePerKilo != null) {
         return String(initialValues.filamentPricePerKilo);
       }
 
-      const firstMaterial = filamentMaterials[0];
-      if (firstMaterial) {
-        return getMaterialPricePerKilo(firstMaterial).toFixed(2);
+      const selectedMaterial = filamentMaterials.find(
+        (material) => material.id === initialSelectedMaterialId,
+      );
+      if (selectedMaterial) {
+        return getMaterialPricePerKilo(selectedMaterial).toFixed(2);
       }
 
       return "100";
@@ -102,6 +120,7 @@ export function ShowcasePriceCalculator({
               <label className="mt-4 block text-sm text-white/70">
                 Puxar dos filamentos cadastrados
                 <select
+                  name={fieldNames?.selectedMaterialId}
                   value={selectedMaterialId}
                   onChange={(event) => {
                     const nextMaterialId = event.target.value;
@@ -137,6 +156,7 @@ export function ShowcasePriceCalculator({
             <label className="mt-4 block text-sm text-white/70">
               Preço do quilo do filamento
               <input
+                name={fieldNames?.filamentPricePerKilo}
                 value={filamentPricePerKilo}
                 onChange={(event) => setFilamentPricePerKilo(event.target.value)}
                 type="number"
@@ -153,6 +173,7 @@ export function ShowcasePriceCalculator({
               <label className="block text-sm text-white/70">
                 Material usado na impressão (g)
                 <input
+                  name={fieldNames?.materialUsedGrams}
                   value={materialUsedGrams}
                   onChange={(event) => setMaterialUsedGrams(event.target.value)}
                   type="number"
@@ -164,6 +185,7 @@ export function ShowcasePriceCalculator({
               <label className="block text-sm text-white/70">
                 Duração da impressão (h)
                 <input
+                  name={fieldNames?.printDurationHours}
                   value={printDurationHours}
                   onChange={(event) => setPrintDurationHours(event.target.value)}
                   type="number"
@@ -181,6 +203,7 @@ export function ShowcasePriceCalculator({
               <label className="block text-sm text-white/70">
                 Taxa de energia da distribuidora
                 <input
+                  name={fieldNames?.energyRate}
                   value={energyRate}
                   onChange={(event) => setEnergyRate(event.target.value)}
                   type="number"
@@ -192,6 +215,7 @@ export function ShowcasePriceCalculator({
               <label className="block text-sm text-white/70">
                 Consumo médio da impressora (W)
                 <input
+                  name={fieldNames?.printerPowerWatts}
                   value={printerPowerWatts}
                   onChange={(event) => setPrinterPowerWatts(event.target.value)}
                   type="number"
@@ -208,6 +232,7 @@ export function ShowcasePriceCalculator({
             <label className="mt-4 block text-sm text-white/70">
               Margem de lucro (%)
               <input
+                name={fieldNames?.marginPercent}
                 value={marginPercent}
                 onChange={(event) => setMarginPercent(event.target.value)}
                 type="number"

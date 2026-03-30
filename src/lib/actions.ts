@@ -423,6 +423,13 @@ function getShowcaseItemFormFields(formData: FormData) {
     imageUrl: String(formData.get("imageUrl") ?? ""),
     videoUrl: String(formData.get("videoUrl") ?? ""),
     galleryImageUrls: String(formData.get("galleryImageUrls") ?? ""),
+    calculatorMaterialId: String(formData.get("calculatorMaterialId") ?? ""),
+    calculatorFilamentPricePerKilo: String(formData.get("calculatorFilamentPricePerKilo") ?? ""),
+    calculatorMaterialUsedGrams: String(formData.get("calculatorMaterialUsedGrams") ?? ""),
+    calculatorPrintDurationHours: String(formData.get("calculatorPrintDurationHours") ?? ""),
+    calculatorEnergyRate: String(formData.get("calculatorEnergyRate") ?? ""),
+    calculatorPrinterPowerWatts: String(formData.get("calculatorPrinterPowerWatts") ?? ""),
+    calculatorMarginPercent: String(formData.get("calculatorMarginPercent") ?? ""),
     featured: formData.get("featured") === "on" ? "true" : "false",
     active: formData.get("active") === "on" ? "true" : "false",
   };
