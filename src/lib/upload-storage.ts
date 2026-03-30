@@ -53,6 +53,13 @@ export function getUploadContentType(fileName: string) {
       return "image/webp";
     case ".gif":
       return "image/gif";
+    case ".mp4":
+    case ".m4v":
+      return "video/mp4";
+    case ".webm":
+      return "video/webm";
+    case ".mov":
+      return "video/quicktime";
     case ".svg":
       return "image/svg+xml";
     case ".obj":

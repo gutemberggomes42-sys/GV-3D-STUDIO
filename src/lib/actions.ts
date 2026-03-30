@@ -167,6 +167,7 @@ const showcaseItemSchema = z
     colorOptions: z.array(z.string().trim()).default([]),
     dimensionSummary: z.string().trim().optional(),
     imageUrl: z.string().trim().optional(),
+    videoUrl: z.string().trim().optional(),
     galleryImageUrls: z.array(z.string().trim()).default([]),
     featured: z.boolean(),
     active: z.boolean(),
@@ -217,6 +218,7 @@ const showcaseInquirySchema = z
     }
   });
 const allowedImageFormats = ["png", "jpg", "jpeg", "webp", "gif"] as const;
+const allowedVideoFormats = ["mp4", "webm", "mov", "m4v"] as const;
 
 const machineDeletionLockedStatuses = new Set<OrderStatus>([
   OrderStatus.RECEIVED,
@@ -325,6 +327,7 @@ function parseShowcaseItemFormData(formData: FormData) {
     colorOptions: parseShowcaseListField(formData.get("colorOptions")),
     dimensionSummary: formData.get("dimensionSummary")?.toString(),
     imageUrl: formData.get("imageUrl")?.toString(),
+    videoUrl: formData.get("videoUrl")?.toString(),
     galleryImageUrls: parseShowcaseListField(formData.get("galleryImageUrls")),
     featured: formData.get("featured") === "on",
     active: formData.get("active") === "on",
@@ -441,6 +444,7 @@ function buildShowcaseItemPayload(data: z.infer<typeof showcaseItemSchema>): DbS
     fulfillmentType: data.fulfillmentType,
     stockQuantity: data.fulfillmentType === "STOCK" ? data.stockQuantity : 0,
     imageUrl: data.imageUrl?.trim() || undefined,
+    videoUrl: data.videoUrl?.trim() || undefined,
     galleryImageUrls: data.galleryImageUrls,
     featured: data.featured,
     active: data.active,
@@ -545,6 +549,22 @@ async function resolveShowcaseImageUrl(formData: FormData) {
   }
 
   return saveUpload(imageFile);
+}
+
+async function resolveShowcaseVideoUrl(formData: FormData) {
+  const videoFile = formData.get("videoFile");
+
+  if (!(videoFile instanceof File) || !videoFile.name) {
+    return null;
+  }
+
+  const fileExtension = getFileExtension(videoFile.name);
+
+  if (!allowedVideoFormats.includes(fileExtension as (typeof allowedVideoFormats)[number])) {
+    throw new Error("Use um video MP4, WEBM ou MOV.");
+  }
+
+  return saveUpload(videoFile);
 }
 
 async function resolveShowcaseGalleryImageUrls(formData: FormData) {
@@ -1366,12 +1386,14 @@ export async function createShowcaseItemAction(
 
   try {
     const uploadedImageUrl = await resolveShowcaseImageUrl(formData);
+    const uploadedVideoUrl = await resolveShowcaseVideoUrl(formData);
     const galleryImageUrls = await resolveShowcaseGalleryImageUrls(formData);
     await updateDb((db) => {
       db.showcaseItems.unshift(
         buildShowcaseItemPayload({
           ...parsed.data,
           imageUrl: uploadedImageUrl ?? parsed.data.imageUrl,
+          videoUrl: uploadedVideoUrl ?? parsed.data.videoUrl,
           galleryImageUrls,
         }),
       );
@@ -1419,6 +1441,7 @@ export async function updateShowcaseItemAction(
 
   try {
     const uploadedImageUrl = await resolveShowcaseImageUrl(formData);
+    const uploadedVideoUrl = await resolveShowcaseVideoUrl(formData);
     const galleryImageUrls = await resolveShowcaseGalleryImageUrls(formData);
     await updateDb((db) => {
       const item = db.showcaseItems.find((candidate) => candidate.id === itemId);
@@ -1444,6 +1467,7 @@ export async function updateShowcaseItemAction(
           ? parsed.data.stockQuantity + restockQuantity
           : 0;
       item.imageUrl = uploadedImageUrl ?? (parsed.data.imageUrl?.trim() || undefined);
+      item.videoUrl = uploadedVideoUrl ?? (parsed.data.videoUrl?.trim() || undefined);
       item.galleryImageUrls = galleryImageUrls;
       item.featured = parsed.data.featured;
       item.active = parsed.data.active;

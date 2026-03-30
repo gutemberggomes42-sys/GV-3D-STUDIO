@@ -14,6 +14,7 @@ import { formatCurrency } from "@/lib/format";
 import {
   getShowcaseGallery,
   getShowcasePrimaryImage,
+  getShowcasePrimaryVideo,
   serializeShowcaseList,
   showcaseCategorySuggestions,
 } from "@/lib/showcase";
@@ -34,13 +35,25 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
   const managesStock = fulfillmentType === "STOCK";
   const gallery = getShowcaseGallery(item);
   const primaryImage = getShowcasePrimaryImage(item);
+  const primaryVideo = getShowcasePrimaryVideo(item);
 
   return (
     <article className="overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/60">
       <div className="grid gap-0 lg:grid-cols-[320px_minmax(0,1fr)]">
         <div className="border-b border-white/10 bg-black/30 lg:border-b-0 lg:border-r">
           <div className="relative h-72 overflow-hidden">
-            {primaryImage ? (
+            {primaryVideo ? (
+              <video
+                src={primaryVideo}
+                className="h-full w-full object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                poster={primaryImage}
+              />
+            ) : primaryImage ? (
               <img src={primaryImage} alt={item.name} className="h-full w-full object-cover" />
             ) : (
               <div className="h-full bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.35),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(89,185,255,0.22),_transparent_32%),linear-gradient(135deg,_rgba(255,255,255,0.08),_rgba(15,23,42,0.95))]" />
@@ -66,6 +79,13 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                 <p className="mt-2 text-sm font-semibold text-white/85">{interestCount} contatos</p>
               </div>
             </div>
+
+            {primaryVideo ? (
+              <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Video principal</p>
+                <p className="mt-2 text-sm font-semibold text-white/85">Ativo na vitrine</p>
+              </div>
+            ) : null}
 
             {gallery.length ? (
               <div>
@@ -272,11 +292,31 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
                   />
                 </label>
                 <label className="block text-sm text-white/70">
+                  Video principal por URL
+                  <input
+                    name="videoUrl"
+                    defaultValue={item.videoUrl ?? ""}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block text-sm text-white/70">
                   Trocar foto principal
                   <input
                     name="imageFile"
                     type="file"
                     accept="image/png,image/jpeg,image/webp,image/gif"
+                    className="mt-2 block w-full rounded-2xl border border-dashed border-white/15 bg-black/30 px-4 py-3 text-white/70 file:mr-4 file:rounded-xl file:border-0 file:bg-orange-500 file:px-4 file:py-2 file:font-semibold file:text-slate-950"
+                  />
+                </label>
+                <label className="block text-sm text-white/70">
+                  Trocar video principal
+                  <input
+                    name="videoFile"
+                    type="file"
+                    accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v"
                     className="mt-2 block w-full rounded-2xl border border-dashed border-white/15 bg-black/30 px-4 py-3 text-white/70 file:mr-4 file:rounded-xl file:border-0 file:bg-orange-500 file:px-4 file:py-2 file:font-semibold file:text-slate-950"
                   />
                 </label>

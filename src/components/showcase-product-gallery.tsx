@@ -5,21 +5,39 @@ import { useState } from "react";
 
 type ShowcaseProductGalleryProps = {
   images: string[];
+  videoUrl?: string;
   productName: string;
 };
 
-export function ShowcaseProductGallery({ images, productName }: ShowcaseProductGalleryProps) {
-  const [selectedImage, setSelectedImage] = useState(images[0]);
+export function ShowcaseProductGallery({ images, videoUrl, productName }: ShowcaseProductGalleryProps) {
+  const [selectedImage, setSelectedImage] = useState(images[0] ?? "");
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-[30px] border border-white/10 bg-black/25">
-        <img
-          src={selectedImage}
-          alt={productName}
-          className="h-[360px] w-full object-cover sm:h-[460px]"
-        />
-      </div>
+      {videoUrl ? (
+        <div className="overflow-hidden rounded-[30px] border border-white/10 bg-black/25">
+          <video
+            src={videoUrl}
+            className="h-[360px] w-full object-cover sm:h-[460px]"
+            controls
+            playsInline
+            preload="metadata"
+            poster={images[0]}
+          >
+            Seu navegador não suporta vídeo.
+          </video>
+        </div>
+      ) : null}
+
+      {selectedImage ? (
+        <div className="overflow-hidden rounded-[30px] border border-white/10 bg-black/25">
+          <img
+            src={selectedImage}
+            alt={productName}
+            className="h-[360px] w-full object-cover sm:h-[460px]"
+          />
+        </div>
+      ) : null}
 
       {images.length > 1 ? (
         <div className="grid grid-cols-4 gap-3 sm:grid-cols-5">

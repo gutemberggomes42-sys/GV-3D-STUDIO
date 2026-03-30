@@ -10,6 +10,7 @@ import {
   getShowcaseColorSummary,
   getShowcaseGallery,
   getShowcaseLeadTimeLabel,
+  getShowcasePrimaryVideo,
 } from "@/lib/showcase";
 import { getHydratedData } from "@/lib/view-data";
 
@@ -53,6 +54,7 @@ export default async function BuyItemPage({
 
   const quantity = managesStock ? Math.min(requestedQuantity, item.stockQuantity) : requestedQuantity;
   const heroImage = getShowcaseGallery(item)[0];
+  const heroVideo = getShowcasePrimaryVideo(item);
 
   return (
     <AppShell
@@ -69,7 +71,18 @@ export default async function BuyItemPage({
 
       <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <article className="overflow-hidden rounded-[28px] border border-white/10 bg-white/5">
-          {heroImage ? (
+          {heroVideo ? (
+            <video
+              src={heroVideo}
+              className="h-72 w-full border-b border-white/10 object-cover"
+              controls
+              playsInline
+              preload="metadata"
+              poster={heroImage}
+            >
+              Seu navegador não suporta vídeo.
+            </video>
+          ) : heroImage ? (
             <img
               src={heroImage}
               alt={item.name}

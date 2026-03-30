@@ -192,8 +192,8 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
 
       <section className="space-y-4 rounded-[24px] border border-white/10 bg-black/20 p-5">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-white/45">Fotos</p>
-          <h4 className="mt-2 text-lg font-semibold text-white/92">Imagem principal e galeria</h4>
+          <p className="text-xs uppercase tracking-[0.2em] text-white/45">Midia</p>
+          <h4 className="mt-2 text-lg font-semibold text-white/92">Imagem, video e galeria</h4>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -211,6 +211,26 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
               name="imageFile"
               type="file"
               accept="image/png,image/jpeg,image/webp,image/gif"
+              className="mt-2 block w-full rounded-2xl border border-dashed border-white/15 bg-slate-950/70 px-4 py-3 text-white/70 file:mr-4 file:rounded-xl file:border-0 file:bg-orange-500 file:px-4 file:py-2 file:font-semibold file:text-slate-950"
+            />
+          </label>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="block text-sm text-white/70">
+            Video por URL
+            <input
+              name="videoUrl"
+              placeholder="/uploads/peca.mp4"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+            />
+          </label>
+          <label className="block text-sm text-white/70">
+            Video da galeria
+            <input
+              name="videoFile"
+              type="file"
+              accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v"
               className="mt-2 block w-full rounded-2xl border border-dashed border-white/15 bg-slate-950/70 px-4 py-3 text-white/70 file:mr-4 file:rounded-xl file:border-0 file:bg-orange-500 file:px-4 file:py-2 file:font-semibold file:text-slate-950"
             />
           </label>
@@ -239,7 +259,7 @@ export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
         </div>
 
         <p className="text-sm text-white/50">
-          A foto enviada da galeria vira a imagem principal. Nas URLs da galeria, use uma linha por imagem.
+          A foto enviada da galeria vira a imagem principal. Se enviar um video, ele aparece primeiro na vitrine. Nas URLs da galeria, use uma linha por imagem.
         </p>
       </section>
 

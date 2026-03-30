@@ -42,6 +42,10 @@ export function getShowcasePrimaryImage(item: Pick<DbShowcaseItem, "imageUrl" | 
   return item.imageUrl ?? item.galleryImageUrls[0] ?? undefined;
 }
 
+export function getShowcasePrimaryVideo(item: Pick<DbShowcaseItem, "videoUrl">) {
+  return item.videoUrl ?? undefined;
+}
+
 export function getShowcaseGallery(item: Pick<DbShowcaseItem, "imageUrl" | "galleryImageUrls">) {
   return uniqueList([item.imageUrl, ...(item.galleryImageUrls ?? [])]);
 }

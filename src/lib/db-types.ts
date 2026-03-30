@@ -258,6 +258,7 @@ export type DbShowcaseItem = {
   dimensionSummary?: string;
   leadTimeDays: number;
   imageUrl?: string;
+  videoUrl?: string;
   galleryImageUrls: string[];
   fulfillmentType: ShowcaseFulfillmentType;
   stockQuantity: number;

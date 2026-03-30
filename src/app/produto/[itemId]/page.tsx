@@ -12,6 +12,7 @@ import {
   getShowcaseColorSummary,
   getShowcaseGallery,
   getShowcaseLeadTimeLabel,
+  getShowcasePrimaryVideo,
 } from "@/lib/showcase";
 import { getHydratedData } from "@/lib/view-data";
 
@@ -48,8 +49,12 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
     >
       <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <article className="rounded-[32px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
-          {gallery.length ? (
-            <ShowcaseProductGallery images={gallery} productName={item.name} />
+          {gallery.length || item.videoUrl ? (
+            <ShowcaseProductGallery
+              images={gallery}
+              videoUrl={getShowcasePrimaryVideo(item)}
+              productName={item.name}
+            />
           ) : (
             <div className="h-[360px] rounded-[30px] bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.35),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(89,185,255,0.22),_transparent_32%),linear-gradient(135deg,_rgba(255,255,255,0.08),_rgba(15,23,42,0.95))] sm:h-[460px]" />
           )}
@@ -66,6 +71,11 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
             <span className="rounded-full border border-cyan-400/25 bg-cyan-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
               {getShowcaseLeadTimeLabel(item)}
             </span>
+            {item.videoUrl ? (
+              <span className="rounded-full border border-fuchsia-400/25 bg-fuchsia-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-fuchsia-100">
+                Com video
+              </span>
+            ) : null}
           </div>
 
           <h3 className="mt-5 text-4xl font-semibold tracking-tight">{item.name}</h3>

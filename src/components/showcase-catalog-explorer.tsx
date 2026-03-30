@@ -13,6 +13,7 @@ import {
   getShowcaseColorSummary,
   getShowcaseLeadTimeLabel,
   getShowcasePrimaryImage,
+  getShowcasePrimaryVideo,
   getShowcaseTagline,
 } from "@/lib/showcase";
 
@@ -135,7 +136,18 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
             <div className="border-t border-white/10 p-4 sm:p-6 xl:border-l xl:border-t-0">
               <article className="overflow-hidden rounded-[30px] border border-white/10 bg-black/25 shadow-[0_24px_80px_rgba(0,0,0,0.32)]">
                 <div className="relative h-[320px] overflow-hidden sm:h-[380px]">
-                  {getShowcasePrimaryImage(featuredItem) ? (
+                  {getShowcasePrimaryVideo(featuredItem) ? (
+                    <video
+                      src={getShowcasePrimaryVideo(featuredItem)}
+                      className="h-full w-full object-cover"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      preload="metadata"
+                      poster={getShowcasePrimaryImage(featuredItem)}
+                    />
+                  ) : getShowcasePrimaryImage(featuredItem) ? (
                     <img
                       src={getShowcasePrimaryImage(featuredItem)}
                       alt={featuredItem.name}
@@ -150,6 +162,11 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                     <span className="rounded-full border border-orange-300/30 bg-orange-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-100">
                       Produto destaque
                     </span>
+                    {getShowcasePrimaryVideo(featuredItem) ? (
+                      <span className="rounded-full border border-cyan-300/30 bg-cyan-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                        Com video
+                      </span>
+                    ) : null}
                     <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80">
                       {getShowcaseCategoryLabel(featuredItem)}
                     </span>
@@ -311,6 +328,7 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
         {filteredItems.length ? (
           filteredItems.map((item) => {
             const primaryImage = getShowcasePrimaryImage(item);
+            const primaryVideo = getShowcasePrimaryVideo(item);
             const availabilityLabel = getShowcaseAvailabilityLabel(item);
             const leadTimeLabel = getShowcaseLeadTimeLabel(item);
             const actionLabel = item.fulfillmentType === "STOCK" && item.stockQuantity <= 0
@@ -326,7 +344,18 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                 className="group flex h-full flex-col overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(5,8,14,0.98))] shadow-[0_22px_90px_rgba(0,0,0,0.26)]"
               >
                 <Link href={`/produto/${item.id}`} className="relative block h-72 overflow-hidden border-b border-white/10">
-                  {primaryImage ? (
+                  {primaryVideo ? (
+                    <video
+                      src={primaryVideo}
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      preload="metadata"
+                      poster={primaryImage}
+                    />
+                  ) : primaryImage ? (
                     <img
                       src={primaryImage}
                       alt={item.name}
@@ -342,6 +371,11 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                     <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80 backdrop-blur">
                       {getShowcaseCategoryLabel(item)}
                     </span>
+                    {primaryVideo ? (
+                      <span className="rounded-full border border-cyan-400/25 bg-cyan-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100 backdrop-blur">
+                        Video
+                      </span>
+                    ) : null}
                     <span className="rounded-full border border-emerald-400/25 bg-emerald-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100 backdrop-blur">
                       {availabilityLabel}
                     </span>
