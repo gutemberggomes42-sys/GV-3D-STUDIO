@@ -13,6 +13,12 @@ type ShowcaseItemFormProps = {
   materials: DbMaterial[];
 };
 
+type CalculatorMaterialEntryInitial = {
+  materialId?: string;
+  pricePerKilo?: number;
+  gramsUsed?: number;
+};
+
 function getOptionalNumber(value?: string) {
   if (!value?.trim()) {
     return undefined;
@@ -20,6 +26,38 @@ function getOptionalNumber(value?: string) {
 
   const parsedValue = Number(value);
   return Number.isFinite(parsedValue) ? parsedValue : undefined;
+}
+
+function parseCalculatorMaterialsJson(value?: string): CalculatorMaterialEntryInitial[] {
+  if (!value?.trim()) {
+    return [];
+  }
+
+  try {
+    const parsedValue = JSON.parse(value);
+
+    if (!Array.isArray(parsedValue)) {
+      return [];
+    }
+
+    return parsedValue.flatMap((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return [];
+      }
+
+      const materialId = typeof entry.materialId === "string" ? entry.materialId : undefined;
+      const pricePerKilo = getOptionalNumber(String(entry.pricePerKilo ?? ""));
+      const gramsUsed = getOptionalNumber(String(entry.gramsUsed ?? ""));
+
+      if (!materialId && pricePerKilo == null && gramsUsed == null) {
+        return [];
+      }
+
+      return [{ materialId, pricePerKilo, gramsUsed }];
+    });
+  } catch {
+    return [];
+  }
 }
 
 export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
@@ -49,6 +87,21 @@ function ShowcaseItemFormContent({ state, formAction, materials }: ShowcaseItemF
     fields.fulfillmentType === "MADE_TO_ORDER" ? "MADE_TO_ORDER" : "STOCK",
   );
   const managesStock = fulfillmentType === "STOCK";
+  const initialCalculatorMaterials =
+    parseCalculatorMaterialsJson(fields.calculatorMaterialsJson) ||
+    [];
+  const calculatorMaterialEntries =
+    initialCalculatorMaterials.length > 0
+      ? initialCalculatorMaterials
+      : [
+          {
+            materialId: fields.calculatorMaterialId ?? fields.materialId ?? "",
+            pricePerKilo: getOptionalNumber(fields.calculatorFilamentPricePerKilo),
+            gramsUsed:
+              getOptionalNumber(fields.calculatorMaterialUsedGrams) ??
+              getOptionalNumber(fields.estimatedMaterialGrams),
+          },
+        ];
 
   return (
     <form
@@ -367,20 +420,16 @@ function ShowcaseItemFormContent({ state, formAction, materials }: ShowcaseItemF
         onApplyPrice={setPrice}
         materials={materials}
         fieldNames={{
-          selectedMaterialId: "calculatorMaterialId",
-          filamentPricePerKilo: "calculatorFilamentPricePerKilo",
-          materialUsedGrams: "calculatorMaterialUsedGrams",
+          materialsJson: "calculatorMaterialsJson",
+          packagingCost: "calculatorPackagingCost",
           printDurationHours: "calculatorPrintDurationHours",
           energyRate: "calculatorEnergyRate",
           printerPowerWatts: "calculatorPrinterPowerWatts",
           marginPercent: "calculatorMarginPercent",
         }}
         initialValues={{
-          selectedMaterialId: fields.calculatorMaterialId ?? fields.materialId ?? "",
-          filamentPricePerKilo: getOptionalNumber(fields.calculatorFilamentPricePerKilo),
-          materialUsedGrams:
-            getOptionalNumber(fields.calculatorMaterialUsedGrams) ??
-            getOptionalNumber(fields.estimatedMaterialGrams),
+          materialEntries: calculatorMaterialEntries,
+          packagingCost: getOptionalNumber(fields.calculatorPackagingCost) ?? 0,
           printDurationHours:
             getOptionalNumber(fields.calculatorPrintDurationHours) ??
             getOptionalNumber(fields.estimatedPrintHours),

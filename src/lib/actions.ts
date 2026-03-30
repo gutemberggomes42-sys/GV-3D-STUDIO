@@ -423,6 +423,8 @@ function getShowcaseItemFormFields(formData: FormData) {
     imageUrl: String(formData.get("imageUrl") ?? ""),
     videoUrl: String(formData.get("videoUrl") ?? ""),
     galleryImageUrls: String(formData.get("galleryImageUrls") ?? ""),
+    calculatorMaterialsJson: String(formData.get("calculatorMaterialsJson") ?? ""),
+    calculatorPackagingCost: String(formData.get("calculatorPackagingCost") ?? ""),
     calculatorMaterialId: String(formData.get("calculatorMaterialId") ?? ""),
     calculatorFilamentPricePerKilo: String(formData.get("calculatorFilamentPricePerKilo") ?? ""),
     calculatorMaterialUsedGrams: String(formData.get("calculatorMaterialUsedGrams") ?? ""),
