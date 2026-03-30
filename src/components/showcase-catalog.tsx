@@ -19,7 +19,7 @@ export function ShowcaseCatalog({ user, items, message, pathname }: ShowcaseCata
       user={user}
       pathname={pathname}
       title="Catalogo da loja"
-      subtitle="Uma vitrine mais moderna, com destaque visual, filtros rapidos e paginas de produto mais bonitas para ajudar a venda."
+      subtitle="Pecas 3D com foto forte, preco claro e compra rapida no WhatsApp."
     >
       {message ? (
         <div className="rounded-[24px] border border-amber-400/20 bg-amber-500/10 px-5 py-4 text-sm text-amber-50">

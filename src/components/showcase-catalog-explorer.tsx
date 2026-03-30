@@ -3,13 +3,23 @@
 
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
-import { ArrowRight, Boxes, Clock3, MessageCircleMore, PackageCheck, Play, Search, ShieldCheck, Sparkles, SwatchBook } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpDown,
+  MessageCircleMore,
+  PackageCheck,
+  Play,
+  Search,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import type { DbShowcaseItem } from "@/lib/db-types";
 import { formatCurrency } from "@/lib/format";
 import {
   getShowcaseAvailabilityLabel,
   getShowcaseCategoryLabel,
   getShowcaseCategoryOptions,
+  getShowcaseColorHex,
   getShowcaseColorSummary,
   getShowcaseLeadTimeLabel,
   getShowcasePrimaryImage,
@@ -23,6 +33,7 @@ type ShowcaseCatalogExplorerProps = {
 };
 
 type AvailabilityFilter = "ALL" | "STOCK" | "MADE_TO_ORDER";
+type SortOption = "FEATURED" | "LOWEST_PRICE" | "HIGHEST_PRICE" | "FASTEST" | "READY_FIRST";
 
 function matchesAvailability(item: DbShowcaseItem, filter: AvailabilityFilter) {
   if (filter === "ALL") {
@@ -32,84 +43,127 @@ function matchesAvailability(item: DbShowcaseItem, filter: AvailabilityFilter) {
   return item.fulfillmentType === filter;
 }
 
+function clampText(lines: number) {
+  return {
+    display: "-webkit-box",
+    WebkitLineClamp: lines,
+    WebkitBoxOrient: "vertical" as const,
+    overflow: "hidden",
+  };
+}
+
+function sortShowcaseItems(items: DbShowcaseItem[], sortBy: SortOption) {
+  return [...items].sort((left, right) => {
+    switch (sortBy) {
+      case "LOWEST_PRICE":
+        return left.price - right.price;
+      case "HIGHEST_PRICE":
+        return right.price - left.price;
+      case "FASTEST":
+        return left.leadTimeDays - right.leadTimeDays || left.price - right.price;
+      case "READY_FIRST":
+        return (
+          Number(right.fulfillmentType === "STOCK") - Number(left.fulfillmentType === "STOCK") ||
+          left.price - right.price
+        );
+      case "FEATURED":
+      default:
+        return (
+          Number(right.featured) - Number(left.featured) ||
+          Number(right.fulfillmentType === "STOCK") - Number(left.fulfillmentType === "STOCK") ||
+          left.price - right.price
+        );
+    }
+  });
+}
+
 export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExplorerProps) {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>("ALL");
+  const [sortBy, setSortBy] = useState<SortOption>("FEATURED");
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
   const featuredItem = items.find((item) => item.featured) ?? items[0];
   const categories = getShowcaseCategoryOptions(items);
   const readyItems = items.filter((item) => item.fulfillmentType === "STOCK");
   const customItems = items.filter((item) => item.fulfillmentType === "MADE_TO_ORDER");
-  const filteredItems = items.filter((item) => {
-    const normalizedCategory = getShowcaseCategoryLabel(item);
-    const searchHaystack = [
-      item.name,
-      item.description,
-      item.tagline ?? "",
-      normalizedCategory,
-      item.materialLabel ?? "",
-      item.colorOptions.join(" "),
-    ]
-      .join(" ")
-      .toLowerCase();
+  const filteredItems = sortShowcaseItems(
+    items.filter((item) => {
+      const normalizedCategory = getShowcaseCategoryLabel(item);
+      const searchHaystack = [
+        item.name,
+        item.description,
+        item.tagline ?? "",
+        normalizedCategory,
+        item.materialLabel ?? "",
+        item.colorOptions.join(" "),
+      ]
+        .join(" ")
+        .toLowerCase();
 
-    return (
-      (selectedCategory === "Todos" || normalizedCategory === selectedCategory) &&
-      matchesAvailability(item, availabilityFilter) &&
-      (!deferredQuery || searchHaystack.includes(deferredQuery))
-    );
-  });
+      return (
+        (selectedCategory === "Todos" || normalizedCategory === selectedCategory) &&
+        matchesAvailability(item, availabilityFilter) &&
+        (!deferredQuery || searchHaystack.includes(deferredQuery))
+      );
+    }),
+    sortBy,
+  );
+
+  const resultsLabel =
+    filteredItems.length === 1
+      ? "1 produto encontrado"
+      : `${filteredItems.length} produtos encontrados`;
 
   return (
     <section className="space-y-6">
-      <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.28),_transparent_30%),radial-gradient(circle_at_center_right,_rgba(89,185,255,0.18),_transparent_26%),linear-gradient(140deg,_rgba(5,7,12,0.98),_rgba(8,14,22,0.94))]">
-        <div className="grid gap-0 xl:grid-cols-[1.08fr_0.92fr]">
-          <div className="p-6 sm:p-8 lg:p-10">
+      <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.24),_transparent_30%),radial-gradient(circle_at_center_right,_rgba(89,185,255,0.18),_transparent_28%),linear-gradient(145deg,_rgba(5,7,12,0.98),_rgba(8,14,22,0.94))]">
+        <div className="grid gap-0 xl:grid-cols-[0.95fr_1.05fr]">
+          <div className="p-6 sm:p-8 lg:p-9">
             <p className="text-xs uppercase tracking-[0.28em] text-orange-200/70">Colecao PrintFlow 3D</p>
-            <h3 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
-              Pecas 3D pensadas para impressionar logo no primeiro olhar
+            <h3 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
+              Uma vitrine mais limpa, premium e pronta para converter no WhatsApp
             </h3>
-            <p className="mt-5 max-w-3xl text-sm leading-7 text-white/72 sm:text-base">
-              Uma vitrine mais elegante, com fotos reais, informacoes objetivas e compra direta pelo WhatsApp sem cadastro obrigatorio.
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/72 sm:text-base">
+              Menos poluicao visual, preco mais forte, filtros rapidos e mais foco no que realmente vende: foto, prazo, material e compra facil.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/80">
                 <ShieldCheck className="h-4 w-4 text-emerald-300" />
-                Fotos reais e informacoes reais
+                Informacoes reais
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/80">
                 <MessageCircleMore className="h-4 w-4 text-cyan-300" />
-                Compra direta no WhatsApp
+                Compra no WhatsApp
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/80">
-                <Clock3 className="h-4 w-4 text-orange-300" />
-                Prazo e disponibilidade visiveis
+                <PackageCheck className="h-4 w-4 text-orange-300" />
+                Pronta entrega e encomenda
               </span>
             </div>
 
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+            <div className="mt-7 grid gap-3 sm:grid-cols-3">
               <div className="rounded-[24px] border border-white/10 bg-black/25 p-4 backdrop-blur">
-                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Itens ativos</p>
-                <p className="mt-3 text-3xl font-semibold">{items.length}</p>
+                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Ativos</p>
+                <p className="mt-2 text-2xl font-semibold">{items.length}</p>
               </div>
               <div className="rounded-[24px] border border-white/10 bg-black/25 p-4 backdrop-blur">
-                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Pronta entrega</p>
-                <p className="mt-3 text-3xl font-semibold">{readyItems.length}</p>
+                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Entrega</p>
+                <p className="mt-2 text-2xl font-semibold">{readyItems.length}</p>
               </div>
               <div className="rounded-[24px] border border-white/10 bg-black/25 p-4 backdrop-blur">
-                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Sob encomenda</p>
-                <p className="mt-3 text-3xl font-semibold">{customItems.length}</p>
+                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Encomenda</p>
+                <p className="mt-2 text-2xl font-semibold">{customItems.length}</p>
               </div>
             </div>
 
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-7 flex flex-wrap gap-3">
               <a
                 href="#catalogo-grid"
                 className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
               >
-                Explorar catalogo
+                Ver produtos
                 <ArrowRight className="h-4 w-4" />
               </a>
               {featuredItem ? (
@@ -117,7 +171,7 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                   href={`/produto/${featuredItem.id}`}
                   className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-5 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/12"
                 >
-                  Ver produto em destaque
+                  Abrir destaque
                   <Sparkles className="h-4 w-4" />
                 </Link>
               ) : null}
@@ -135,7 +189,7 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
           {featuredItem ? (
             <div className="border-t border-white/10 p-4 sm:p-6 xl:border-l xl:border-t-0">
               <article className="overflow-hidden rounded-[30px] border border-white/10 bg-black/25 shadow-[0_24px_80px_rgba(0,0,0,0.32)]">
-                <div className="relative h-[320px] overflow-hidden sm:h-[380px]">
+                <div className="relative h-[320px] overflow-hidden sm:h-[360px]">
                   {getShowcasePrimaryVideo(featuredItem) ? (
                     <video
                       src={getShowcasePrimaryVideo(featuredItem)}
@@ -162,30 +216,20 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                     <span className="rounded-full border border-orange-300/30 bg-orange-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-100">
                       Produto destaque
                     </span>
-                    {getShowcasePrimaryVideo(featuredItem) ? (
-                      <span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
-                        <Play className="h-3.5 w-3.5 fill-current" />
-                        Assista ao video
-                      </span>
-                    ) : null}
                     <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80">
                       {getShowcaseCategoryLabel(featuredItem)}
                     </span>
+                    {getShowcasePrimaryVideo(featuredItem) ? (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                        <Play className="h-3.5 w-3.5 fill-current" />
+                        Video
+                      </span>
+                    ) : null}
                   </div>
 
-                  {getShowcasePrimaryVideo(featuredItem) ? (
-                    <div className="absolute right-4 top-16 rounded-[22px] border border-cyan-300/25 bg-slate-950/72 px-4 py-3 text-right backdrop-blur">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-100/80">Midia em destaque</p>
-                      <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-white">
-                        <Play className="h-4 w-4 fill-cyan-300 text-cyan-300" />
-                        Veja o produto em movimento
-                      </p>
-                    </div>
-                  ) : null}
-
-                  <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
+                  <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">
                     <div className="flex items-end justify-between gap-4">
-                      <div className="max-w-[70%]">
+                      <div className="max-w-[68%]">
                         <p className="text-[11px] uppercase tracking-[0.22em] text-white/55">
                           {featuredItem.fulfillmentType === "STOCK" ? "Pronta entrega" : "Sob encomenda"}
                         </p>
@@ -220,68 +264,39 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-emerald-400/12 p-3 text-emerald-200">
-              <PackageCheck className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Compra simples</p>
-              <p className="mt-1 text-lg font-semibold">Sem cadastro obrigatorio</p>
-            </div>
-          </div>
-          <p className="mt-4 text-sm leading-6 text-white/68">
-            O cliente escolhe a peca, informa nome e telefone e vai direto para o WhatsApp.
-          </p>
-        </div>
-
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-orange-400/12 p-3 text-orange-200">
-              <Boxes className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Informacao visual</p>
-              <p className="mt-1 text-lg font-semibold">Mais foco nas pecas</p>
-            </div>
-          </div>
-          <p className="mt-4 text-sm leading-6 text-white/68">
-            Cards com menos poluicao, destaque maior para foto, preco, material e disponibilidade.
-          </p>
-        </div>
-
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-cyan-400/12 p-3 text-cyan-200">
-              <SwatchBook className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Detalhe que vende</p>
-              <p className="mt-1 text-lg font-semibold">Pagina completa por produto</p>
-            </div>
-          </div>
-          <p className="mt-4 text-sm leading-6 text-white/68">
-            Cada item agora pode abrir uma pagina propria com galeria, especificacoes e CTA mais forte.
-          </p>
-        </div>
-      </section>
-
       <section className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-white/45">Filtro rapido</p>
-            <h3 className="mt-2 text-2xl font-semibold">Encontre a peca ideal</h3>
+            <h3 className="mt-2 text-2xl font-semibold">Encontre a peca ideal sem perder tempo</h3>
+            <p className="mt-3 text-sm text-white/60">{resultsLabel}</p>
           </div>
 
-          <div className="relative w-full lg:max-w-sm">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar por nome, material ou categoria"
-              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 py-3 pl-11 pr-4 text-sm text-white outline-none transition focus:border-orange-400/60"
-            />
+          <div className="grid w-full gap-3 lg:max-w-2xl lg:grid-cols-[minmax(0,1fr)_220px]">
+            <label className="relative block">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Buscar por nome, material ou categoria"
+                className="w-full rounded-2xl border border-white/10 bg-slate-950/70 py-3 pl-11 pr-4 text-sm text-white outline-none transition focus:border-orange-400/60"
+              />
+            </label>
+
+            <label className="relative block">
+              <ArrowUpDown className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+              <select
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value as SortOption)}
+                className="w-full appearance-none rounded-2xl border border-white/10 bg-slate-950/70 py-3 pl-11 pr-4 text-sm text-white outline-none transition focus:border-orange-400/60"
+              >
+                <option value="FEATURED">Ordenar por destaque</option>
+                <option value="READY_FIRST">Pronta entrega primeiro</option>
+                <option value="LOWEST_PRICE">Menor preco</option>
+                <option value="HIGHEST_PRICE">Maior preco</option>
+                <option value="FASTEST">Prazo mais rapido</option>
+              </select>
+            </label>
           </div>
         </div>
 
@@ -342,31 +357,23 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
             const primaryVideo = getShowcasePrimaryVideo(item);
             const availabilityLabel = getShowcaseAvailabilityLabel(item);
             const leadTimeLabel = getShowcaseLeadTimeLabel(item);
-            const actionLabel = item.fulfillmentType === "STOCK" && item.stockQuantity <= 0
-              ? "Indisponivel"
-              : item.fulfillmentType === "STOCK"
-                ? "Comprar agora"
-                : "Encomendar";
+            const actionLabel =
+              item.fulfillmentType === "STOCK" && item.stockQuantity <= 0
+                ? "Indisponivel"
+                : item.fulfillmentType === "STOCK"
+                  ? "Comprar no WhatsApp"
+                  : "Encomendar no WhatsApp";
             const isDisabled = item.fulfillmentType === "STOCK" && item.stockQuantity <= 0;
+            const visibleColors = item.colorOptions.slice(0, 4);
+            const extraColors = Math.max(item.colorOptions.length - visibleColors.length, 0);
 
             return (
               <article
                 key={item.id}
-                className="group flex h-full flex-col overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(5,8,14,0.98))] shadow-[0_22px_90px_rgba(0,0,0,0.26)]"
+                className="group flex h-full flex-col overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(5,8,14,0.98))] shadow-[0_22px_90px_rgba(0,0,0,0.26)] transition hover:-translate-y-1 hover:border-white/15"
               >
-                <Link href={`/produto/${item.id}`} className="relative block h-72 overflow-hidden border-b border-white/10">
-                  {primaryVideo ? (
-                    <video
-                      src={primaryVideo}
-                      className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      preload="metadata"
-                      poster={primaryImage}
-                    />
-                  ) : primaryImage ? (
+                <Link href={`/produto/${item.id}`} className="relative block h-64 overflow-hidden border-b border-white/10 sm:h-72">
+                  {primaryImage ? (
                     <img
                       src={primaryImage}
                       alt={item.name}
@@ -385,82 +392,90 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                     {primaryVideo ? (
                       <span className="inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-cyan-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100 backdrop-blur">
                         <Play className="h-3.5 w-3.5 fill-current" />
-                        Assista ao video
+                        Video
                       </span>
                     ) : null}
-                    <span className="rounded-full border border-emerald-400/25 bg-emerald-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100 backdrop-blur">
-                      {availabilityLabel}
-                    </span>
                   </div>
 
-                  {primaryVideo ? (
-                    <div className="absolute left-4 right-4 top-16 flex">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-slate-950/78 px-4 py-2 text-xs font-semibold text-white shadow-[0_12px_30px_rgba(0,0,0,0.25)] backdrop-blur">
-                        <Play className="h-4 w-4 fill-cyan-300 text-cyan-300" />
-                        Assista ao video deste produto
-                      </div>
-                    </div>
-                  ) : null}
+                  <div className="absolute right-4 top-4 rounded-[22px] border border-white/12 bg-slate-950/72 px-4 py-3 text-right backdrop-blur">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Valor</p>
+                    <p className="mt-2 text-2xl font-semibold">{formatCurrency(item.price)}</p>
+                  </div>
 
-                  <div className="absolute inset-x-0 bottom-0 p-5">
-                    <div className="flex items-end justify-between gap-4">
-                      <div className="max-w-[68%]">
-                        <p className="text-[11px] uppercase tracking-[0.22em] text-white/55">
-                          {item.fulfillmentType === "STOCK" ? "Pronta entrega" : "Sob encomenda"}
-                        </p>
-                        <h4 className="mt-2 text-2xl font-semibold leading-tight text-white">
-                          {item.name}
-                        </h4>
-                      </div>
-
-                      <div className="rounded-[22px] border border-white/12 bg-slate-950/72 px-4 py-3 text-right backdrop-blur">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Valor</p>
-                        <p className="mt-2 text-2xl font-semibold">{formatCurrency(item.price)}</p>
-                      </div>
-                    </div>
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-white/55">
+                      {item.fulfillmentType === "STOCK" ? "Pronta entrega" : "Sob encomenda"}
+                    </p>
+                    <h4 className="mt-2 text-2xl font-semibold leading-tight text-white" style={clampText(2)}>
+                      {item.name}
+                    </h4>
                   </div>
                 </Link>
 
-                <div className="flex flex-1 flex-col p-5">
-                  <p className="text-sm leading-7 text-white/76">{getShowcaseTagline(item)}</p>
+                <div className="flex flex-1 flex-col gap-4 p-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-emerald-400/20 bg-emerald-400/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-100">
+                      {availabilityLabel}
+                    </span>
+                    <span className="rounded-full border border-cyan-400/20 bg-cyan-400/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100">
+                      {leadTimeLabel}
+                    </span>
+                  </div>
 
-                  <div className="mt-5 grid gap-3 rounded-[24px] border border-white/10 bg-white/[0.03] p-4 sm:grid-cols-2">
+                  <p className="text-sm leading-7 text-white/76" style={clampText(2)}>
+                    {getShowcaseTagline(item)}
+                  </p>
+
+                  <div className="grid gap-3 rounded-[24px] border border-white/10 bg-white/[0.03] p-4 sm:grid-cols-2">
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">Material</p>
-                      <p className="mt-2 text-sm font-semibold text-white/88">{item.materialLabel ?? "Sob consulta"}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">Prazo</p>
-                      <p className="mt-2 text-sm font-semibold text-white/88">{leadTimeLabel}</p>
+                      <p className="mt-2 text-sm font-semibold text-white/88" style={clampText(2)}>
+                        {item.materialLabel ?? "Sob consulta"}
+                      </p>
                     </div>
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">Cores</p>
-                      <p className="mt-2 text-sm font-semibold text-white/88">{getShowcaseColorSummary(item)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">Medidas</p>
-                      <p className="mt-2 text-sm font-semibold text-white/88">{item.dimensionSummary ?? "Sob consulta"}</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        {visibleColors.length ? (
+                          <>
+                            {visibleColors.map((color) => (
+                              <span
+                                key={color}
+                                title={color}
+                                className="h-5 w-5 rounded-full ring-2 ring-white/10"
+                                style={{ backgroundColor: getShowcaseColorHex(color) }}
+                              />
+                            ))}
+                            {extraColors ? (
+                              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-semibold text-white/70">
+                                +{extraColors}
+                              </span>
+                            ) : null}
+                          </>
+                        ) : (
+                          <p className="text-sm font-semibold text-white/70">{getShowcaseColorSummary(item)}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="mt-auto pt-5">
-                    {primaryVideo ? (
-                      <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100">
-                        <Play className="h-3.5 w-3.5 fill-current" />
-                        Este item tem video na pagina completa
-                      </p>
-                    ) : null}
-                    <Link
-                      href={`/produto/${item.id}`}
-                      className="inline-flex items-center gap-2 text-sm font-semibold text-orange-200 transition hover:text-orange-100"
-                    >
-                      Ver detalhes completos
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
+                  <div className="mt-auto space-y-3 pt-1">
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <Link
+                        href={`/produto/${item.id}`}
+                        className="inline-flex items-center gap-2 font-semibold text-orange-200 transition hover:text-orange-100"
+                      >
+                        Ver detalhes
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                      <span className="text-xs uppercase tracking-[0.18em] text-white/45">
+                        {primaryVideo ? "Com video" : "Foto em destaque"}
+                      </span>
+                    </div>
 
-                    <form action={`/comprar/${item.id}`} className="mt-4 grid gap-3 sm:grid-cols-[110px_minmax(0,1fr)]">
+                    <form action={`/comprar/${item.id}`} className="grid gap-3 sm:grid-cols-[116px_minmax(0,1fr)]">
                       <label className="block text-sm text-white/70">
-                        Quantidade
+                        Qtd
                         <input
                           name="quantity"
                           type="number"
@@ -493,21 +508,20 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
       </section>
 
       {featuredItem ? (
-        <section className="rounded-[30px] border border-white/10 bg-[linear-gradient(135deg,rgba(10,18,28,0.94),rgba(4,7,12,0.98))] p-6 sm:p-8">
+        <section className="rounded-[30px] border border-white/10 bg-[linear-gradient(135deg,rgba(10,18,28,0.94),rgba(4,7,12,0.98))] p-6 sm:p-7">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-3xl">
-              <p className="text-xs uppercase tracking-[0.24em] text-white/45">Destaque da vitrine</p>
-              <h3 className="mt-3 text-3xl font-semibold">Quer mostrar mais valor antes do WhatsApp?</h3>
-              <p className="mt-4 text-sm leading-7 text-white/68">
-                Agora cada produto tem mais contexto visual e pode abrir uma pagina propria com galeria, prazo, material e CTA mais forte.
-              </p>
+              <p className="text-xs uppercase tracking-[0.24em] text-white/45">Compra sem atrito</p>
+              <h3 className="mt-3 text-2xl font-semibold sm:text-3xl">
+                O cliente ve o produto, entende o prazo e ja cai no WhatsApp pronto para fechar
+              </h3>
             </div>
 
             <Link
               href={`/produto/${featuredItem.id}`}
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white/90"
             >
-              Abrir pagina do produto destaque
+              Ver produto destaque
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>

@@ -11,6 +11,24 @@ export const showcaseCategorySuggestions = [
   "Presentes",
 ];
 
+const showcaseColorPalette = [
+  { keywords: ["preto", "black", "grafite", "carbon"], hex: "#111827" },
+  { keywords: ["branco", "white", "perola"], hex: "#f8fafc" },
+  { keywords: ["cinza", "gray", "grey", "prata", "silver"], hex: "#94a3b8" },
+  { keywords: ["dourado", "gold"], hex: "#d4a72c" },
+  { keywords: ["amarelo", "yellow"], hex: "#facc15" },
+  { keywords: ["laranja", "orange", "cobre", "copper"], hex: "#f97316" },
+  { keywords: ["vermelho", "red", "vinho", "bordo"], hex: "#dc2626" },
+  { keywords: ["rosa", "pink", "magenta"], hex: "#ec4899" },
+  { keywords: ["roxo", "purple", "lilas", "violeta"], hex: "#8b5cf6" },
+  { keywords: ["azul marinho", "navy"], hex: "#1e3a8a" },
+  { keywords: ["azul", "blue", "ciano", "cyan", "turquesa"], hex: "#0ea5e9" },
+  { keywords: ["verde", "green", "olive", "oliva"], hex: "#22c55e" },
+  { keywords: ["marrom", "brown", "chocolate"], hex: "#7c3f00" },
+  { keywords: ["bege", "areia", "creme", "nude"], hex: "#d6b48a" },
+  { keywords: ["transparente", "cristal", "clear"], hex: "#dbeafe" },
+];
+
 function uniqueList(values: Array<string | undefined | null>) {
   return Array.from(
     new Set(
@@ -19,6 +37,14 @@ function uniqueList(values: Array<string | undefined | null>) {
         .filter((value): value is string => Boolean(value)),
     ),
   );
+}
+
+function normalizeColorLabel(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 export function parseShowcaseListField(value: FormDataEntryValue | FormDataEntryValue[] | null | undefined) {
@@ -114,4 +140,13 @@ export function getShowcaseColorSummary(item: Pick<DbShowcaseItem, "colorOptions
   }
 
   return `${item.colorOptions.slice(0, 3).join(", ")} +${item.colorOptions.length - 3}`;
+}
+
+export function getShowcaseColorHex(colorLabel: string) {
+  const normalized = normalizeColorLabel(colorLabel);
+  const match = showcaseColorPalette.find((entry) =>
+    entry.keywords.some((keyword) => normalized.includes(keyword)),
+  );
+
+  return match?.hex ?? "#64748b";
 }

@@ -9,6 +9,7 @@ import { formatCurrency, formatHours } from "@/lib/format";
 import {
   getShowcaseAvailabilityLabel,
   getShowcaseCategoryLabel,
+  getShowcaseColorHex,
   getShowcaseColorSummary,
   getShowcaseGallery,
   getShowcaseLeadTimeLabel,
@@ -39,6 +40,10 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
         candidate.category === item.category,
     )
     .slice(0, 3);
+  const visibleColors = item.colorOptions.slice(0, 5);
+  const extraColors = Math.max(item.colorOptions.length - visibleColors.length, 0);
+  const buyLabel =
+    item.fulfillmentType === "STOCK" ? "Comprar pelo WhatsApp" : "Encomendar pelo WhatsApp";
 
   return (
     <AppShell
@@ -121,7 +126,25 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
                 <SwatchBook className="h-4 w-4 text-fuchsia-200" />
                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Cores</p>
               </div>
-              <p className="mt-3 text-base font-semibold text-white/88">{getShowcaseColorSummary(item)}</p>
+              {visibleColors.length ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {visibleColors.map((color) => (
+                    <span
+                      key={color}
+                      title={color}
+                      className="h-6 w-6 rounded-full ring-2 ring-white/10"
+                      style={{ backgroundColor: getShowcaseColorHex(color) }}
+                    />
+                  ))}
+                  {extraColors ? (
+                    <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-semibold text-white/70">
+                      +{extraColors}
+                    </span>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="mt-3 text-base font-semibold text-white/88">{getShowcaseColorSummary(item)}</p>
+              )}
             </div>
             <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
               <div className="flex items-center gap-3">
@@ -141,45 +164,67 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
 
           <p className="mt-6 text-sm leading-7 text-white/72">{item.description}</p>
 
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            <Link
-              href={`/comprar/${item.id}?quantity=1`}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-4 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
-            >
-              <MessageCircleMore className="h-4 w-4" />
-              {item.fulfillmentType === "STOCK" ? "Comprar pelo WhatsApp" : "Encomendar pelo WhatsApp"}
-            </Link>
-            <Link
-              href="/"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-black/25 px-5 py-4 text-sm font-semibold text-white/85 transition hover:bg-white/10"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Voltar para a vitrine
-            </Link>
+          <div id="buy-panel" className="mt-8 rounded-[28px] border border-emerald-400/15 bg-emerald-500/[0.06] p-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-emerald-100/70">Compra sem atrito</p>
+            <h4 className="mt-3 text-2xl font-semibold">Escolha a quantidade e va direto para o WhatsApp</h4>
+            <p className="mt-3 text-sm leading-6 text-white/68">
+              O cliente informa nome e telefone na proxima tela e a conversa ja abre com a mensagem pronta.
+            </p>
+
+            <form action={`/comprar/${item.id}`} className="mt-5 grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
+              <label className="block text-sm text-white/70">
+                Quantidade
+                <input
+                  name="quantity"
+                  type="number"
+                  min="1"
+                  max={item.fulfillmentType === "STOCK" ? Math.max(item.stockQuantity, 1) : 999}
+                  defaultValue="1"
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
+                />
+              </label>
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-4 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+              >
+                <MessageCircleMore className="h-4 w-4" />
+                {buyLabel}
+              </button>
+            </form>
+
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-black/25 px-5 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Voltar para a vitrine
+              </Link>
+            </div>
           </div>
         </article>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-          <p className="text-xs uppercase tracking-[0.2em] text-white/45">Compra rapida</p>
-          <p className="mt-3 text-xl font-semibold">Nome + telefone e pronto</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-white/45">Passo 1</p>
+          <p className="mt-3 text-xl font-semibold">Escolha a quantidade</p>
           <p className="mt-3 text-sm leading-6 text-white/68">
-            O cliente informa apenas os dados essenciais para abrir a conversa com a mensagem pronta.
+            A peca ja tem valor, prazo e disponibilidade visiveis para a decisao ser mais rapida.
           </p>
         </div>
         <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-          <p className="text-xs uppercase tracking-[0.2em] text-white/45">Informacao util</p>
-          <p className="mt-3 text-xl font-semibold">Nada de enfeite falso</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-white/45">Passo 2</p>
+          <p className="mt-3 text-xl font-semibold">Informe nome e telefone</p>
           <p className="mt-3 text-sm leading-6 text-white/68">
-            A vitrine mostra material, disponibilidade, medidas e prazo real em vez de metricas inventadas.
+            A tela seguinte pede so o essencial para abrir a conversa com a mensagem pronta.
           </p>
         </div>
         <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-          <p className="text-xs uppercase tracking-[0.2em] text-white/45">Visual melhor</p>
-          <p className="mt-3 text-xl font-semibold">Mais peso para cada produto</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-white/45">Passo 3</p>
+          <p className="mt-3 text-xl font-semibold">Conversa abre no WhatsApp</p>
           <p className="mt-3 text-sm leading-6 text-white/68">
-            As fotos ganham mais destaque e a pagina do produto ajuda a aumentar a confianca antes do WhatsApp.
+            O interesse fica registrado no sistema e voce continua o fechamento direto no atendimento.
           </p>
         </div>
       </section>
@@ -225,6 +270,24 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
           </div>
         </section>
       ) : null}
+
+      <div className="fixed inset-x-4 bottom-4 z-20 lg:hidden">
+        <div className="rounded-[28px] border border-white/10 bg-slate-950/88 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-white/45">Valor</p>
+              <p className="mt-1 text-2xl font-semibold">{formatCurrency(item.price)}</p>
+            </div>
+            <a
+              href="#buy-panel"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+            >
+              <MessageCircleMore className="h-4 w-4" />
+              Comprar
+            </a>
+          </div>
+        </div>
+      </div>
     </AppShell>
   );
 }
