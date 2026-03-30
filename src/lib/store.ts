@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { hashSync } from "bcryptjs";
+import { UserRole } from "@prisma/client";
+import { ownerEmail } from "@/lib/constants";
 import type { PrintFlowDb } from "@/lib/db-types";
 import { createInitialData } from "@/lib/seed-data";
 
@@ -24,6 +27,51 @@ async function ensureDataFile() {
     const initialData = createInitialData();
     await writeFile(dataPath, JSON.stringify(initialData, null, 2), "utf8");
   }
+}
+
+async function ensureOwnerBootstrap(data: PrintFlowDb) {
+  const bootstrapPassword = process.env.OWNER_BOOTSTRAP_PASSWORD?.trim();
+
+  if (!bootstrapPassword) {
+    return data;
+  }
+
+  const bootstrapEmail = (process.env.OWNER_BOOTSTRAP_EMAIL?.trim() || ownerEmail).toLowerCase();
+  const bootstrapName = process.env.OWNER_BOOTSTRAP_NAME?.trim() || "Guto";
+  const bootstrapPhone = process.env.OWNER_BOOTSTRAP_PHONE?.trim() || "64996435078";
+  const now = new Date().toISOString();
+
+  const existingUser = data.users.find(
+    (user) => user.email.toLowerCase() === bootstrapEmail,
+  );
+
+  if (existingUser) {
+    if (existingUser.role !== UserRole.ADMIN) {
+      existingUser.role = UserRole.ADMIN;
+      existingUser.updatedAt = now;
+      await writeDb(data);
+    }
+
+    return data;
+  }
+
+  data.users.unshift({
+    id: createId("usr"),
+    name: bootstrapName,
+    email: bootstrapEmail,
+    passwordHash: hashSync(bootstrapPassword, 10),
+    role: UserRole.ADMIN,
+    phone: bootstrapPhone,
+    company: "PrintFlow 3D",
+    address: "A configurar",
+    projectType: "Vitrine e vendas",
+    avatarColor: "#ffc857",
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await writeDb(data);
+  return data;
 }
 
 function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
@@ -105,7 +153,8 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
 export async function readDb() {
   await ensureDataFile();
   const contents = await readFile(dataPath, "utf8");
-  return normalizeDb(JSON.parse(contents) as Partial<PrintFlowDb>);
+  const normalizedData = normalizeDb(JSON.parse(contents) as Partial<PrintFlowDb>);
+  return ensureOwnerBootstrap(normalizedData);
 }
 
 export async function writeDb(data: PrintFlowDb) {

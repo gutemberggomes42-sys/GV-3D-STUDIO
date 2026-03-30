@@ -16,3 +16,11 @@ services:
         value: production
       - key: NODE_VERSION
         value: 20
+      - key: OWNER_BOOTSTRAP_EMAIL
+        value: gutemberggg10@gmail.com
+      - key: OWNER_BOOTSTRAP_NAME
+        value: Guto
+      - key: OWNER_BOOTSTRAP_PHONE
+        value: 64996435078
+      - key: OWNER_BOOTSTRAP_PASSWORD
+        sync: false

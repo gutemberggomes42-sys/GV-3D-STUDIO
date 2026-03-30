@@ -77,8 +77,15 @@ Passos resumidos:
 1. subir este projeto para um repositório no GitHub
 2. criar uma conta no Render
 3. abrir `Blueprints` no Render e conectar o repositório
-4. sincronizar o `render.yaml`
+4. sincronizar o `render.yaml` e informar `OWNER_BOOTSTRAP_PASSWORD`
 5. aguardar o primeiro deploy e usar a URL publica do serviço
+
+No primeiro deploy, o Render vai criar automaticamente o admin com:
+
+- e-mail: `gutemberggg10@gmail.com`
+- nome: `Guto`
+- telefone: `64996435078`
+- senha: o valor informado em `OWNER_BOOTSTRAP_PASSWORD`
 
 ## Verificação
 
