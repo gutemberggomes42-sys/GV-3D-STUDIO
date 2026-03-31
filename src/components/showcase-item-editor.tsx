@@ -139,6 +139,15 @@ function ShowcaseItemEditorContent({
               item.estimatedMaterialGrams,
           },
         ];
+  const [estimatedMaterialGrams, setEstimatedMaterialGrams] = useState(
+    fields.estimatedMaterialGrams ??
+      (
+        calculatorMaterialEntries.reduce(
+          (total, entry) => total + (entry.gramsUsed ?? 0),
+          0,
+        ) || item.estimatedMaterialGrams
+      ).toFixed(2),
+  );
 
   return (
     <article className="overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/60">
@@ -374,10 +383,11 @@ function ShowcaseItemEditorContent({
                   Consumo estimado de material (g/ml)
                   <input
                     name="estimatedMaterialGrams"
+                    value={estimatedMaterialGrams}
+                    onChange={(event) => setEstimatedMaterialGrams(event.target.value)}
                     type="number"
                     min="0"
                     step="0.01"
-                    defaultValue={fields.estimatedMaterialGrams ?? String(item.estimatedMaterialGrams)}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                   />
                 </label>
@@ -515,6 +525,7 @@ function ShowcaseItemEditorContent({
             <ShowcasePriceCalculator
               onApplyPrice={setPrice}
               onSyncPrintDuration={setEstimatedPrintHours}
+              onSyncMaterialUsage={setEstimatedMaterialGrams}
               materials={materials}
               fieldNames={{
                 materialsJson: "calculatorMaterialsJson",

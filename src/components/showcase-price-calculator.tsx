@@ -20,6 +20,7 @@ type CalculatorMaterialEntryInitial = {
 type ShowcasePriceCalculatorProps = {
   onApplyPrice: (price: string) => void;
   onSyncPrintDuration?: (hours: string) => void;
+  onSyncMaterialUsage?: (grams: string) => void;
   materials?: Array<
     Pick<DbMaterial, "id" | "name" | "brand" | "color" | "technology" | "purchasePrice" | "spoolWeightGrams">
   >;
@@ -126,6 +127,7 @@ function serializeMaterialEntries(entries: CalculatorMaterialEntryState[]) {
 export function ShowcasePriceCalculator({
   onApplyPrice,
   onSyncPrintDuration,
+  onSyncMaterialUsage,
   materials = [],
   fieldNames,
   initialValues,
@@ -165,24 +167,37 @@ export function ShowcasePriceCalculator({
   const costPerGram = totalGrams > 0 ? roundCurrency(totalCost / totalGrams) : 0;
   const suggestedPrice = roundCurrency(totalCost * (1 + margin / 100));
 
+  function syncMaterialUsage(entries: CalculatorMaterialEntryState[]) {
+    const nextTotalGrams = roundCurrency(
+      entries.reduce((total, entry) => total + parseNumber(entry.gramsUsed), 0),
+    );
+    onSyncMaterialUsage?.(nextTotalGrams.toFixed(2));
+  }
+
   function updateEntry(
     entryKey: string,
     updater: (entry: CalculatorMaterialEntryState) => CalculatorMaterialEntryState,
   ) {
-    setMaterialEntries((currentEntries) =>
-      currentEntries.map((entry) => (entry.key === entryKey ? updater(entry) : entry)),
-    );
+    setMaterialEntries((currentEntries) => {
+      const nextEntries = currentEntries.map((entry) => (entry.key === entryKey ? updater(entry) : entry));
+      syncMaterialUsage(nextEntries);
+      return nextEntries;
+    });
   }
 
   function addMaterialEntry() {
     const nextMaterial = filamentMaterials[0];
-    setMaterialEntries((currentEntries) => [
-      ...currentEntries,
-      createMaterialEntryState({
-        materialId: nextMaterial?.id ?? "",
-        pricePerKilo: nextMaterial ? roundCurrency(getMaterialPricePerKilo(nextMaterial)) : undefined,
-      }),
-    ]);
+    setMaterialEntries((currentEntries) => {
+      const nextEntries = [
+        ...currentEntries,
+        createMaterialEntryState({
+          materialId: nextMaterial?.id ?? "",
+          pricePerKilo: nextMaterial ? roundCurrency(getMaterialPricePerKilo(nextMaterial)) : undefined,
+        }),
+      ];
+      syncMaterialUsage(nextEntries);
+      return nextEntries;
+    });
   }
 
   function removeMaterialEntry(entryKey: string) {
@@ -191,7 +206,9 @@ export function ShowcasePriceCalculator({
         return currentEntries;
       }
 
-      return currentEntries.filter((entry) => entry.key !== entryKey);
+      const nextEntries = currentEntries.filter((entry) => entry.key !== entryKey);
+      syncMaterialUsage(nextEntries);
+      return nextEntries;
     });
   }
 
