@@ -111,6 +111,9 @@ function ShowcaseItemEditorContent({
 }: ShowcaseItemEditorContentProps) {
   const fields = updateState.fields ?? {};
   const [price, setPrice] = useState(fields.price ?? item.price.toFixed(2));
+  const [estimatedPrintHours, setEstimatedPrintHours] = useState(
+    fields.estimatedPrintHours ?? String(item.estimatedPrintHours),
+  );
   const [fulfillmentType, setFulfillmentType] = useState<"STOCK" | "MADE_TO_ORDER">(
     fields.fulfillmentType === "MADE_TO_ORDER"
       ? "MADE_TO_ORDER"
@@ -263,10 +266,11 @@ function ShowcaseItemEditorContent({
                   Tempo de impressão (h)
                   <input
                     name="estimatedPrintHours"
+                    value={estimatedPrintHours}
+                    onChange={(event) => setEstimatedPrintHours(event.target.value)}
                     type="number"
                     step="0.1"
                     min="0.1"
-                    defaultValue={fields.estimatedPrintHours ?? String(item.estimatedPrintHours)}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
                   />
                 </label>
@@ -510,6 +514,7 @@ function ShowcaseItemEditorContent({
 
             <ShowcasePriceCalculator
               onApplyPrice={setPrice}
+              onSyncPrintDuration={setEstimatedPrintHours}
               materials={materials}
               fieldNames={{
                 materialsJson: "calculatorMaterialsJson",
@@ -524,7 +529,7 @@ function ShowcaseItemEditorContent({
                 packagingCost: getOptionalNumber(fields.calculatorPackagingCost) ?? 0,
                 printDurationHours:
                   getOptionalNumber(fields.calculatorPrintDurationHours) ??
-                  getOptionalNumber(fields.estimatedPrintHours) ??
+                  getOptionalNumber(estimatedPrintHours) ??
                   item.estimatedPrintHours,
                 energyRate: getOptionalNumber(fields.calculatorEnergyRate) ?? 0.9,
                 printerPowerWatts: getOptionalNumber(fields.calculatorPrinterPowerWatts) ?? 95,

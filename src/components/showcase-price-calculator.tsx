@@ -19,6 +19,7 @@ type CalculatorMaterialEntryInitial = {
 
 type ShowcasePriceCalculatorProps = {
   onApplyPrice: (price: string) => void;
+  onSyncPrintDuration?: (hours: string) => void;
   materials?: Array<
     Pick<DbMaterial, "id" | "name" | "brand" | "color" | "technology" | "purchasePrice" | "spoolWeightGrams">
   >;
@@ -124,6 +125,7 @@ function serializeMaterialEntries(entries: CalculatorMaterialEntryState[]) {
 
 export function ShowcasePriceCalculator({
   onApplyPrice,
+  onSyncPrintDuration,
   materials = [],
   fieldNames,
   initialValues,
@@ -340,7 +342,10 @@ export function ShowcasePriceCalculator({
               <input
                 name={fieldNames?.printDurationHours}
                 value={printDurationHours}
-                onChange={(event) => setPrintDurationHours(event.target.value)}
+                onChange={(event) => {
+                  setPrintDurationHours(event.target.value);
+                  onSyncPrintDuration?.(event.target.value);
+                }}
                 type="number"
                 min="0"
                 step="0.01"

@@ -83,6 +83,7 @@ type ShowcaseItemFormContentProps = {
 function ShowcaseItemFormContent({ state, formAction, materials }: ShowcaseItemFormContentProps) {
   const fields = state.fields ?? {};
   const [price, setPrice] = useState(fields.price ?? "");
+  const [estimatedPrintHours, setEstimatedPrintHours] = useState(fields.estimatedPrintHours ?? "1");
   const [fulfillmentType, setFulfillmentType] = useState<"STOCK" | "MADE_TO_ORDER">(
     fields.fulfillmentType === "MADE_TO_ORDER" ? "MADE_TO_ORDER" : "STOCK",
   );
@@ -166,10 +167,11 @@ function ShowcaseItemFormContent({ state, formAction, materials }: ShowcaseItemF
             Tempo de impressão (h)
             <input
               name="estimatedPrintHours"
+              value={estimatedPrintHours}
+              onChange={(event) => setEstimatedPrintHours(event.target.value)}
               type="number"
               step="0.1"
               min="0.1"
-              defaultValue={fields.estimatedPrintHours ?? "1"}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             />
           </label>
@@ -418,6 +420,7 @@ function ShowcaseItemFormContent({ state, formAction, materials }: ShowcaseItemF
 
       <ShowcasePriceCalculator
         onApplyPrice={setPrice}
+        onSyncPrintDuration={setEstimatedPrintHours}
         materials={materials}
         fieldNames={{
           materialsJson: "calculatorMaterialsJson",
@@ -432,7 +435,7 @@ function ShowcaseItemFormContent({ state, formAction, materials }: ShowcaseItemF
           packagingCost: getOptionalNumber(fields.calculatorPackagingCost) ?? 0,
           printDurationHours:
             getOptionalNumber(fields.calculatorPrintDurationHours) ??
-            getOptionalNumber(fields.estimatedPrintHours),
+            getOptionalNumber(estimatedPrintHours),
           energyRate: getOptionalNumber(fields.calculatorEnergyRate) ?? 0.9,
           printerPowerWatts: getOptionalNumber(fields.calculatorPrinterPowerWatts) ?? 95,
           marginPercent: getOptionalNumber(fields.calculatorMarginPercent) ?? 10,
