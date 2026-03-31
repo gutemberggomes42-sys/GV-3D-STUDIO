@@ -147,6 +147,7 @@ function sortShowcaseItems(
 }
 
 type ShelfProps = {
+  id?: string;
   title: string;
   subtitle: string;
   icon: ReactNode;
@@ -154,13 +155,13 @@ type ShelfProps = {
   inquiryCounts: Record<string, number>;
 };
 
-function ShowcaseShelf({ title, subtitle, icon, items, inquiryCounts }: ShelfProps) {
+function ShowcaseShelf({ id, title, subtitle, icon, items, inquiryCounts }: ShelfProps) {
   if (!items.length) {
     return null;
   }
 
   return (
-    <section className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+    <section id={id} className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
       <div>
         <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/75">
           {icon}
@@ -378,6 +379,23 @@ export function ShowcaseCatalogExplorer({
                 </Link>
               ) : null}
             </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {[
+                { href: "#shelf-destaques", label: "Destaques" },
+                { href: "#shelf-populares", label: "Mais pedidos" },
+                { href: "#shelf-pronta-entrega", label: "Pronta entrega" },
+                { href: "#shelf-encomenda", label: "Sob encomenda" },
+              ].map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="rounded-full border border-white/10 bg-white/7 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/12"
+                >
+                  {item.label}
+                </a>
+              ))}
+            </div>
           </div>
 
           {featuredItem ? (
@@ -543,6 +561,7 @@ export function ShowcaseCatalogExplorer({
       ) : null}
 
       <ShowcaseShelf
+        id="shelf-destaques"
         title="Destaques da semana"
         subtitle="Os produtos que representam melhor a vitrine e ajudam o cliente a sentir o clima da loja logo de cara."
         icon={<Star className="h-3.5 w-3.5 text-orange-200" />}
@@ -551,6 +570,7 @@ export function ShowcaseCatalogExplorer({
       />
 
       <ShowcaseShelf
+        id="shelf-populares"
         title="Mais pedidos"
         subtitle="Os itens que mais despertaram interesse e ja provaram ter mais potencial de conversao."
         icon={<Flame className="h-3.5 w-3.5 text-rose-200" />}
@@ -559,6 +579,7 @@ export function ShowcaseCatalogExplorer({
       />
 
       <ShowcaseShelf
+        id="shelf-pronta-entrega"
         title="Pronta entrega"
         subtitle="Perfeito para quem quer decidir rapido e seguir direto para o atendimento com estoque real."
         icon={<PackageCheck className="h-3.5 w-3.5 text-emerald-200" />}
@@ -567,6 +588,7 @@ export function ShowcaseCatalogExplorer({
       />
 
       <ShowcaseShelf
+        id="shelf-encomenda"
         title="Sob encomenda"
         subtitle="Produtos com mais liberdade de criacao para quem quer uma peca especial ou personalizada."
         icon={<Store className="h-3.5 w-3.5 text-cyan-200" />}
@@ -813,7 +835,7 @@ export function ShowcaseCatalogExplorer({
                         href={`/produto/${item.id}`}
                         className="inline-flex items-center gap-2 font-semibold text-orange-200 transition hover:text-orange-100"
                       >
-                        Ver detalhes
+                        {primaryVideo ? "Ver video e detalhes" : "Ver detalhes"}
                         <ArrowRight className="h-4 w-4" />
                       </Link>
                       <span className="text-xs uppercase tracking-[0.18em] text-white/45">
