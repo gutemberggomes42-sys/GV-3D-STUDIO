@@ -2,17 +2,23 @@
 "use client";
 
 import Link from "next/link";
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useState, type ReactNode } from "react";
 import {
   ArrowRight,
   ArrowUpDown,
+  Clock3,
+  Flame,
+  HeartHandshake,
   MessageCircleMore,
   PackageCheck,
   Play,
   Search,
   ShieldCheck,
   Sparkles,
+  Star,
+  Store,
 } from "lucide-react";
+import { ownerWhatsAppNumber } from "@/lib/constants";
 import type { DbShowcaseItem } from "@/lib/db-types";
 import { formatCurrency } from "@/lib/format";
 import {
@@ -21,6 +27,7 @@ import {
   getShowcaseCategoryOptions,
   getShowcaseColorHex,
   getShowcaseColorSummary,
+  getShowcaseDescriptionPreview,
   getShowcaseLeadTimeLabel,
   getShowcasePrimaryImage,
   getShowcasePrimaryVideo,
@@ -29,11 +36,39 @@ import {
 
 type ShowcaseCatalogExplorerProps = {
   items: DbShowcaseItem[];
+  inquiryCounts: Record<string, number>;
   canManage: boolean;
 };
 
 type AvailabilityFilter = "ALL" | "STOCK" | "MADE_TO_ORDER";
-type SortOption = "FEATURED" | "LOWEST_PRICE" | "HIGHEST_PRICE" | "FASTEST" | "READY_FIRST";
+type PriceFilter = "ALL" | "UNDER_50" | "BETWEEN_50_100" | "BETWEEN_100_200" | "OVER_200";
+type SortOption =
+  | "FEATURED"
+  | "POPULAR"
+  | "LOWEST_PRICE"
+  | "HIGHEST_PRICE"
+  | "FASTEST"
+  | "READY_FIRST"
+  | "NEWEST";
+
+const priceFilterOptions: Array<{ id: PriceFilter; label: string }> = [
+  { id: "ALL", label: "Todos os valores" },
+  { id: "UNDER_50", label: "Ate R$ 50" },
+  { id: "BETWEEN_50_100", label: "R$ 50 a R$ 100" },
+  { id: "BETWEEN_100_200", label: "R$ 100 a R$ 200" },
+  { id: "OVER_200", label: "Acima de R$ 200" },
+];
+
+const categoryDescriptions: Record<string, string> = {
+  Geek: "Pecas cheias de personalidade para setups, colecoes e cultura pop.",
+  Decoracao: "Modelos que transformam ambientes com textura, cor e presença.",
+  Organizacao: "Solucoes 3D para organizar melhor e ainda decorar com estilo.",
+  Utilidades: "Itens praticos do dia a dia com mais identidade visual.",
+  Colecionaveis: "Pecas para exibir, presentear e guardar com carinho.",
+  Games: "Universos gamer e personagens em modelos prontos para impressionar.",
+  Casa: "Detalhes criativos para deixar seus cantinhos mais bonitos.",
+  Presentes: "Ideias especiais para surpreender com algo diferente e autoral.",
+};
 
 function matchesAvailability(item: DbShowcaseItem, filter: AvailabilityFilter) {
   if (filter === "ALL") {
@@ -41,6 +76,22 @@ function matchesAvailability(item: DbShowcaseItem, filter: AvailabilityFilter) {
   }
 
   return item.fulfillmentType === filter;
+}
+
+function matchesPrice(item: DbShowcaseItem, filter: PriceFilter) {
+  switch (filter) {
+    case "UNDER_50":
+      return item.price <= 50;
+    case "BETWEEN_50_100":
+      return item.price > 50 && item.price <= 100;
+    case "BETWEEN_100_200":
+      return item.price > 100 && item.price <= 200;
+    case "OVER_200":
+      return item.price > 200;
+    case "ALL":
+    default:
+      return true;
+  }
 }
 
 function clampText(lines: number) {
@@ -52,9 +103,23 @@ function clampText(lines: number) {
   };
 }
 
-function sortShowcaseItems(items: DbShowcaseItem[], sortBy: SortOption) {
+function getItemPopularity(itemId: string, inquiryCounts: Record<string, number>) {
+  return inquiryCounts[itemId] ?? 0;
+}
+
+function sortShowcaseItems(
+  items: DbShowcaseItem[],
+  sortBy: SortOption,
+  inquiryCounts: Record<string, number>,
+) {
   return [...items].sort((left, right) => {
     switch (sortBy) {
+      case "POPULAR":
+        return (
+          getItemPopularity(right.id, inquiryCounts) - getItemPopularity(left.id, inquiryCounts) ||
+          Number(right.featured) - Number(left.featured) ||
+          right.updatedAt.localeCompare(left.updatedAt)
+        );
       case "LOWEST_PRICE":
         return left.price - right.price;
       case "HIGHEST_PRICE":
@@ -64,29 +129,155 @@ function sortShowcaseItems(items: DbShowcaseItem[], sortBy: SortOption) {
       case "READY_FIRST":
         return (
           Number(right.fulfillmentType === "STOCK") - Number(left.fulfillmentType === "STOCK") ||
+          getItemPopularity(right.id, inquiryCounts) - getItemPopularity(left.id, inquiryCounts) ||
           left.price - right.price
         );
+      case "NEWEST":
+        return right.updatedAt.localeCompare(left.updatedAt);
       case "FEATURED":
       default:
         return (
           Number(right.featured) - Number(left.featured) ||
+          getItemPopularity(right.id, inquiryCounts) - getItemPopularity(left.id, inquiryCounts) ||
           Number(right.fulfillmentType === "STOCK") - Number(left.fulfillmentType === "STOCK") ||
-          left.price - right.price
+          right.updatedAt.localeCompare(left.updatedAt)
         );
     }
   });
 }
 
-export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExplorerProps) {
+type ShelfProps = {
+  title: string;
+  subtitle: string;
+  icon: ReactNode;
+  items: DbShowcaseItem[];
+  inquiryCounts: Record<string, number>;
+};
+
+function ShowcaseShelf({ title, subtitle, icon, items, inquiryCounts }: ShelfProps) {
+  if (!items.length) {
+    return null;
+  }
+
+  return (
+    <section className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+      <div>
+        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/75">
+          {icon}
+          Colecao
+        </div>
+        <h3 className="mt-3 text-2xl font-semibold">{title}</h3>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-white/62">{subtitle}</p>
+      </div>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {items.map((item) => (
+          <Link
+            key={item.id}
+            href={`/produto/${item.id}`}
+            className="group overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(5,8,14,0.98))] transition hover:-translate-y-1 hover:border-white/15"
+          >
+            <div className="relative h-56 overflow-hidden border-b border-white/10">
+              {getShowcasePrimaryImage(item) ? (
+                <img
+                  src={getShowcasePrimaryImage(item)}
+                  alt={item.name}
+                  className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+                />
+              ) : (
+                <div className="h-full bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.35),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(89,185,255,0.22),_transparent_32%),linear-gradient(135deg,_rgba(255,255,255,0.08),_rgba(15,23,42,0.95))]" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/15 to-transparent" />
+              <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+                <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80">
+                  {getShowcaseCategoryLabel(item)}
+                </span>
+                {getShowcasePrimaryVideo(item) ? (
+                  <span className="inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-cyan-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                    <Play className="h-3.5 w-3.5 fill-current" />
+                    Video
+                  </span>
+                ) : null}
+              </div>
+              <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-4">
+                <div className="max-w-[68%]">
+                  <h4 className="text-2xl font-semibold leading-tight text-white" style={clampText(2)}>
+                    {item.name}
+                  </h4>
+                </div>
+                <div className="rounded-[22px] border border-white/12 bg-slate-950/78 px-4 py-3 text-right backdrop-blur">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Valor</p>
+                  <p className="mt-2 text-2xl font-semibold">{formatCurrency(item.price)}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-100">
+                  {getShowcaseAvailabilityLabel(item)}
+                </span>
+                <span className="rounded-full border border-cyan-400/20 bg-cyan-400/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100">
+                  {getShowcaseLeadTimeLabel(item)}
+                </span>
+              </div>
+              <p className="text-sm leading-6 text-white/72" style={clampText(2)}>
+                {getShowcaseTagline(item)}
+              </p>
+              <div className="flex items-center justify-between gap-3 pt-1 text-sm">
+                <span className="text-white/55">
+                  {getItemPopularity(item.id, inquiryCounts) > 0
+                    ? `${getItemPopularity(item.id, inquiryCounts)} interesses`
+                    : "Novo na vitrine"}
+                </span>
+                <span className="inline-flex items-center gap-2 font-semibold text-orange-200 transition group-hover:text-orange-100">
+                  Ver detalhes
+                  <ArrowRight className="h-4 w-4" />
+                </span>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function ShowcaseCatalogExplorer({
+  items,
+  inquiryCounts,
+  canManage,
+}: ShowcaseCatalogExplorerProps) {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>("ALL");
+  const [priceFilter, setPriceFilter] = useState<PriceFilter>("ALL");
   const [sortBy, setSortBy] = useState<SortOption>("FEATURED");
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
-  const featuredItem = items.find((item) => item.featured) ?? items[0];
+  const featuredItem =
+    sortShowcaseItems(items.filter((item) => item.featured), "FEATURED", inquiryCounts)[0] ??
+    items[0];
   const categories = getShowcaseCategoryOptions(items);
-  const readyItems = items.filter((item) => item.fulfillmentType === "STOCK");
-  const customItems = items.filter((item) => item.fulfillmentType === "MADE_TO_ORDER");
+  const readyItems = sortShowcaseItems(
+    items.filter((item) => item.fulfillmentType === "STOCK" && item.stockQuantity > 0),
+    "READY_FIRST",
+    inquiryCounts,
+  );
+  const customItems = sortShowcaseItems(
+    items.filter((item) => item.fulfillmentType === "MADE_TO_ORDER"),
+    "FEATURED",
+    inquiryCounts,
+  );
+  const featuredShelfItems = sortShowcaseItems(items, "FEATURED", inquiryCounts).slice(0, 4);
+  const popularItems = sortShowcaseItems(items, "POPULAR", inquiryCounts).slice(0, 4);
+  const newestItems = sortShowcaseItems(items, "NEWEST", inquiryCounts).slice(0, 4);
+  const categoryCards = categories.map((category) => ({
+    label: category,
+    count: items.filter((item) => getShowcaseCategoryLabel(item) === category).length,
+    description:
+      categoryDescriptions[category] ??
+      "Pecas feitas para decorar, presentear ou deixar seu espaco com mais personalidade.",
+  }));
   const filteredItems = sortShowcaseItems(
     items.filter((item) => {
       const normalizedCategory = getShowcaseCategoryLabel(item);
@@ -104,38 +295,41 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
       return (
         (selectedCategory === "Todos" || normalizedCategory === selectedCategory) &&
         matchesAvailability(item, availabilityFilter) &&
+        matchesPrice(item, priceFilter) &&
         (!deferredQuery || searchHaystack.includes(deferredQuery))
       );
     }),
     sortBy,
+    inquiryCounts,
   );
 
   const resultsLabel =
     filteredItems.length === 1
       ? "1 produto encontrado"
       : `${filteredItems.length} produtos encontrados`;
+  const whatsappCatalogUrl = `https://wa.me/${ownerWhatsAppNumber}`;
 
   return (
     <section className="space-y-6">
       <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.24),_transparent_30%),radial-gradient(circle_at_center_right,_rgba(89,185,255,0.18),_transparent_28%),linear-gradient(145deg,_rgba(5,7,12,0.98),_rgba(8,14,22,0.94))]">
         <div className="grid gap-0 xl:grid-cols-[0.95fr_1.05fr]">
           <div className="p-6 sm:p-8 lg:p-9">
-            <p className="text-xs uppercase tracking-[0.28em] text-orange-200/70">Bem-vindo a nossa loja</p>
-            <h3 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
-              Pecas 3D criativas, feitas para decorar, presentear e surpreender
+            <p className="text-xs uppercase tracking-[0.28em] text-orange-200/70">Colecao autoral</p>
+            <h3 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight sm:text-5xl">
+              Bem-vindo a uma loja de pecas 3D feitas para impressionar, decorar e presentear
             </h3>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-white/72 sm:text-base">
-              Seja bem-vindo. Aqui voce encontra produtos impressos em 3D com acabamento caprichado, modelos exclusivos e atendimento direto no WhatsApp para comprar ou encomendar com facilidade.
+              Aqui voce encontra produtos com personalidade, pronta entrega quando houver estoque real e opcoes sob encomenda para criar algo do seu jeito, com atendimento rapido e direto no WhatsApp.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/80">
                 <ShieldCheck className="h-4 w-4 text-emerald-300" />
-                Atendimento direto
+                Informacoes reais
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/80">
-                <MessageCircleMore className="h-4 w-4 text-cyan-300" />
-                Compra facil no WhatsApp
+                <HeartHandshake className="h-4 w-4 text-cyan-300" />
+                Atendimento direto
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/80">
                 <PackageCheck className="h-4 w-4 text-orange-300" />
@@ -145,15 +339,15 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
 
             <div className="mt-7 grid gap-3 sm:grid-cols-3">
               <div className="rounded-[24px] border border-white/10 bg-black/25 p-4 backdrop-blur">
-                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Ativos</p>
+                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Produtos</p>
                 <p className="mt-2 text-2xl font-semibold">{items.length}</p>
               </div>
               <div className="rounded-[24px] border border-white/10 bg-black/25 p-4 backdrop-blur">
-                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Entrega</p>
+                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Pronta entrega</p>
                 <p className="mt-2 text-2xl font-semibold">{readyItems.length}</p>
               </div>
               <div className="rounded-[24px] border border-white/10 bg-black/25 p-4 backdrop-blur">
-                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Encomenda</p>
+                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Sob encomenda</p>
                 <p className="mt-2 text-2xl font-semibold">{customItems.length}</p>
               </div>
             </div>
@@ -244,7 +438,7 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                   </div>
                 </div>
 
-                <div className="grid gap-3 border-t border-white/10 p-5 sm:grid-cols-3">
+                <div className="grid gap-3 border-t border-white/10 p-5 sm:grid-cols-2 xl:grid-cols-4">
                   <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-4">
                     <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Disponibilidade</p>
                     <p className="mt-2 text-sm font-semibold text-white/88">{getShowcaseAvailabilityLabel(featuredItem)}</p>
@@ -257,6 +451,14 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                     <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Prazo</p>
                     <p className="mt-2 text-sm font-semibold text-white/88">{getShowcaseLeadTimeLabel(featuredItem)}</p>
                   </div>
+                  <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-4">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Interesse</p>
+                    <p className="mt-2 text-sm font-semibold text-white/88">
+                      {getItemPopularity(featuredItem.id, inquiryCounts) > 0
+                        ? `${getItemPopularity(featuredItem.id, inquiryCounts)} clientes`
+                        : "Novo na vitrine"}
+                    </p>
+                  </div>
                 </div>
               </article>
             </div>
@@ -264,11 +466,127 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
         </div>
       </section>
 
+      <section className="grid gap-4 lg:grid-cols-4">
+        {[
+          {
+            title: "Atendimento humano",
+            description: "A compra termina em conversa real, sem etapa complicada ou cadastro longo.",
+            icon: <HeartHandshake className="h-4 w-4 text-cyan-200" />,
+          },
+          {
+            title: "Estoque visivel",
+            description: "Itens de pronta entrega mostram disponibilidade real para facilitar a decisao.",
+            icon: <PackageCheck className="h-4 w-4 text-emerald-200" />,
+          },
+          {
+            title: "Prazo claro",
+            description: "Produtos sob encomenda deixam o prazo visivel antes mesmo do cliente chamar.",
+            icon: <Clock3 className="h-4 w-4 text-orange-200" />,
+          },
+          {
+            title: "Pecas com personalidade",
+            description: "Fotos, videos e acabamento ajudam a vitrine a parecer mais premium e mais desejada.",
+            icon: <Sparkles className="h-4 w-4 text-fuchsia-200" />,
+          },
+        ].map((item) => (
+          <article key={item.title} className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/75">
+              {item.icon}
+              Loja
+            </div>
+            <h3 className="mt-4 text-xl font-semibold">{item.title}</h3>
+            <p className="mt-3 text-sm leading-6 text-white/64">{item.description}</p>
+          </article>
+        ))}
+      </section>
+
+      {categoryCards.length ? (
+        <section className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Categorias</p>
+            <h3 className="mt-2 text-2xl font-semibold">Descubra a loja pelo estilo que voce procura</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/62">
+              Categorias visuais deixam a vitrine mais bonita, organizada e muito mais gostosa de explorar.
+            </p>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {categoryCards.map((category, index) => (
+              <button
+                key={category.label}
+                type="button"
+                onClick={() => setSelectedCategory(category.label)}
+                className={`group rounded-[28px] border p-5 text-left transition ${
+                  selectedCategory === category.label
+                    ? "border-orange-400/40 bg-orange-500/12"
+                    : "border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] hover:border-white/20 hover:bg-white/[0.06]"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/8 text-sm font-semibold text-white/85">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/70">
+                    {category.count} itens
+                  </span>
+                </div>
+                <h4 className="mt-5 text-2xl font-semibold">{category.label}</h4>
+                <p className="mt-3 text-sm leading-6 text-white/64">{category.description}</p>
+                <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-orange-200 transition group-hover:text-orange-100">
+                  Ver categoria
+                  <ArrowRight className="h-4 w-4" />
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <ShowcaseShelf
+        title="Destaques da semana"
+        subtitle="Os produtos que representam melhor a vitrine e ajudam o cliente a sentir o clima da loja logo de cara."
+        icon={<Star className="h-3.5 w-3.5 text-orange-200" />}
+        items={featuredShelfItems}
+        inquiryCounts={inquiryCounts}
+      />
+
+      <ShowcaseShelf
+        title="Mais pedidos"
+        subtitle="Os itens que mais despertaram interesse e ja provaram ter mais potencial de conversao."
+        icon={<Flame className="h-3.5 w-3.5 text-rose-200" />}
+        items={popularItems}
+        inquiryCounts={inquiryCounts}
+      />
+
+      <ShowcaseShelf
+        title="Pronta entrega"
+        subtitle="Perfeito para quem quer decidir rapido e seguir direto para o atendimento com estoque real."
+        icon={<PackageCheck className="h-3.5 w-3.5 text-emerald-200" />}
+        items={readyItems.slice(0, 4)}
+        inquiryCounts={inquiryCounts}
+      />
+
+      <ShowcaseShelf
+        title="Sob encomenda"
+        subtitle="Produtos com mais liberdade de criacao para quem quer uma peca especial ou personalizada."
+        icon={<Store className="h-3.5 w-3.5 text-cyan-200" />}
+        items={customItems.slice(0, 4)}
+        inquiryCounts={inquiryCounts}
+      />
+
+      <ShowcaseShelf
+        title="Novidades"
+        subtitle="Itens novos na vitrine para manter a experiencia viva e dar motivos para voltar."
+        icon={<Sparkles className="h-3.5 w-3.5 text-fuchsia-200" />}
+        items={newestItems}
+        inquiryCounts={inquiryCounts}
+      />
+
       <section className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Explore a loja</p>
-            <h3 className="mt-2 text-2xl font-semibold">Escolha sua peca favorita</h3>
+            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Encontre sua peca</p>
+            <h3 className="mt-2 text-2xl font-semibold">Busque, filtre e descubra mais rapido</h3>
             <p className="mt-3 text-sm text-white/60">{resultsLabel}</p>
           </div>
 
@@ -278,7 +596,7 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar por nome, material ou categoria"
+                placeholder="Buscar por nome, material, categoria ou estilo"
                 className="w-full rounded-2xl border border-white/10 bg-slate-950/70 py-3 pl-11 pr-4 text-sm text-white outline-none transition focus:border-orange-400/60"
               />
             </label>
@@ -291,10 +609,12 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                 className="w-full appearance-none rounded-2xl border border-white/10 bg-slate-950/70 py-3 pl-11 pr-4 text-sm text-white outline-none transition focus:border-orange-400/60"
               >
                 <option value="FEATURED">Ordenar por destaque</option>
+                <option value="POPULAR">Mais pedidos</option>
                 <option value="READY_FIRST">Pronta entrega primeiro</option>
                 <option value="LOWEST_PRICE">Menor preco</option>
                 <option value="HIGHEST_PRICE">Maior preco</option>
                 <option value="FASTEST">Prazo mais rapido</option>
+                <option value="NEWEST">Mais recentes</option>
               </select>
             </label>
           </div>
@@ -348,6 +668,23 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
             </button>
           ))}
         </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {priceFilterOptions.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setPriceFilter(option.id)}
+              className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                priceFilter === option.id
+                  ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-100"
+                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section id="catalogo-grid" className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
@@ -389,6 +726,9 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                     <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80 backdrop-blur">
                       {getShowcaseCategoryLabel(item)}
                     </span>
+                    <span className="rounded-full border border-emerald-400/20 bg-emerald-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100">
+                      {item.fulfillmentType === "STOCK" ? "Pronta entrega" : "Sob encomenda"}
+                    </span>
                     {primaryVideo ? (
                       <span className="inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-cyan-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100 backdrop-blur">
                         <Play className="h-3.5 w-3.5 fill-current" />
@@ -403,12 +743,12 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                   </div>
 
                   <div className="absolute bottom-0 left-0 right-0 p-5">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-white/55">
-                      {item.fulfillmentType === "STOCK" ? "Pronta entrega" : "Sob encomenda"}
-                    </p>
                     <h4 className="mt-2 text-2xl font-semibold leading-tight text-white" style={clampText(2)}>
                       {item.name}
                     </h4>
+                    <p className="mt-2 text-sm text-white/72" style={clampText(2)}>
+                      {getShowcaseDescriptionPreview(getShowcaseTagline(item), 84)}
+                    </p>
                   </div>
                 </Link>
 
@@ -420,11 +760,12 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                     <span className="rounded-full border border-cyan-400/20 bg-cyan-400/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100">
                       {leadTimeLabel}
                     </span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/75">
+                      {getItemPopularity(item.id, inquiryCounts) > 0
+                        ? `${getItemPopularity(item.id, inquiryCounts)} interesses`
+                        : "Novo"}
+                    </span>
                   </div>
-
-                  <p className="text-sm leading-7 text-white/76" style={clampText(2)}>
-                    {getShowcaseTagline(item)}
-                  </p>
 
                   <div className="grid gap-3 rounded-[24px] border border-white/10 bg-white/[0.03] p-4 sm:grid-cols-2">
                     <div>
@@ -459,6 +800,13 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                     </div>
                   </div>
 
+                  <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">Resumo</p>
+                    <p className="mt-2 text-sm leading-6 text-white/76" style={clampText(3)}>
+                      {getShowcaseDescriptionPreview(item.description, 125)}
+                    </p>
+                  </div>
+
                   <div className="mt-auto space-y-3 pt-1">
                     <div className="flex items-center justify-between gap-3 text-sm">
                       <Link
@@ -469,7 +817,7 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
                         <ArrowRight className="h-4 w-4" />
                       </Link>
                       <span className="text-xs uppercase tracking-[0.18em] text-white/45">
-                        {primaryVideo ? "Com video" : "Foto em destaque"}
+                        {primaryVideo ? "Video e fotos" : "Galeria visual"}
                       </span>
                     </div>
 
@@ -502,24 +850,55 @@ export function ShowcaseCatalogExplorer({ items, canManage }: ShowcaseCatalogExp
           })
         ) : (
           <div className="md:col-span-2 2xl:col-span-3 rounded-[28px] border border-dashed border-white/15 bg-slate-950/50 p-8 text-sm text-white/60">
-            Nenhum item encontrado para esse filtro. Tente outra categoria ou limpe a busca.
+            Nenhum item encontrado para esse filtro. Tente outra categoria, ajuste o valor ou limpe a busca.
           </div>
         )}
       </section>
 
       {featuredItem ? (
-        <section className="rounded-[30px] border border-white/10 bg-[linear-gradient(135deg,rgba(10,18,28,0.94),rgba(4,7,12,0.98))] p-6 sm:p-7">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-3xl">
-              <p className="text-xs uppercase tracking-[0.24em] text-white/45">Compra sem atrito</p>
-              <h3 className="mt-3 text-2xl font-semibold sm:text-3xl">
-                O cliente ve o produto, entende o prazo e ja cai no WhatsApp pronto para fechar
+        <section className="rounded-[32px] border border-white/10 bg-[linear-gradient(145deg,rgba(8,12,18,0.98),rgba(4,8,14,0.98))] p-6 sm:p-8">
+          <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+            <div>
+              <p className="text-xs uppercase tracking-[0.26em] text-white/45">Loja PrintFlow 3D</p>
+              <h3 className="mt-3 text-3xl font-semibold sm:text-4xl">
+                Uma vitrine mais bonita, mais clara e pronta para transformar visita em conversa
               </h3>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/68 sm:text-base">
+                O foco aqui e mostrar pecas com contexto visual, informacoes reais, estoque quando existir e uma compra simples. O cliente entra, entende o produto e segue direto para o WhatsApp sem friccao.
+              </p>
             </div>
 
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Atendimento</p>
+                <p className="mt-3 text-lg font-semibold">Conversa direta e rapida</p>
+                <p className="mt-2 text-sm leading-6 text-white/63">
+                  O cliente ve o produto, escolhe a quantidade e continua a compra em uma conversa humana.
+                </p>
+              </div>
+              <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Confianca</p>
+                <p className="mt-3 text-lg font-semibold">Estoque e prazo claros</p>
+                <p className="mt-2 text-sm leading-6 text-white/63">
+                  Nada de promessa generica: a vitrine mostra se a peca e pronta entrega ou feita por encomenda.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-7 flex flex-wrap gap-3">
+            <a
+              href={whatsappCatalogUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+            >
+              <MessageCircleMore className="h-4 w-4" />
+              Falar no WhatsApp
+            </a>
             <Link
               href={`/produto/${featuredItem.id}`}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white/90"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-5 py-3 text-sm font-semibold text-white/92 transition hover:bg-white/12"
             >
               Ver produto destaque
               <ArrowRight className="h-4 w-4" />

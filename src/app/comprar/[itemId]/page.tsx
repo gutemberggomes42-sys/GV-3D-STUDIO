@@ -30,6 +30,10 @@ function getRequestedQuantity(value: string | string[] | undefined) {
   return Math.max(1, Math.min(999, Math.round(parsed)));
 }
 
+function getRequestedNotes(value: string | string[] | undefined) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 export default async function BuyItemPage({
   params,
   searchParams,
@@ -38,6 +42,7 @@ export default async function BuyItemPage({
   const { itemId } = await params;
   const query = searchParams ? await searchParams : {};
   const requestedQuantity = getRequestedQuantity(query.quantity);
+  const requestedNotes = getRequestedNotes(query.notes);
   const message = typeof query.message === "string" ? query.message : null;
   const { showcaseItems } = await getHydratedData();
   const item = showcaseItems.find((candidate) => candidate.id === itemId && candidate.active);
@@ -55,6 +60,7 @@ export default async function BuyItemPage({
   const quantity = managesStock ? Math.min(requestedQuantity, item.stockQuantity) : requestedQuantity;
   const heroImage = getShowcaseGallery(item)[0];
   const heroVideo = getShowcasePrimaryVideo(item);
+  const totalPrice = item.price * quantity;
 
   return (
     <AppShell
@@ -129,6 +135,10 @@ export default async function BuyItemPage({
                   {managesStock ? item.stockQuantity : "Sob encomenda"}
                 </p>
               </div>
+              <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4 md:col-span-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Total estimado</p>
+                <p className="mt-2 text-3xl font-semibold">{formatCurrency(totalPrice)}</p>
+              </div>
             </div>
 
             <div className="mt-5 grid gap-3 rounded-[24px] border border-white/10 bg-white/[0.03] p-4 sm:grid-cols-2">
@@ -181,6 +191,20 @@ export default async function BuyItemPage({
             </p>
           </div>
 
+          <div className="rounded-[24px] border border-white/10 bg-black/25 p-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-white/45">Resumo do pedido</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Produto</p>
+                <p className="mt-2 text-sm font-semibold text-white/86">{item.name}</p>
+              </div>
+              <div className="rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Prazo</p>
+                <p className="mt-2 text-sm font-semibold text-white/86">{getShowcaseLeadTimeLabel(item)}</p>
+              </div>
+            </div>
+          </div>
+
           <label className="block text-sm text-white/70">
             Nome
             <input
@@ -198,6 +222,17 @@ export default async function BuyItemPage({
               defaultValue=""
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-emerald-400/60"
               placeholder="(64) 99999-9999"
+            />
+          </label>
+
+          <label className="block text-sm text-white/70">
+            Observacao opcional
+            <textarea
+              name="notes"
+              rows={4}
+              defaultValue={requestedNotes}
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-emerald-400/60"
+              placeholder="Ex.: Quero outra cor, preciso para presente, retirar pessoalmente..."
             />
           </label>
 

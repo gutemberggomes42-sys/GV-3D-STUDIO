@@ -7,11 +7,18 @@ import type { DbShowcaseItem } from "@/lib/db-types";
 type ShowcaseCatalogProps = {
   user: SessionUser | null;
   items: DbShowcaseItem[];
+  inquiryCounts: Record<string, number>;
   message?: string | null;
   pathname: string;
 };
 
-export function ShowcaseCatalog({ user, items, message, pathname }: ShowcaseCatalogProps) {
+export function ShowcaseCatalog({
+  user,
+  items,
+  inquiryCounts,
+  message,
+  pathname,
+}: ShowcaseCatalogProps) {
   const visibleItems = items.filter((item) => item.active);
 
   return (
@@ -19,7 +26,7 @@ export function ShowcaseCatalog({ user, items, message, pathname }: ShowcaseCata
       user={user}
       pathname={pathname}
       title="Catalogo da loja"
-      subtitle="Seja bem-vindo. Conheca nossa colecao de pecas 3D e fale conosco pelo WhatsApp para comprar ou encomendar."
+      subtitle="Explore a colecao, descubra pecas com personalidade e compre ou encomende com um atendimento rapido no WhatsApp."
     >
       {message ? (
         <div className="rounded-[24px] border border-amber-400/20 bg-amber-500/10 px-5 py-4 text-sm text-amber-50">
@@ -29,6 +36,7 @@ export function ShowcaseCatalog({ user, items, message, pathname }: ShowcaseCata
 
       <ShowcaseCatalogExplorer
         items={visibleItems}
+        inquiryCounts={inquiryCounts}
         canManage={Boolean(user && user.role !== UserRole.CLIENT)}
       />
     </AppShell>

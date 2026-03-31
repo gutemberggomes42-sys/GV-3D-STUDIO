@@ -1,10 +1,23 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, Boxes, Clock3, MessageCircleMore, PackageCheck, Ruler, SwatchBook } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Boxes,
+  Clock3,
+  HeartHandshake,
+  MessageCircleMore,
+  PackageCheck,
+  Ruler,
+  ShieldCheck,
+  Sparkles,
+  SwatchBook,
+} from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ShowcaseProductGallery } from "@/components/showcase-product-gallery";
 import { getCurrentUser } from "@/lib/auth";
+import type { DbShowcaseItem } from "@/lib/db-types";
 import { formatCurrency, formatHours } from "@/lib/format";
 import {
   getShowcaseAvailabilityLabel,
@@ -20,6 +33,41 @@ import { getHydratedData } from "@/lib/view-data";
 type ShowcaseProductPageProps = {
   params: Promise<{ itemId: string }>;
 };
+
+function uniqueList(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function getIdealUseCases(item: DbShowcaseItem) {
+  const normalizedCategory = item.category.toLowerCase();
+  const normalizedName = item.name.toLowerCase();
+
+  return uniqueList([
+    normalizedCategory.includes("decor") || normalizedCategory.includes("casa")
+      ? "Dar destaque ao ambiente"
+      : "",
+    normalizedCategory.includes("geek") || normalizedCategory.includes("games") || normalizedName.includes("dragon")
+      ? "Presentear quem ama cultura pop"
+      : "",
+    normalizedCategory.includes("organiz")
+      ? "Organizar com mais estilo"
+      : "",
+    normalizedCategory.includes("colecion")
+      ? "Exibir na colecao"
+      : "",
+    "Criar um cantinho com personalidade",
+    "Ter uma peca diferente do comum",
+  ]).slice(0, 4);
+}
+
+function getProductPromises(item: DbShowcaseItem) {
+  return uniqueList([
+    item.fulfillmentType === "STOCK" ? "Estoque real na vitrine" : "Producao por encomenda com prazo claro",
+    item.videoUrl ? "Fotos e video para mostrar melhor a peca" : "Galeria visual para entender o acabamento",
+    "Atendimento direto no WhatsApp",
+    item.materialLabel ? `Material principal: ${item.materialLabel}` : "Material e cores sob consulta",
+  ]).slice(0, 4);
+}
 
 export default async function ShowcaseProductPage({ params }: ShowcaseProductPageProps) {
   const user = await getCurrentUser();
@@ -44,15 +92,30 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
   const extraColors = Math.max(item.colorOptions.length - visibleColors.length, 0);
   const buyLabel =
     item.fulfillmentType === "STOCK" ? "Comprar pelo WhatsApp" : "Encomendar pelo WhatsApp";
+  const idealUseCases = getIdealUseCases(item);
+  const productPromises = getProductPromises(item);
 
   return (
     <AppShell
       user={user}
       pathname="/"
       title={item.name}
-      subtitle="Mais contexto visual, informacoes reais e acesso rapido ao WhatsApp para converter melhor."
+      subtitle="Fotos, video, detalhes reais e um caminho de compra simples para o cliente gostar e seguir rapido para o WhatsApp."
     >
-      <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+      <div className="flex flex-wrap items-center gap-3">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Voltar para a vitrine
+        </Link>
+        <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/65">
+          {getShowcaseCategoryLabel(item)}
+        </span>
+      </div>
+
+      <section className="grid gap-6 xl:grid-cols-[1.02fr_0.98fr]">
         <article className="rounded-[32px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
           {gallery.length || item.videoUrl ? (
             <ShowcaseProductGallery
@@ -90,12 +153,26 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
 
           <div className="mt-6 flex items-end justify-between gap-4 rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Valor</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Valor da peca</p>
               <p className="mt-2 text-4xl font-semibold">{formatCurrency(item.price)}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Fluxo</p>
-              <p className="mt-2 text-sm font-semibold text-white/82">WhatsApp sem cadastro obrigatorio</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Compra</p>
+              <p className="mt-2 text-sm font-semibold text-white/82">Fluxo simples pelo WhatsApp</p>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-[28px] border border-white/10 bg-black/20 p-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/45">Ideal para</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {idealUseCases.map((useCase) => (
+                <span
+                  key={useCase}
+                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/82"
+                >
+                  {useCase}
+                </span>
+              ))}
             </div>
           </div>
 
@@ -162,47 +239,98 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
             </div>
           </div>
 
-          <p className="mt-6 text-sm leading-7 text-white/72">{item.description}</p>
+          <div className="mt-6 rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/45">Descricao</p>
+            <p className="mt-3 text-sm leading-7 text-white/74">{item.description}</p>
+          </div>
+
+          <div className="mt-6 rounded-[28px] border border-white/10 bg-black/20 p-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/45">O que voce encontra aqui</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {productPromises.map((promise) => (
+                <div
+                  key={promise}
+                  className="rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/78"
+                >
+                  {promise}
+                </div>
+              ))}
+            </div>
+          </div>
 
           <div id="buy-panel" className="mt-8 rounded-[28px] border border-emerald-400/15 bg-emerald-500/[0.06] p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-emerald-100/70">Compra sem atrito</p>
-            <h4 className="mt-3 text-2xl font-semibold">Escolha a quantidade e va direto para o WhatsApp</h4>
+            <h4 className="mt-3 text-2xl font-semibold">Escolha a quantidade e siga direto para o WhatsApp</h4>
             <p className="mt-3 text-sm leading-6 text-white/68">
-              O cliente informa nome e telefone na proxima tela e a conversa ja abre com a mensagem pronta.
+              Na proxima tela o cliente informa so nome, telefone e uma observacao opcional antes de abrir a conversa.
             </p>
 
-            <form action={`/comprar/${item.id}`} className="mt-5 grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
-              <label className="block text-sm text-white/70">
-                Quantidade
-                <input
-                  name="quantity"
-                  type="number"
-                  min="1"
-                  max={item.fulfillmentType === "STOCK" ? Math.max(item.stockQuantity, 1) : 999}
-                  defaultValue="1"
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
-                />
-              </label>
+            <form action={`/comprar/${item.id}`} className="mt-5 space-y-3">
+              <div className="grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
+                <label className="block text-sm text-white/70">
+                  Quantidade
+                  <input
+                    name="quantity"
+                    type="number"
+                    min="1"
+                    max={item.fulfillmentType === "STOCK" ? Math.max(item.stockQuantity, 1) : 999}
+                    defaultValue="1"
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
+                  />
+                </label>
+                <label className="block text-sm text-white/70">
+                  Observacao opcional
+                  <textarea
+                    name="notes"
+                    rows={3}
+                    placeholder="Ex.: Quero em outra cor, preciso para presente, retirar pessoalmente..."
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
+                  />
+                </label>
+              </div>
               <button
                 type="submit"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-4 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-4 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
               >
                 <MessageCircleMore className="h-4 w-4" />
                 {buyLabel}
               </button>
             </form>
-
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link
-                href="/"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-black/25 px-5 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Voltar para a vitrine
-              </Link>
-            </div>
           </div>
         </article>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-3">
+        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/75">
+            <HeartHandshake className="h-3.5 w-3.5 text-cyan-200" />
+            Atendimento
+          </div>
+          <p className="mt-4 text-xl font-semibold">Conversa humana e direta</p>
+          <p className="mt-3 text-sm leading-6 text-white/68">
+            O cliente nao precisa criar conta para comprar. Ele ve a peca, escolhe a quantidade e chama no WhatsApp.
+          </p>
+        </div>
+        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/75">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-200" />
+            Confianca
+          </div>
+          <p className="mt-4 text-xl font-semibold">Prazo, estoque e material visiveis</p>
+          <p className="mt-3 text-sm leading-6 text-white/68">
+            Isso ajuda o cliente a confiar mais rapido, porque a decisao nao depende de informacoes escondidas.
+          </p>
+        </div>
+        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/75">
+            <Sparkles className="h-3.5 w-3.5 text-fuchsia-200" />
+            Visual
+          </div>
+          <p className="mt-4 text-xl font-semibold">Fotos, video e mais contexto</p>
+          <p className="mt-3 text-sm leading-6 text-white/68">
+            Uma pagina completa valoriza melhor a peca e deixa a loja com cara mais premium e profissional.
+          </p>
+        </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
@@ -210,21 +338,21 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
           <p className="text-xs uppercase tracking-[0.2em] text-white/45">Passo 1</p>
           <p className="mt-3 text-xl font-semibold">Escolha a quantidade</p>
           <p className="mt-3 text-sm leading-6 text-white/68">
-            A peca ja tem valor, prazo e disponibilidade visiveis para a decisao ser mais rapida.
+            A peca ja mostra valor, prazo e disponibilidade para facilitar a decisao desde o primeiro clique.
           </p>
         </div>
         <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
           <p className="text-xs uppercase tracking-[0.2em] text-white/45">Passo 2</p>
-          <p className="mt-3 text-xl font-semibold">Informe nome e telefone</p>
+          <p className="mt-3 text-xl font-semibold">Informe nome, telefone e observacao</p>
           <p className="mt-3 text-sm leading-6 text-white/68">
-            A tela seguinte pede so o essencial para abrir a conversa com a mensagem pronta.
+            Na tela seguinte o cliente preenche so o essencial e, se quiser, deixa um detalhe importante sobre o pedido.
           </p>
         </div>
         <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
           <p className="text-xs uppercase tracking-[0.2em] text-white/45">Passo 3</p>
-          <p className="mt-3 text-xl font-semibold">Conversa abre no WhatsApp</p>
+          <p className="mt-3 text-xl font-semibold">A conversa ja abre no WhatsApp</p>
           <p className="mt-3 text-sm leading-6 text-white/68">
-            O interesse fica registrado no sistema e voce continua o fechamento direto no atendimento.
+            O interesse fica registrado no sistema e o atendimento continua sem atrito direto na conversa.
           </p>
         </div>
       </section>
@@ -234,7 +362,7 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-white/45">Mesma categoria</p>
-              <h3 className="mt-2 text-2xl font-semibold">Outras pecas que combinam com esta vitrine</h3>
+              <h3 className="mt-2 text-2xl font-semibold">Outras pecas que combinam com este estilo</h3>
             </div>
             <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-orange-200 transition hover:text-orange-100">
               Ver catalogo completo
@@ -249,7 +377,7 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
                 href={`/produto/${relatedItem.id}`}
                 className="overflow-hidden rounded-[26px] border border-white/10 bg-black/25 transition hover:border-white/20 hover:bg-black/30"
               >
-                <div className="h-52 overflow-hidden">
+                <div className="relative h-56 overflow-hidden">
                   {getShowcaseGallery(relatedItem)[0] ? (
                     <img
                       src={getShowcaseGallery(relatedItem)[0]}
@@ -259,11 +387,21 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
                   ) : (
                     <div className="h-full bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.35),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(89,185,255,0.22),_transparent_32%),linear-gradient(135deg,_rgba(255,255,255,0.08),_rgba(15,23,42,0.95))]" />
                   )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/15 to-transparent" />
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-white/55">{relatedItem.category}</p>
+                    <h4 className="mt-2 text-2xl font-semibold text-white">{relatedItem.name}</h4>
+                  </div>
                 </div>
-                <div className="p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-white/45">{relatedItem.category}</p>
-                  <h4 className="mt-2 text-xl font-semibold">{relatedItem.name}</h4>
-                  <p className="mt-3 text-sm text-white/65">{formatCurrency(relatedItem.price)}</p>
+                <div className="space-y-3 p-4">
+                  <p className="text-sm leading-6 text-white/65">{relatedItem.tagline ?? relatedItem.description}</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-lg font-semibold text-white">{formatCurrency(relatedItem.price)}</p>
+                    <span className="inline-flex items-center gap-2 font-semibold text-orange-200">
+                      Ver detalhes
+                      <ArrowRight className="h-4 w-4" />
+                    </span>
+                  </div>
                 </div>
               </Link>
             ))}

@@ -18,15 +18,23 @@ function sanitizePhone(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
+function sanitizeNotes(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
 function buildBuyPageRedirect(
   request: NextRequest,
   itemId: string,
   quantity: number,
   message: string,
+  notes?: string,
 ) {
   const url = new URL(`/comprar/${itemId}`, request.url);
   url.searchParams.set("quantity", String(quantity));
   url.searchParams.set("message", message);
+  if (notes) {
+    url.searchParams.set("notes", notes);
+  }
   return new NextResponse(null, {
     status: 303,
     headers: {
@@ -53,6 +61,7 @@ export async function POST(
   const quantity = parseQuantity(formData.get("quantity"));
   const customerName = String(formData.get("customerName") ?? "").trim();
   const customerPhone = sanitizePhone(String(formData.get("customerPhone") ?? ""));
+  const notes = sanitizeNotes(String(formData.get("notes") ?? ""));
 
   if (customerName.length < 2) {
     return buildBuyPageRedirect(
@@ -60,6 +69,7 @@ export async function POST(
       itemId,
       quantity,
       "Informe o nome para continuar.",
+      notes,
     );
   }
 
@@ -69,6 +79,7 @@ export async function POST(
       itemId,
       quantity,
       "Informe um telefone ou WhatsApp valido.",
+      notes,
     );
   }
 
@@ -97,8 +108,10 @@ export async function POST(
         `Item: ${item.name}`,
         `Quantidade: ${quantity}`,
         `Disponibilidade: ${item.fulfillmentType === "MADE_TO_ORDER" ? "Sob encomenda" : "Pronta entrega"}`,
+        `Valor estimado: ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.price * quantity)}`,
         `Cliente: ${customerName}`,
         `Telefone: ${customerPhone}`,
+        ...(notes ? [`Observacao: ${notes}`] : []),
       ].join("\n");
       const url = `https://api.whatsapp.com/send?phone=${ownerWhatsAppNumber}&text=${encodeURIComponent(message)}`;
       const now = new Date().toISOString();
@@ -117,7 +130,7 @@ export async function POST(
         customerEmail: isGeneratedCustomerEmail(customer.email) ? "" : customer.email,
         customerPhone,
         source: "CATALOG",
-        notes: undefined,
+        notes: notes || undefined,
         ownerEmail,
         whatsappNumber: ownerWhatsAppNumber,
         whatsappUrl: url,
@@ -143,6 +156,7 @@ export async function POST(
       itemId,
       quantity,
       error instanceof Error ? error.message : "Nao foi possivel abrir o WhatsApp.",
+      notes,
     );
   }
 }
