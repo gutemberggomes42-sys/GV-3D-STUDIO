@@ -29,35 +29,63 @@ type AppShellProps = {
 function BrandBackdrop({ compact = false }: { compact?: boolean }) {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute left-[-10%] top-[-8%] h-[24rem] w-[24rem] rounded-full bg-cyan-400/10 blur-3xl sm:h-[32rem] sm:w-[32rem]" />
-      <div className="absolute bottom-[-12%] right-[-8%] h-[24rem] w-[24rem] rounded-full bg-fuchsia-500/10 blur-3xl sm:h-[34rem] sm:w-[34rem]" />
+      <div className="absolute left-[-10%] top-[-8%] h-[28rem] w-[28rem] rounded-full bg-cyan-400/16 blur-3xl sm:h-[40rem] sm:w-[40rem]" />
+      <div className="absolute bottom-[-14%] right-[-8%] h-[28rem] w-[28rem] rounded-full bg-fuchsia-500/14 blur-3xl sm:h-[42rem] sm:w-[42rem]" />
       <div
         className={cn(
-          "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
-          compact ? "h-[30rem] w-[30rem] opacity-[0.06] sm:h-[38rem] sm:w-[38rem]" : "h-[34rem] w-[34rem] opacity-[0.07] sm:h-[48rem] sm:w-[48rem]",
+          "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl",
+          compact
+            ? "h-[30rem] w-[30rem] bg-[radial-gradient(circle,_rgba(85,188,255,0.16)_0%,_rgba(168,85,247,0.11)_42%,_transparent_76%)] sm:h-[42rem] sm:w-[42rem] lg:h-[52rem] lg:w-[52rem]"
+            : "h-[36rem] w-[36rem] bg-[radial-gradient(circle,_rgba(85,188,255,0.18)_0%,_rgba(168,85,247,0.13)_42%,_transparent_78%)] sm:h-[50rem] sm:w-[50rem] lg:h-[62rem] lg:w-[62rem]",
+        )}
+      />
+      <div
+        className={cn(
+          "absolute left-1/2 top-[52%] -translate-x-1/2 -translate-y-1/2",
+          compact
+            ? "h-[42rem] w-[42rem] opacity-[0.14] sm:h-[56rem] sm:w-[56rem] lg:h-[68rem] lg:w-[68rem]"
+            : "h-[48rem] w-[48rem] opacity-[0.16] sm:h-[62rem] sm:w-[62rem] lg:h-[78rem] lg:w-[78rem]",
         )}
       >
         <Image
           src={studioBrandLogoPath}
           alt=""
           fill
-          sizes={compact ? "55vw" : "70vw"}
-          className="object-contain saturate-150"
+          sizes={compact ? "85vw" : "100vw"}
+          className="object-contain saturate-[1.5] brightness-[1.08] contrast-[1.08] drop-shadow-[0_0_90px_rgba(95,201,255,0.2)]"
           priority
         />
       </div>
       <div
         className={cn(
-          "absolute -right-12 top-10 rotate-[-10deg] blur-[2px]",
-          compact ? "h-44 w-44 opacity-[0.04] sm:h-56 sm:w-56" : "h-52 w-52 opacity-[0.05] sm:h-72 sm:w-72",
+          "absolute right-[-6%] top-[8%] rotate-[-12deg]",
+          compact
+            ? "h-60 w-60 opacity-[0.08] blur-[1px] sm:h-72 sm:w-72 lg:h-80 lg:w-80"
+            : "h-72 w-72 opacity-[0.1] blur-[1px] sm:h-[26rem] sm:w-[26rem] lg:h-[30rem] lg:w-[30rem]",
         )}
       >
         <Image
           src={studioBrandLogoPath}
           alt=""
           fill
-          sizes="24vw"
-          className="object-contain"
+          sizes="34vw"
+          className="object-contain saturate-[1.5] brightness-[1.15]"
+        />
+      </div>
+      <div
+        className={cn(
+          "absolute bottom-[-8%] left-[-10%] rotate-[16deg]",
+          compact
+            ? "h-52 w-52 opacity-[0.06] blur-[1px] sm:h-72 sm:w-72"
+            : "h-64 w-64 opacity-[0.08] blur-[1px] sm:h-80 sm:w-80 lg:h-[26rem] lg:w-[26rem]",
+        )}
+      >
+        <Image
+          src={studioBrandLogoPath}
+          alt=""
+          fill
+          sizes="26vw"
+          className="object-contain saturate-[1.45] brightness-110"
         />
       </div>
     </div>
