@@ -11,7 +11,7 @@ import {
   UserRole,
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { createUserSession, destroySession, hashPassword, requireRoles, requireUser, verifyPassword } from "@/lib/auth";
 import { allowed3dFormats, ownerEmail, ownerWhatsAppNumber } from "@/lib/constants";
@@ -412,6 +412,10 @@ function revalidateAll() {
   ["/", "/portal", "/admin", "/producao", "/maquinas", "/filamentos", "/financeiro"].forEach((route) => {
     revalidatePath(route);
   });
+}
+
+function rethrowNextRedirect(error: unknown) {
+  unstable_rethrow(error);
 }
 
 function getSafeRedirectPath(formData: FormData) {
@@ -1427,6 +1431,7 @@ export async function registerAction(_previousState: ActionState, formData: Form
     }
     redirectAfterAuth(user.role);
   } catch (error) {
+    rethrowNextRedirect(error);
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Não foi possível criar a conta.",
@@ -1660,6 +1665,7 @@ export async function createOrderAction(
     revalidateAll();
     redirect("/portal?message=Pedido%20criado%20com%20orcamento%20automatico.");
   } catch (error) {
+    rethrowNextRedirect(error);
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Não foi possível criar o pedido.",
@@ -1796,6 +1802,7 @@ export async function createMaterialAction(
       message: "Material salvo com cálculo automático de custo por grama e por metro.",
     };
   } catch (error) {
+    rethrowNextRedirect(error);
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Não foi possível salvar o material.",
@@ -1883,6 +1890,7 @@ export async function updateMaterialAction(
       message: "Material atualizado com novo cálculo automático de custo por grama e por metro.",
     };
   } catch (error) {
+    rethrowNextRedirect(error);
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Não foi possível atualizar o material.",
@@ -1940,6 +1948,7 @@ export async function deleteMaterialAction(
       message: "Material excluído com sucesso.",
     };
   } catch (error) {
+    rethrowNextRedirect(error);
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Não foi possível excluir o material.",
@@ -2326,6 +2335,7 @@ export async function deleteBackupSnapshotAction(formData: FormData) {
     revalidateAll();
     redirect(buildAdminSummaryUrl("Snapshot do sistema excluído com sucesso."));
   } catch (error) {
+    rethrowNextRedirect(error);
     redirect(
       buildAdminSummaryUrl(
         error instanceof Error
@@ -2378,6 +2388,7 @@ export async function createShowcaseItemAction(
     revalidateAll();
     redirect(buildAdminShowcaseSectionUrl("Item da vitrine salvo com sucesso."));
   } catch (error) {
+    rethrowNextRedirect(error);
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Não foi possível salvar o item da vitrine.",
@@ -2483,6 +2494,7 @@ export async function updateShowcaseItemAction(
       ),
     );
   } catch (error) {
+    rethrowNextRedirect(error);
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Não foi possível atualizar o item da vitrine.",
@@ -2526,6 +2538,7 @@ export async function deleteShowcaseItemAction(
     revalidateAll();
     redirect(buildAdminShowcaseSectionUrl("Item da vitrine excluído com sucesso."));
   } catch (error) {
+    rethrowNextRedirect(error);
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Não foi possível excluir o item da vitrine.",
@@ -2564,6 +2577,7 @@ export async function updateStorefrontSettingsAction(
     revalidateAll();
     redirect(buildAdminSettingsSectionUrl("Configuracoes da loja salvas com sucesso."));
   } catch (error) {
+    rethrowNextRedirect(error);
     return {
       ok: false,
       error:
@@ -2611,6 +2625,7 @@ export async function createShowcaseTestimonialAction(
     revalidateAll();
     redirect(buildAdminSettingsSectionUrl("Depoimento salvo com sucesso."));
   } catch (error) {
+    rethrowNextRedirect(error);
     return {
       ok: false,
       error:
@@ -2676,6 +2691,7 @@ export async function updateShowcaseTestimonialAction(
     revalidateAll();
     redirect(buildAdminSettingsSectionUrl("Depoimento atualizado com sucesso."));
   } catch (error) {
+    rethrowNextRedirect(error);
     return {
       ok: false,
       error:
@@ -2721,6 +2737,7 @@ export async function deleteShowcaseTestimonialAction(
     revalidateAll();
     redirect(buildAdminSettingsSectionUrl("Depoimento removido com sucesso."));
   } catch (error) {
+    rethrowNextRedirect(error);
     return {
       ok: false,
       error:
