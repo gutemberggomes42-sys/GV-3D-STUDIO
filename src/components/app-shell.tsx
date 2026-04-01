@@ -42,22 +42,29 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
           <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-black/22 backdrop-blur-xl">
             <header className="border-b border-white/10 bg-white/[0.03] px-5 py-5 sm:px-6 lg:px-8">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <Link href="/" className="flex items-start gap-4">
-                  <div className="overflow-hidden rounded-[24px] border border-white/10 bg-white/5 p-1 shadow-[0_12px_36px_rgba(0,0,0,0.22)]">
-                    <Image
-                      src={studioBrandLogoPath}
-                      alt={studioBrandName}
-                      width={72}
-                      height={72}
-                      className="h-[58px] w-[58px] rounded-[18px] object-cover"
-                      priority
-                    />
+                <Link href="/" className="flex items-start gap-4 rounded-[28px] border border-white/8 bg-white/[0.025] px-3 py-3 transition hover:border-white/12 hover:bg-white/[0.04] sm:px-4">
+                  <div className="relative shrink-0">
+                    <div className="absolute inset-0 rounded-[28px] bg-[radial-gradient(circle_at_top,_rgba(89,185,255,0.28),_transparent_58%),radial-gradient(circle_at_bottom,_rgba(140,82,255,0.25),_transparent_60%)] blur-xl" />
+                    <div className="relative overflow-hidden rounded-[26px] border border-white/12 bg-[linear-gradient(160deg,rgba(255,255,255,0.18),rgba(255,255,255,0.04))] p-1.5 shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
+                      <Image
+                        src={studioBrandLogoPath}
+                        alt={studioBrandName}
+                        width={96}
+                        height={96}
+                        className="h-[72px] w-[72px] rounded-[20px] object-cover sm:h-[82px] sm:w-[82px]"
+                        priority
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.28em] text-orange-200/70">{studioBrandName}</p>
-                    <h1 className="mt-2 text-2xl font-semibold tracking-tight">Studio e loja de pecas impressas em 3D</h1>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
-                      Pronta entrega e encomenda com visual bonito, informacoes reais e atendimento humano pelo WhatsApp.
+                  <div className="pt-1">
+                    <div className="inline-flex items-center rounded-full border border-orange-300/18 bg-orange-400/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.32em] text-orange-100/78">
+                      {studioBrandName}
+                    </div>
+                    <h1 className="mt-3 text-[1.9rem] font-semibold leading-tight tracking-tight text-white sm:text-[2.2rem]">
+                      Pecas 3D autorais com acabamento premium
+                    </h1>
+                    <p className="mt-3 max-w-2xl text-sm leading-7 text-white/68 sm:text-[15px]">
+                      Decoracao, presentes e encomendas personalizadas com pronta entrega, informacoes reais e atendimento direto no WhatsApp.
                     </p>
                   </div>
                 </Link>
