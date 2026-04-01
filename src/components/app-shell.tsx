@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Box, Factory, KeyRound, Layers3, LogOut, Package, Printer, Sparkles, Wallet } from "lucide-react";
+import { Box, Factory, Layers3, LogOut, Package, Printer, Sparkles, Wallet } from "lucide-react";
 import { ShowcaseCartButton } from "@/components/showcase-cart-button";
 import { studioBrandLogoPath, studioBrandName } from "@/lib/branding";
 import { dashboardRoutes, ownerWhatsAppNumber, roleLabels } from "@/lib/constants";
@@ -166,10 +166,14 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
             <BrandSurfaceWatermark />
             <header className="relative z-10 border-b border-white/10 bg-white/[0.03] px-5 py-5 sm:px-6 lg:px-8">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <Link href="/" className="flex items-start gap-4 rounded-[28px] border border-white/8 bg-white/[0.025] px-3 py-3 transition hover:border-white/12 hover:bg-white/[0.04] sm:px-4">
-                  <div className="relative shrink-0">
-                    <div className="absolute inset-0 rounded-[28px] bg-[radial-gradient(circle_at_top,_rgba(89,185,255,0.28),_transparent_58%),radial-gradient(circle_at_bottom,_rgba(140,82,255,0.25),_transparent_60%)] blur-xl" />
-                    <div className="relative overflow-hidden rounded-[26px] border border-white/12 bg-[linear-gradient(160deg,rgba(255,255,255,0.18),rgba(255,255,255,0.04))] p-1.5 shadow-[0_18px_40px_rgba(0,0,0,0.28)]">
+                <div className="flex items-start gap-4 rounded-[28px] border border-white/8 bg-white/[0.025] px-3 py-3 sm:px-4">
+                  <Link
+                    href="/acesso"
+                    aria-label="Entrar na area administrativa"
+                    className="relative shrink-0 transition hover:scale-[1.02] focus-visible:scale-[1.02]"
+                  >
+                    <div className="absolute inset-0 rounded-[28px] bg-[radial-gradient(circle_at_top,_rgba(89,185,255,0.3),_transparent_58%),radial-gradient(circle_at_bottom,_rgba(140,82,255,0.28),_transparent_60%)] blur-xl" />
+                    <div className="relative overflow-hidden rounded-[26px] border border-white/12 bg-[linear-gradient(160deg,rgba(255,255,255,0.18),rgba(255,255,255,0.04))] p-1.5 shadow-[0_18px_40px_rgba(0,0,0,0.28)] transition hover:border-white/20 hover:bg-[linear-gradient(160deg,rgba(255,255,255,0.22),rgba(255,255,255,0.05))]">
                       <Image
                         src={studioBrandLogoPath}
                         alt={studioBrandName}
@@ -179,7 +183,7 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
                         priority
                       />
                     </div>
-                  </div>
+                  </Link>
                   <div className="pt-1">
                     <div className="inline-flex items-center rounded-full border border-orange-300/18 bg-orange-400/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.32em] text-orange-100/78">
                       {studioBrandName}
@@ -191,7 +195,7 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
                       Decoracao, presentes e encomendas personalizadas com pronta entrega, informacoes reais e atendimento direto no WhatsApp.
                     </p>
                   </div>
-                </Link>
+                </div>
 
                 <div className="flex flex-wrap gap-3">
                   <Link
@@ -251,16 +255,6 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
               </div>
             </footer>
 
-            <Link
-              href="/acesso"
-              aria-label="Acesso administrativo"
-              className="group absolute bottom-5 left-5 z-10 inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-black/45 px-3 py-2 text-white/72 shadow-[0_12px_32px_rgba(0,0,0,0.24)] transition hover:border-amber-300/35 hover:bg-black/60 hover:text-white focus-visible:border-amber-300/35 focus-visible:bg-black/60 focus-visible:text-white"
-            >
-              <KeyRound className="h-3.5 w-3.5" />
-              <span className="text-xs font-semibold">
-                Area admin
-              </span>
-            </Link>
           </div>
         </div>
       </div>
@@ -335,19 +329,6 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
                 </button>
               </form>
             </div>
-          ) : null}
-
-          {!user ? (
-            <Link
-              href="/acesso"
-              aria-label="Acesso administrativo"
-              className="group absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 p-2 text-white/60 opacity-15 transition hover:opacity-100 focus-visible:opacity-100"
-            >
-              <KeyRound className="h-3.5 w-3.5" />
-              <span className="max-w-0 overflow-hidden text-xs font-semibold opacity-0 transition-all duration-200 group-hover:max-w-24 group-hover:opacity-100 group-focus-visible:max-w-24 group-focus-visible:opacity-100">
-                Admin
-              </span>
-            </Link>
           ) : null}
         </aside>
 
