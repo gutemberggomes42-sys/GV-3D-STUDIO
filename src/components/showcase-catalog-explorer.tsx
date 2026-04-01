@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 import { ShowcaseCartButton } from "@/components/showcase-cart-button";
 import { ShowcaseWishlistButton } from "@/components/showcase-wishlist-button";
+import { studioBrandLogoPath } from "@/lib/branding";
 import { ownerWhatsAppNumber } from "@/lib/constants";
 import type {
   DbShowcaseItem,
@@ -83,6 +85,70 @@ function clampText(lines: number) {
     WebkitBoxOrient: "vertical" as const,
     overflow: "hidden",
   };
+}
+
+function ShowcaseSectionWatermark({
+  align = "right",
+  intensity = "normal",
+}: {
+  align?: "center" | "right";
+  intensity?: "normal" | "strong";
+}) {
+  const isCentered = align === "center";
+  const isStrong = intensity === "strong";
+
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div
+        className={
+          isCentered
+            ? isStrong
+              ? "absolute left-1/2 top-1/2 h-[28rem] w-[28rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-400/16 blur-3xl sm:h-[40rem] sm:w-[40rem]"
+              : "absolute left-1/2 top-1/2 h-[22rem] w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-400/10 blur-3xl sm:h-[32rem] sm:w-[32rem]"
+            : isStrong
+              ? "absolute right-[-8%] top-1/2 h-[30rem] w-[30rem] -translate-y-1/2 rounded-full bg-cyan-400/16 blur-3xl sm:h-[42rem] sm:w-[42rem]"
+              : "absolute right-[-10%] top-1/2 h-[24rem] w-[24rem] -translate-y-1/2 rounded-full bg-cyan-400/10 blur-3xl sm:h-[34rem] sm:w-[34rem]"
+        }
+      />
+      <div
+        className={
+          isCentered
+            ? isStrong
+              ? "absolute left-1/2 top-1/2 h-[22rem] w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-fuchsia-500/14 blur-3xl sm:h-[34rem] sm:w-[34rem]"
+              : "absolute left-1/2 top-1/2 h-[18rem] w-[18rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-fuchsia-500/10 blur-3xl sm:h-[26rem] sm:w-[26rem]"
+            : isStrong
+              ? "absolute bottom-[-18%] right-[12%] h-[24rem] w-[24rem] rounded-full bg-fuchsia-500/12 blur-3xl sm:h-[34rem] sm:w-[34rem]"
+              : "absolute bottom-[-20%] right-[18%] h-[18rem] w-[18rem] rounded-full bg-fuchsia-500/8 blur-3xl sm:h-[26rem] sm:w-[26rem]"
+        }
+      />
+      <div
+        className={
+          isCentered
+            ? isStrong
+              ? "absolute left-1/2 top-1/2 h-[28rem] w-[28rem] -translate-x-1/2 -translate-y-1/2 opacity-[0.18] sm:h-[42rem] sm:w-[42rem]"
+              : "absolute left-1/2 top-1/2 h-[22rem] w-[22rem] -translate-x-1/2 -translate-y-1/2 opacity-[0.12] sm:h-[32rem] sm:w-[32rem]"
+            : isStrong
+              ? "absolute right-[-2%] top-1/2 h-[34rem] w-[34rem] -translate-y-1/2 opacity-[0.2] sm:h-[48rem] sm:w-[48rem]"
+              : "absolute right-[0%] top-1/2 h-[26rem] w-[26rem] -translate-y-1/2 opacity-[0.14] sm:h-[36rem] sm:w-[36rem]"
+        }
+      >
+        <Image
+          src={studioBrandLogoPath}
+          alt=""
+          fill
+          sizes={isCentered ? "56vw" : "42vw"}
+          className="object-contain saturate-[1.65] brightness-[1.15] contrast-[1.08] drop-shadow-[0_0_90px_rgba(98,198,255,0.24)]"
+        />
+      </div>
+      <div
+        className={
+          isCentered
+            ? "absolute inset-0 bg-[linear-gradient(180deg,rgba(3,7,11,0.12)_0%,rgba(3,7,11,0.04)_28%,rgba(3,7,11,0.12)_100%)]"
+            : "absolute inset-0 bg-[linear-gradient(90deg,rgba(3,7,11,0.18)_0%,rgba(3,7,11,0.08)_35%,rgba(3,7,11,0.03)_60%,rgba(3,7,11,0.12)_100%)]"
+        }
+      />
+    </div>
+  );
 }
 
 function readWishlistIds() {
@@ -388,15 +454,16 @@ function ShowcaseShelf({ title, subtitle, icon, items, inquiryCounts, anchorId }
   }
 
   return (
-    <section id={anchorId} className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
-      <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/75">
+    <section id={anchorId} className="relative overflow-hidden rounded-[30px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+      <ShowcaseSectionWatermark align="right" />
+      <div className="relative z-10 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/75">
         {icon}
         Curadoria
       </div>
-      <h3 className="mt-3 text-2xl font-semibold">{title}</h3>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-white/62">{subtitle}</p>
+      <h3 className="relative z-10 mt-3 text-2xl font-semibold">{title}</h3>
+      <p className="relative z-10 mt-2 max-w-2xl text-sm leading-6 text-white/62">{subtitle}</p>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="relative z-10 mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {items.map((item) => (
           <ShowcaseCard key={item.id} item={item} inquiryCount={getItemPopularity(item, inquiryCounts)} />
         ))}
@@ -496,8 +563,9 @@ export function ShowcaseCatalogExplorer({
         </section>
       ) : null}
 
-      <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.24),_transparent_30%),radial-gradient(circle_at_center_right,_rgba(89,185,255,0.18),_transparent_28%),linear-gradient(145deg,_rgba(5,7,12,0.98),_rgba(8,14,22,0.94))]">
-        <div className="grid gap-0 xl:grid-cols-[0.95fr_1.05fr]">
+      <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.24),_transparent_30%),radial-gradient(circle_at_center_right,_rgba(89,185,255,0.18),_transparent_28%),linear-gradient(145deg,_rgba(5,7,12,0.98),_rgba(8,14,22,0.94))]">
+        <ShowcaseSectionWatermark align={featuredItem ? "right" : "center"} intensity="strong" />
+        <div className="relative z-10 grid gap-0 xl:grid-cols-[0.95fr_1.05fr]">
           <div className="p-6 sm:p-8 lg:p-9">
             <p className="text-xs uppercase tracking-[0.28em] text-orange-200/70">{settings.heroEyebrow}</p>
             <h3 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight sm:text-5xl">
@@ -587,8 +655,11 @@ export function ShowcaseCatalogExplorer({
                 </div>
               </Link>
             ) : (
-              <div className="flex h-full min-h-[320px] items-center justify-center rounded-[30px] border border-dashed border-white/10 bg-black/20 p-8 text-sm text-white/55">
-                Assim que voce cadastrar produtos, o destaque principal da loja aparece aqui.
+              <div className="relative flex h-full min-h-[320px] items-center justify-center overflow-hidden rounded-[30px] border border-dashed border-white/10 bg-black/20 p-8 text-sm text-white/55">
+                <ShowcaseSectionWatermark align="center" intensity="strong" />
+                <div className="relative z-10 max-w-xs text-center">
+                  Assim que voce cadastrar produtos, o destaque principal da loja aparece aqui.
+                </div>
               </div>
             )}
           </div>
@@ -635,8 +706,9 @@ export function ShowcaseCatalogExplorer({
 
       <ShowcaseShelf title="Novidades" subtitle="Itens novos para manter a vitrine viva e dar sempre um motivo para voltar." icon={<Sparkles className="h-3.5 w-3.5 text-white" />} items={newestItems} inquiryCounts={inquiryCounts} />
 
-      <section className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <section className="relative overflow-hidden rounded-[30px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+        <ShowcaseSectionWatermark align="center" intensity="strong" />
+        <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-white/45">Encontre sua peca</p>
             <h3 className="mt-2 text-2xl font-semibold">Busque, filtre e compare com mais facilidade</h3>
@@ -665,7 +737,7 @@ export function ShowcaseCatalogExplorer({
           </div>
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-2">
+        <div className="relative z-10 mt-5 flex flex-wrap gap-2">
           <button type="button" onClick={() => setSelectedCategory("Todos")} className={`rounded-full border px-4 py-2 text-sm font-medium transition ${selectedCategory === "Todos" ? "border-orange-400/40 bg-orange-500/15 text-orange-100" : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"}`}>
             Todas
           </button>
@@ -676,7 +748,7 @@ export function ShowcaseCatalogExplorer({
           ))}
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="relative z-10 mt-4 flex flex-wrap gap-2">
           {[
             { id: "ALL", label: "Tudo" },
             { id: "STOCK", label: "Pronta entrega" },
@@ -688,7 +760,7 @@ export function ShowcaseCatalogExplorer({
           ))}
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="relative z-10 mt-4 flex flex-wrap gap-2">
           {priceFilterOptions.map((option) => (
             <button key={option.id} type="button" onClick={() => setPriceFilter(option.id)} className={`rounded-full border px-4 py-2 text-sm font-medium transition ${priceFilter === option.id ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-100" : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"}`}>
               {option.label}
@@ -709,7 +781,9 @@ export function ShowcaseCatalogExplorer({
         )}
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
+      <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(145deg,rgba(8,12,18,0.72),rgba(4,8,14,0.78))] p-1">
+        <ShowcaseSectionWatermark align="center" />
+        <div className="relative z-10 grid gap-4 lg:grid-cols-3">
         <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
           <p className="text-xs uppercase tracking-[0.22em] text-white/45">Prazo medio</p>
           <p className="mt-4 text-base leading-7 text-white/72">{settings.averageLeadTimeText}</p>
@@ -721,6 +795,7 @@ export function ShowcaseCatalogExplorer({
         <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
           <p className="text-xs uppercase tracking-[0.22em] text-white/45">Cuidados com a peca</p>
           <p className="mt-4 text-base leading-7 text-white/72">{settings.careText}</p>
+        </div>
         </div>
       </section>
 
@@ -761,8 +836,9 @@ export function ShowcaseCatalogExplorer({
         </section>
       ) : null}
 
-      <section className="rounded-[30px] border border-white/10 bg-[linear-gradient(145deg,rgba(8,12,18,0.98),rgba(4,8,14,0.98))] p-6 sm:p-8">
-        <div className="grid gap-6 xl:grid-cols-[1fr_0.92fr]">
+      <section className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(145deg,rgba(8,12,18,0.98),rgba(4,8,14,0.98))] p-6 sm:p-8">
+        <ShowcaseSectionWatermark align="right" intensity="strong" />
+        <div className="relative z-10 grid gap-6 xl:grid-cols-[1fr_0.92fr]">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-white/45">{settings.portfolioTitle}</p>
             <h3 className="mt-3 text-3xl font-semibold">Acompanhe mais da loja e veja o estilo de cada peca</h3>

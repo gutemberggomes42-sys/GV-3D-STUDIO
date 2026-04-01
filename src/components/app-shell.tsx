@@ -115,8 +115,8 @@ function BrandSurfaceWatermark({ compact = false }: { compact?: boolean }) {
         className={cn(
           "absolute right-[-4%] top-1/2 -translate-y-1/2",
           compact
-            ? "h-[34rem] w-[34rem] opacity-[0.16] sm:h-[46rem] sm:w-[46rem] lg:h-[58rem] lg:w-[58rem]"
-            : "h-[40rem] w-[40rem] opacity-[0.2] sm:h-[54rem] sm:w-[54rem] lg:h-[68rem] lg:w-[68rem]",
+            ? "h-[34rem] w-[34rem] opacity-[0.22] sm:h-[46rem] sm:w-[46rem] lg:h-[58rem] lg:w-[58rem]"
+            : "h-[40rem] w-[40rem] opacity-[0.28] sm:h-[54rem] sm:w-[54rem] lg:h-[68rem] lg:w-[68rem]",
         )}
       >
         <Image
@@ -131,8 +131,8 @@ function BrandSurfaceWatermark({ compact = false }: { compact?: boolean }) {
         className={cn(
           "absolute left-[14%] top-[14%] -rotate-[16deg]",
           compact
-            ? "h-40 w-40 opacity-[0.08] sm:h-56 sm:w-56"
-            : "h-48 w-48 opacity-[0.1] sm:h-64 sm:w-64",
+            ? "h-40 w-40 opacity-[0.12] sm:h-56 sm:w-56"
+            : "h-48 w-48 opacity-[0.14] sm:h-64 sm:w-64",
         )}
       >
         <Image
@@ -143,7 +143,7 @@ function BrandSurfaceWatermark({ compact = false }: { compact?: boolean }) {
           className="object-contain saturate-[1.5] brightness-[1.1]"
         />
       </div>
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,7,11,0.52)_0%,rgba(3,7,11,0.25)_36%,rgba(3,7,11,0.08)_62%,rgba(3,7,11,0.24)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,7,11,0.34)_0%,rgba(3,7,11,0.16)_34%,rgba(3,7,11,0.02)_62%,rgba(3,7,11,0.14)_100%)]" />
     </div>
   );
 }
