@@ -284,8 +284,8 @@ function ShowcaseCard({ item, inquiryCount }: { item: DbShowcaseItem; inquiryCou
         : "Encomendar no WhatsApp";
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(5,8,14,0.98))] shadow-[0_22px_90px_rgba(0,0,0,0.26)] transition hover:-translate-y-1 hover:border-white/15">
-      <Link href={`/produto/${item.id}`} className="relative block h-64 overflow-hidden border-b border-white/10 sm:h-72">
+    <article className="group flex h-full flex-col overflow-hidden rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(5,8,14,0.98))] shadow-[0_22px_90px_rgba(0,0,0,0.26)] transition hover:-translate-y-1 hover:border-white/15 sm:rounded-[30px]">
+      <Link href={`/produto/${item.id}`} className="relative block h-52 overflow-hidden border-b border-white/10 sm:h-72">
         {primaryImage ? (
           <img src={primaryImage} alt={item.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]" />
         ) : (
@@ -293,7 +293,7 @@ function ShowcaseCard({ item, inquiryCount }: { item: DbShowcaseItem; inquiryCou
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/25 to-transparent" />
 
-        <div className="absolute left-4 right-4 top-4 flex items-start justify-between gap-3">
+        <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-3 sm:left-4 sm:right-4 sm:top-4">
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80">
               {getShowcaseCategoryLabel(item)}
@@ -313,28 +313,28 @@ function ShowcaseCard({ item, inquiryCount }: { item: DbShowcaseItem; inquiryCou
           <ShowcaseWishlistButton itemId={item.id} />
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-5">
-          <div className="flex items-end justify-between gap-4">
-            <div className="max-w-[70%]">
-              <h4 className="text-2xl font-semibold leading-tight text-white" style={clampText(2)}>
+        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+            <div className="max-w-full sm:max-w-[70%]">
+              <h4 className="text-xl font-semibold leading-tight text-white sm:text-2xl" style={clampText(2)}>
                 {item.name}
               </h4>
               <p className="mt-2 text-sm text-white/72" style={clampText(2)}>
                 {getShowcaseDescriptionPreview(getShowcaseTagline(item), 84)}
               </p>
             </div>
-            <div className="rounded-[22px] border border-white/12 bg-slate-950/78 px-4 py-3 text-right backdrop-blur">
+            <div className="rounded-[20px] border border-white/12 bg-slate-950/78 px-4 py-3 text-left backdrop-blur sm:rounded-[22px] sm:text-right">
               <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Valor</p>
               {item.compareAtPrice ? (
                 <p className="mt-1 text-xs text-white/45 line-through">{formatCurrency(item.compareAtPrice)}</p>
               ) : null}
-              <p className="mt-1 text-2xl font-semibold">{getItemRangeLabel(item)}</p>
+              <p className="mt-1 text-xl font-semibold sm:text-2xl">{getItemRangeLabel(item)}</p>
             </div>
           </div>
         </div>
       </Link>
 
-      <div className="flex flex-1 flex-col gap-4 p-5">
+      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full border border-emerald-400/20 bg-emerald-400/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-100">
             {getShowcaseAvailabilityLabel(item)}
@@ -369,7 +369,7 @@ function ShowcaseCard({ item, inquiryCount }: { item: DbShowcaseItem; inquiryCou
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {visibleColors.length ? (
             <>
               {visibleColors.map((color) => (
@@ -558,75 +558,75 @@ export function ShowcaseCatalogExplorer({
   return (
     <section className="space-y-6">
       {settings.announcementText ? (
-        <section className="rounded-[24px] border border-amber-400/20 bg-amber-500/10 px-5 py-4 text-sm text-amber-50">
+        <section className="rounded-[22px] border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-50 sm:rounded-[24px] sm:px-5 sm:py-4">
           {settings.announcementText}
         </section>
       ) : null}
 
-      <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.24),_transparent_30%),radial-gradient(circle_at_center_right,_rgba(89,185,255,0.18),_transparent_28%),linear-gradient(145deg,_rgba(5,7,12,0.98),_rgba(8,14,22,0.94))]">
+      <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.24),_transparent_30%),radial-gradient(circle_at_center_right,_rgba(89,185,255,0.18),_transparent_28%),linear-gradient(145deg,_rgba(5,7,12,0.98),_rgba(8,14,22,0.94))] sm:rounded-[32px]">
         <ShowcaseSectionWatermark align={featuredItem ? "right" : "center"} intensity="strong" />
         <div className="relative z-10 grid gap-0 xl:grid-cols-[0.95fr_1.05fr]">
-          <div className="p-6 sm:p-8 lg:p-9">
+          <div className="p-5 sm:p-8 lg:p-9">
             <p className="text-xs uppercase tracking-[0.28em] text-orange-200/70">{settings.heroEyebrow}</p>
-            <h3 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight sm:text-5xl">
+            <h3 className="mt-4 max-w-2xl text-[2.05rem] font-semibold leading-[1.02] tracking-tight sm:text-5xl">
               {settings.heroTitle}
             </h3>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/72 sm:text-base">
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-white/72 sm:text-base sm:leading-7">
               {settings.heroSubtitle}
             </p>
 
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-5 grid gap-2 sm:mt-6 sm:flex sm:flex-wrap sm:gap-3">
               {settings.heroHighlights.map((highlight) => (
-                <span key={highlight} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/80">
+                <span key={highlight} className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/80">
                   <ShieldCheck className="h-4 w-4 text-emerald-300" />
                   {highlight}
                 </span>
               ))}
             </div>
 
-            <div className="mt-7 grid gap-3 sm:grid-cols-4">
-              <div className="rounded-[24px] border border-white/10 bg-black/25 p-4 backdrop-blur">
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-7 sm:grid-cols-4">
+              <div className="rounded-[20px] border border-white/10 bg-black/25 p-4 backdrop-blur sm:rounded-[24px]">
                 <p className="text-xs uppercase tracking-[0.22em] text-white/45">Ativos</p>
                 <p className="mt-2 text-2xl font-semibold">{items.length}</p>
               </div>
-              <div className="rounded-[24px] border border-white/10 bg-black/25 p-4 backdrop-blur">
+              <div className="rounded-[20px] border border-white/10 bg-black/25 p-4 backdrop-blur sm:rounded-[24px]">
                 <p className="text-xs uppercase tracking-[0.22em] text-white/45">Entrega</p>
                 <p className="mt-2 text-2xl font-semibold">{readyItems.length}</p>
               </div>
-              <div className="rounded-[24px] border border-white/10 bg-black/25 p-4 backdrop-blur">
+              <div className="rounded-[20px] border border-white/10 bg-black/25 p-4 backdrop-blur sm:rounded-[24px]">
                 <p className="text-xs uppercase tracking-[0.22em] text-white/45">Encomenda</p>
                 <p className="mt-2 text-2xl font-semibold">{customItems.length}</p>
               </div>
-              <div className="rounded-[24px] border border-white/10 bg-black/25 p-4 backdrop-blur">
+              <div className="rounded-[20px] border border-white/10 bg-black/25 p-4 backdrop-blur sm:rounded-[24px]">
                 <p className="text-xs uppercase tracking-[0.22em] text-white/45">Favoritos</p>
                 <p className="mt-2 text-2xl font-semibold">{wishlistItems.length}</p>
               </div>
             </div>
 
-            <div className="mt-7 flex flex-wrap gap-3">
-              <a href="#catalogo-grid" className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400">
+            <div className="mt-6 grid gap-3 sm:mt-7 sm:flex sm:flex-wrap">
+              <a href="#catalogo-grid" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 sm:w-auto">
                 {settings.heroPrimaryCtaLabel}
                 <ArrowRight className="h-4 w-4" />
               </a>
               {featuredItem ? (
-                <Link href={`/produto/${featuredItem.id}`} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-5 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/12">
+                <Link href={`/produto/${featuredItem.id}`} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-5 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/12 sm:w-auto">
                   {settings.heroSecondaryCtaLabel}
                   <Sparkles className="h-4 w-4" />
                 </Link>
               ) : null}
               {canManage ? (
-                <Link href="/admin?section=vitrine" className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-black/25 px-5 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10">
+                <Link href="/admin?section=vitrine" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-black/25 px-5 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10 sm:w-auto">
                   Gerenciar vitrine
                 </Link>
               ) : null}
-              <ShowcaseCartButton />
+              <ShowcaseCartButton className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/7 px-5 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/12 sm:w-auto" />
             </div>
           </div>
 
-          <div className="border-t border-white/10 p-4 sm:p-6 xl:border-l xl:border-t-0">
+          <div className="border-t border-white/10 p-3 sm:p-6 xl:border-l xl:border-t-0">
             {featuredItem ? (
-              <Link href={`/produto/${featuredItem.id}`} className="group block overflow-hidden rounded-[30px] border border-white/10 bg-black/25 shadow-[0_24px_80px_rgba(0,0,0,0.32)]">
-                <div className="relative h-[320px] overflow-hidden sm:h-[360px]">
+              <Link href={`/produto/${featuredItem.id}`} className="group block overflow-hidden rounded-[24px] border border-white/10 bg-black/25 shadow-[0_24px_80px_rgba(0,0,0,0.32)] sm:rounded-[30px]">
+                <div className="relative h-[250px] overflow-hidden sm:h-[360px]">
                   {getShowcasePrimaryVideo(featuredItem) ? (
                     <video src={getShowcasePrimaryVideo(featuredItem)} className="h-full w-full object-cover" muted loop autoPlay playsInline preload="metadata" poster={getShowcasePrimaryImage(featuredItem)} />
                   ) : getShowcasePrimaryImage(featuredItem) ? (
@@ -635,7 +635,7 @@ export function ShowcaseCatalogExplorer({
                     <div className="h-full bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.35),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(89,185,255,0.22),_transparent_32%),linear-gradient(135deg,_rgba(255,255,255,0.08),_rgba(15,23,42,0.95))]" />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
-                  <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+                  <div className="absolute left-3 top-3 flex flex-wrap gap-2 sm:left-4 sm:top-4">
                     <span className="rounded-full border border-orange-300/30 bg-orange-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-100">
                       Produto destaque
                     </span>
@@ -645,17 +645,17 @@ export function ShowcaseCatalogExplorer({
                       </span>
                     ))}
                   </div>
-                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                  <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
                     <p className="text-[11px] uppercase tracking-[0.2em] text-white/50">{getShowcaseCategoryLabel(featuredItem)}</p>
-                    <h4 className="mt-3 text-3xl font-semibold">{featuredItem.name}</h4>
-                    <p className="mt-3 max-w-xl text-sm leading-7 text-white/72">
+                    <h4 className="mt-3 text-2xl font-semibold sm:text-3xl">{featuredItem.name}</h4>
+                    <p className="mt-3 max-w-xl text-sm leading-6 text-white/72 sm:leading-7">
                       {getShowcaseDescriptionPreview(featuredItem.description, 150)}
                     </p>
                   </div>
                 </div>
               </Link>
             ) : (
-              <div className="relative flex h-full min-h-[320px] items-center justify-center overflow-hidden rounded-[30px] border border-dashed border-white/10 bg-black/20 p-8 text-sm text-white/55">
+              <div className="relative flex h-full min-h-[250px] items-center justify-center overflow-hidden rounded-[24px] border border-dashed border-white/10 bg-black/20 p-6 text-sm text-white/55 sm:min-h-[320px] sm:rounded-[30px] sm:p-8">
                 <ShowcaseSectionWatermark align="center" intensity="strong" />
                 <div className="relative z-10 max-w-xs text-center">
                   Assim que voce cadastrar produtos, o destaque principal da loja aparece aqui.
@@ -666,22 +666,22 @@ export function ShowcaseCatalogExplorer({
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+      <section className="grid gap-3 sm:gap-4 lg:grid-cols-3">
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[28px] sm:p-5">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/75">
             <HeartHandshake className="h-3.5 w-3.5 text-cyan-200" />
             {settings.aboutTitle}
           </div>
           <p className="mt-4 text-base leading-7 text-white/72">{settings.aboutBody}</p>
         </div>
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[28px] sm:p-5">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/75">
             <PackageCheck className="h-3.5 w-3.5 text-emerald-200" />
             {settings.customOrderTitle}
           </div>
           <p className="mt-4 text-base leading-7 text-white/72">{settings.customOrderBody}</p>
         </div>
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[28px] sm:p-5">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/75">
             <Truck className="h-3.5 w-3.5 text-orange-200" />
             {settings.shippingTitle}
@@ -706,7 +706,7 @@ export function ShowcaseCatalogExplorer({
 
       <ShowcaseShelf title="Novidades" subtitle="Itens novos para manter a vitrine viva e dar sempre um motivo para voltar." icon={<Sparkles className="h-3.5 w-3.5 text-white" />} items={newestItems} inquiryCounts={inquiryCounts} />
 
-      <section className="relative overflow-hidden rounded-[30px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+      <section className="relative overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[30px] sm:p-6">
         <ShowcaseSectionWatermark align="center" intensity="strong" />
         <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -737,7 +737,7 @@ export function ShowcaseCatalogExplorer({
           </div>
         </div>
 
-        <div className="relative z-10 mt-5 flex flex-wrap gap-2">
+        <div className="relative z-10 mt-5 -mx-1 flex gap-2 overflow-x-auto px-1 pb-2 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
           <button type="button" onClick={() => setSelectedCategory("Todos")} className={`rounded-full border px-4 py-2 text-sm font-medium transition ${selectedCategory === "Todos" ? "border-orange-400/40 bg-orange-500/15 text-orange-100" : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"}`}>
             Todas
           </button>
@@ -748,7 +748,7 @@ export function ShowcaseCatalogExplorer({
           ))}
         </div>
 
-        <div className="relative z-10 mt-4 flex flex-wrap gap-2">
+        <div className="relative z-10 mt-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-2 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
           {[
             { id: "ALL", label: "Tudo" },
             { id: "STOCK", label: "Pronta entrega" },
@@ -760,7 +760,7 @@ export function ShowcaseCatalogExplorer({
           ))}
         </div>
 
-        <div className="relative z-10 mt-4 flex flex-wrap gap-2">
+        <div className="relative z-10 mt-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-2 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
           {priceFilterOptions.map((option) => (
             <button key={option.id} type="button" onClick={() => setPriceFilter(option.id)} className={`rounded-full border px-4 py-2 text-sm font-medium transition ${priceFilter === option.id ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-100" : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"}`}>
               {option.label}
@@ -769,7 +769,7 @@ export function ShowcaseCatalogExplorer({
         </div>
       </section>
 
-      <section id="catalogo-grid" className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
+      <section id="catalogo-grid" className="grid gap-4 md:grid-cols-2 xl:gap-5 2xl:grid-cols-3">
         {filteredItems.length ? (
           filteredItems.map((item) => (
             <ShowcaseCard key={item.id} item={item} inquiryCount={getItemPopularity(item, inquiryCounts)} />
@@ -781,18 +781,18 @@ export function ShowcaseCatalogExplorer({
         )}
       </section>
 
-      <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(145deg,rgba(8,12,18,0.72),rgba(4,8,14,0.78))] p-1">
+      <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(145deg,rgba(8,12,18,0.72),rgba(4,8,14,0.78))] p-1 sm:rounded-[32px]">
         <ShowcaseSectionWatermark align="center" />
         <div className="relative z-10 grid gap-4 lg:grid-cols-3">
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[28px] sm:p-5">
           <p className="text-xs uppercase tracking-[0.22em] text-white/45">Prazo medio</p>
           <p className="mt-4 text-base leading-7 text-white/72">{settings.averageLeadTimeText}</p>
         </div>
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[28px] sm:p-5">
           <p className="text-xs uppercase tracking-[0.22em] text-white/45">Materiais usados</p>
           <p className="mt-4 text-base leading-7 text-white/72">{settings.materialsText}</p>
         </div>
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[28px] sm:p-5">
           <p className="text-xs uppercase tracking-[0.22em] text-white/45">Cuidados com a peca</p>
           <p className="mt-4 text-base leading-7 text-white/72">{settings.careText}</p>
         </div>
@@ -800,7 +800,7 @@ export function ShowcaseCatalogExplorer({
       </section>
 
       {featuredTestimonials.length ? (
-        <section className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+        <section className="rounded-[26px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[30px] sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-white/45">Prova social</p>
@@ -836,7 +836,7 @@ export function ShowcaseCatalogExplorer({
         </section>
       ) : null}
 
-      <section className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(145deg,rgba(8,12,18,0.98),rgba(4,8,14,0.98))] p-6 sm:p-8">
+      <section className="relative overflow-hidden rounded-[26px] border border-white/10 bg-[linear-gradient(145deg,rgba(8,12,18,0.98),rgba(4,8,14,0.98))] p-5 sm:rounded-[30px] sm:p-8">
         <ShowcaseSectionWatermark align="right" intensity="strong" />
         <div className="relative z-10 grid gap-6 xl:grid-cols-[1fr_0.92fr]">
           <div>
@@ -844,40 +844,40 @@ export function ShowcaseCatalogExplorer({
             <h3 className="mt-3 text-3xl font-semibold">Acompanhe mais da loja e veja o estilo de cada peca</h3>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-white/68 sm:text-base">{settings.portfolioBody}</p>
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              <a href={whatsappCatalogUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300">
+            <div className="mt-6 grid gap-3 sm:flex sm:flex-wrap">
+              <a href={whatsappCatalogUrl} target="_blank" rel="noreferrer" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 sm:w-auto">
                 <MessageCircleMore className="h-4 w-4" />
                 Falar no WhatsApp
               </a>
               {settings.instagramUrl ? (
-                <a href={settings.instagramUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-5 py-3 text-sm font-semibold text-white/92 transition hover:bg-white/12">
+                <a href={settings.instagramUrl} target="_blank" rel="noreferrer" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-5 py-3 text-sm font-semibold text-white/92 transition hover:bg-white/12 sm:w-auto">
                   <Camera className="h-4 w-4" />
                   {settings.instagramHandle || "Ver Instagram"}
                 </a>
               ) : null}
-              <Link href="/depoimentos" className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-black/25 px-5 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10">
+              <Link href="/depoimentos" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-black/25 px-5 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10 sm:w-auto">
                 Ver depoimentos
               </Link>
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5">
+          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
               <p className="text-xs uppercase tracking-[0.22em] text-white/45">Produtos</p>
               <p className="mt-3 text-3xl font-semibold">{items.length}</p>
               <p className="mt-2 text-sm leading-6 text-white/63">Itens ativos na vitrine com informacoes reais.</p>
             </div>
-            <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5">
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
               <p className="text-xs uppercase tracking-[0.22em] text-white/45">Visualizacoes</p>
               <p className="mt-3 text-3xl font-semibold">{totalViews}</p>
               <p className="mt-2 text-sm leading-6 text-white/63">Interesse acumulado na pagina dos produtos.</p>
             </div>
-            <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5">
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
               <p className="text-xs uppercase tracking-[0.22em] text-white/45">Cliques no WhatsApp</p>
               <p className="mt-3 text-3xl font-semibold">{totalClicks}</p>
               <p className="mt-2 text-sm leading-6 text-white/63">Conversas iniciadas direto pela loja.</p>
             </div>
-            <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5">
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
               <p className="text-xs uppercase tracking-[0.22em] text-white/45">Instagram</p>
               <p className="mt-3 text-2xl font-semibold">{settings.instagramHandle || "Conecte seu perfil"}</p>
               <p className="mt-2 text-sm leading-6 text-white/63">Mais um ponto de prova visual para quem gostou da vitrine.</p>

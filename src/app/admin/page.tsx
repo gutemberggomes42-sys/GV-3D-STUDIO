@@ -371,20 +371,20 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <Link href="/producao" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white/75 transition hover:bg-white/10 hover:text-white">
+          <div className="grid w-full gap-3 sm:flex sm:w-auto sm:flex-wrap">
+            <Link href="/producao" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-center text-sm text-white/75 transition hover:bg-white/10 hover:text-white">
               Abrir produção
             </Link>
-            <Link href="/maquinas" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white/75 transition hover:bg-white/10 hover:text-white">
+            <Link href="/maquinas" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-center text-sm text-white/75 transition hover:bg-white/10 hover:text-white">
               Abrir máquinas
             </Link>
-            <Link href="/financeiro" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white/75 transition hover:bg-white/10 hover:text-white">
+            <Link href="/financeiro" className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-center text-sm text-white/75 transition hover:bg-white/10 hover:text-white">
               Abrir financeiro
             </Link>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-6 flex gap-3 overflow-x-auto pb-2 md:grid md:overflow-visible md:pb-0 md:grid-cols-2 xl:grid-cols-4">
           {adminSections.map((section) => {
             const active = activeSection === section.key;
 
@@ -393,7 +393,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 key={section.key}
                 href={getSectionHref(section.key)}
                 className={cn(
-                  "rounded-[24px] border px-5 py-4 transition",
+                  "min-w-[220px] shrink-0 rounded-[24px] border px-5 py-4 transition md:min-w-0",
                   active
                     ? "border-orange-400/45 bg-orange-500/15 shadow-[0_22px_80px_rgba(255,122,24,0.16)]"
                     : "border-white/10 bg-slate-950/50 hover:border-white/20 hover:bg-white/10",

@@ -160,7 +160,7 @@ export function ShowcaseCartView({ items }: ShowcaseCartViewProps) {
 
   if (!cartEntries.length) {
     return (
-      <section className="rounded-[30px] border border-dashed border-white/15 bg-slate-950/50 p-8 text-center">
+      <section className="rounded-[26px] border border-dashed border-white/15 bg-slate-950/50 p-6 text-center sm:rounded-[30px] sm:p-8">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/5">
           <ShoppingBag className="h-6 w-6 text-white/70" />
         </div>
@@ -179,15 +179,15 @@ export function ShowcaseCartView({ items }: ShowcaseCartViewProps) {
   }
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+    <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr] xl:gap-6">
       <div className="space-y-4">
         {cartLines.map((line) => (
           <article
             key={line.entry.key}
-            className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04]"
+            className="overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.04] sm:rounded-[28px]"
           >
-            <div className="grid gap-0 md:grid-cols-[180px_minmax(0,1fr)]">
-              <div className="h-full min-h-[180px] border-b border-white/10 md:border-b-0 md:border-r">
+            <div className="grid gap-0 sm:grid-cols-[160px_minmax(0,1fr)] md:grid-cols-[180px_minmax(0,1fr)]">
+              <div className="h-full min-h-[180px] border-b border-white/10 sm:border-b-0 sm:border-r">
                 {line.item && getShowcasePrimaryImage(line.item) ? (
                   <img
                     src={getShowcasePrimaryImage(line.item)}
@@ -199,13 +199,13 @@ export function ShowcaseCartView({ items }: ShowcaseCartViewProps) {
                 )}
               </div>
 
-              <div className="space-y-4 p-5">
+              <div className="space-y-4 p-4 sm:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.18em] text-white/45">
                       {line.item?.category ?? "Item indisponivel"}
                     </p>
-                    <h3 className="mt-2 text-2xl font-semibold">
+                    <h3 className="mt-2 text-xl font-semibold sm:text-2xl">
                       {line.item?.name ?? "Produto removido da vitrine"}
                     </h3>
                     <p className="mt-2 text-sm text-white/62">
@@ -249,7 +249,7 @@ export function ShowcaseCartView({ items }: ShowcaseCartViewProps) {
                   ) : null}
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-[160px_minmax(0,1fr)_180px]">
+                <div className="grid gap-4 sm:grid-cols-[160px_minmax(0,1fr)] lg:grid-cols-[160px_minmax(0,1fr)_180px]">
                   <div>
                     <p className="text-xs uppercase tracking-[0.18em] text-white/45">Quantidade</p>
                     <div className="mt-2 inline-flex items-center rounded-2xl border border-white/10 bg-black/25">
@@ -311,14 +311,14 @@ export function ShowcaseCartView({ items }: ShowcaseCartViewProps) {
         ))}
       </div>
 
-      <aside className="rounded-[30px] border border-white/10 bg-white/[0.04] p-6">
+      <aside className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5 sm:rounded-[30px] sm:p-6 xl:sticky xl:top-4">
         <p className="text-xs uppercase tracking-[0.24em] text-white/45">Finalizar pelo WhatsApp</p>
-        <h3 className="mt-3 text-3xl font-semibold">Reunir tudo em uma unica mensagem</h3>
+        <h3 className="mt-3 text-2xl font-semibold sm:text-3xl">Reunir tudo em uma unica mensagem</h3>
         <p className="mt-3 text-sm leading-7 text-white/68">
           Informe seus dados e o sistema abre o WhatsApp com todos os itens do carrinho de uma vez.
         </p>
 
-        <div className="mt-6 rounded-[26px] border border-white/10 bg-slate-950/50 p-5">
+        <div className="mt-6 rounded-[22px] border border-white/10 bg-slate-950/50 p-4 sm:rounded-[26px] sm:p-5">
           <p className="text-xs uppercase tracking-[0.18em] text-white/45">Resumo</p>
           <div className="mt-4 space-y-3 text-sm text-white/72">
             <div className="flex items-center justify-between gap-4">

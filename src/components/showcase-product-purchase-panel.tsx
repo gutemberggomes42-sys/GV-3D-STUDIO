@@ -122,7 +122,7 @@ export function ShowcaseProductPurchasePanel({
   }
 
   return (
-    <div className="mt-5 space-y-3">
+    <div className="mt-5 space-y-4">
       <div className="grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
         <label className="block text-sm text-white/70">
           Quantidade
@@ -225,7 +225,12 @@ export function ShowcaseProductPurchasePanel({
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="rounded-[24px] border border-white/10 bg-black/20 p-3 sm:border-0 sm:bg-transparent sm:p-0">
+        <div className="mb-3 flex items-center justify-between gap-3 text-xs uppercase tracking-[0.18em] text-white/45 sm:hidden">
+          <span>Finalizar compra</span>
+          <span>{safeQuantity} item(s)</span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
         <button
           type="button"
           onClick={handleAddToCart}
@@ -244,6 +249,7 @@ export function ShowcaseProductPurchasePanel({
           <MessageCircleMore className="h-4 w-4" />
           {buyLabel}
         </button>
+        </div>
       </div>
     </div>
   );

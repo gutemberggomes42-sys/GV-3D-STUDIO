@@ -169,8 +169,8 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
         <ShowcaseWishlistButton itemId={item.id} className="px-4 py-2" />
       </div>
 
-      <section className="grid gap-6 xl:grid-cols-[1.02fr_0.98fr]">
-        <article className="rounded-[32px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+      <section className="grid gap-5 xl:grid-cols-[1.02fr_0.98fr] xl:gap-6">
+        <article className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[32px] sm:p-6">
           {gallery.length || item.videoUrl ? (
             <ShowcaseProductGallery
               images={gallery}
@@ -182,7 +182,7 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
           )}
         </article>
 
-        <article className="rounded-[32px] border border-white/10 bg-[linear-gradient(160deg,rgba(9,13,20,0.97),rgba(4,8,14,0.99))] p-6 sm:p-8">
+        <article className="rounded-[28px] border border-white/10 bg-[linear-gradient(160deg,rgba(9,13,20,0.97),rgba(4,8,14,0.99))] p-5 sm:rounded-[32px] sm:p-8">
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80">
               {getShowcaseCategoryLabel(item)}
@@ -205,12 +205,12 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
             ))}
           </div>
 
-          <h3 className="mt-5 text-4xl font-semibold tracking-tight">{item.name}</h3>
+          <h3 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">{item.name}</h3>
           {item.tagline ? (
-            <p className="mt-4 text-lg leading-8 text-white/80">{item.tagline}</p>
+            <p className="mt-4 text-base leading-7 text-white/80 sm:text-lg sm:leading-8">{item.tagline}</p>
           ) : null}
 
-          <div className="mt-6 flex items-end justify-between gap-4 rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
+          <div className="mt-6 flex flex-col gap-4 rounded-[24px] border border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:items-end sm:justify-between sm:rounded-[28px] sm:p-5">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-white/45">Valor da peca</p>
               {item.compareAtPrice ? (
@@ -218,14 +218,14 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
                   {formatCurrency(item.compareAtPrice)}
                 </p>
               ) : null}
-              <p className="mt-1 text-4xl font-semibold">{formatCurrency(item.price)}</p>
+              <p className="mt-1 text-3xl font-semibold sm:text-4xl">{formatCurrency(item.price)}</p>
               {lowestPrice !== item.price ? (
                 <p className="mt-2 text-sm text-white/60">
                   Variacoes a partir de {formatCurrency(lowestPrice)}
                 </p>
               ) : null}
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <p className="text-xs uppercase tracking-[0.2em] text-white/45">Compra</p>
               <p className="mt-2 text-sm font-semibold text-white/82">Fluxo simples pelo WhatsApp</p>
               {item.promotionLabel ? (
@@ -249,28 +249,28 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-4 sm:rounded-[24px]">
               <div className="flex items-center gap-3">
                 <Boxes className="h-4 w-4 text-orange-200" />
                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Disponibilidade</p>
               </div>
               <p className="mt-3 text-base font-semibold text-white/88">{getShowcaseAvailabilityLabel(item)}</p>
             </div>
-            <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-4 sm:rounded-[24px]">
               <div className="flex items-center gap-3">
                 <Clock3 className="h-4 w-4 text-cyan-200" />
                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Prazo</p>
               </div>
               <p className="mt-3 text-base font-semibold text-white/88">{getShowcaseLeadTimeLabel(item)}</p>
             </div>
-            <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-4 sm:rounded-[24px]">
               <div className="flex items-center gap-3">
                 <PackageCheck className="h-4 w-4 text-emerald-200" />
                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Material</p>
               </div>
               <p className="mt-3 text-base font-semibold text-white/88">{item.materialLabel ?? "Sob consulta"}</p>
             </div>
-            <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-4 sm:rounded-[24px]">
               <div className="flex items-center gap-3">
                 <SwatchBook className="h-4 w-4 text-fuchsia-200" />
                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Cores</p>
@@ -295,14 +295,14 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
                 <p className="mt-3 text-base font-semibold text-white/88">{getShowcaseColorSummary(item)}</p>
               )}
             </div>
-            <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-4 sm:rounded-[24px]">
               <div className="flex items-center gap-3">
                 <Ruler className="h-4 w-4 text-amber-200" />
                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Medidas</p>
               </div>
               <p className="mt-3 text-base font-semibold text-white/88">{item.dimensionSummary ?? "Sob consulta"}</p>
             </div>
-            <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-4 sm:rounded-[24px]">
               <div className="flex items-center gap-3">
                 <Clock3 className="h-4 w-4 text-orange-200" />
                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Impressao</p>
@@ -312,13 +312,13 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
           </div>
 
           <div className="mt-6 grid gap-4 xl:grid-cols-2">
-            <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
+            <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4 sm:rounded-[28px] sm:p-5">
               <p className="text-xs uppercase tracking-[0.2em] text-white/45">Entrega e retirada</p>
               <p className="mt-3 text-sm leading-7 text-white/74">
                 {getShowcaseDeliverySummary(item)}
               </p>
             </div>
-            <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
+            <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4 sm:rounded-[28px] sm:p-5">
               <p className="text-xs uppercase tracking-[0.2em] text-white/45">Variacoes disponiveis</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {variantOptions.length ? (
@@ -339,7 +339,7 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
           {item.couponCode || item.shippingSummary ? (
             <div className="mt-6 grid gap-4 xl:grid-cols-2">
               {item.couponCode ? (
-                <div className="rounded-[28px] border border-emerald-400/15 bg-emerald-500/[0.06] p-5">
+                <div className="rounded-[24px] border border-emerald-400/15 bg-emerald-500/[0.06] p-4 sm:rounded-[28px] sm:p-5">
                   <p className="text-xs uppercase tracking-[0.2em] text-emerald-100/70">Cupom disponivel</p>
                   <p className="mt-3 text-2xl font-semibold text-emerald-50">{item.couponCode}</p>
                   <p className="mt-2 text-sm text-emerald-100/75">
@@ -350,7 +350,7 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
                 </div>
               ) : null}
               {item.shippingSummary ? (
-                <div className="rounded-[28px] border border-white/10 bg-black/20 p-5">
+                <div className="rounded-[24px] border border-white/10 bg-black/20 p-4 sm:rounded-[28px] sm:p-5">
                   <p className="text-xs uppercase tracking-[0.2em] text-white/45">Resumo de envio</p>
                   <p className="mt-3 text-sm leading-7 text-white/74">{item.shippingSummary}</p>
                 </div>
@@ -377,9 +377,9 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
             </div>
           </div>
 
-          <div id="buy-panel" className="mt-8 rounded-[28px] border border-emerald-400/15 bg-emerald-500/[0.06] p-5">
+          <div id="buy-panel" className="mt-8 scroll-mt-24 rounded-[24px] border border-emerald-400/15 bg-emerald-500/[0.06] p-4 sm:rounded-[28px] sm:p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-emerald-100/70">Compra sem atrito</p>
-            <h4 className="mt-3 text-2xl font-semibold">Escolha a quantidade, adicione ao carrinho ou siga para o WhatsApp</h4>
+            <h4 className="mt-3 text-xl font-semibold sm:text-2xl">Escolha a quantidade, adicione ao carrinho ou siga para o WhatsApp</h4>
             <p className="mt-3 text-sm leading-6 text-white/68">
               Voce pode reunir varios itens no carrinho ou seguir direto para a tela de contato com nome, telefone e observacao opcional.
             </p>

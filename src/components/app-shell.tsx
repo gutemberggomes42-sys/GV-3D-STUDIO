@@ -161,12 +161,12 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
     return (
       <div className="relative isolate min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.22),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(89,185,255,0.18),_transparent_30%),linear-gradient(180deg,_#05070a_0%,_#091119_45%,_#05070a_100%)] text-white">
         <BrandBackdrop />
-        <div className="relative z-10 mx-auto max-w-[1700px] px-4 py-4 lg:px-6">
-          <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-black/22 backdrop-blur-xl">
+        <div className="relative z-10 mx-auto max-w-[1700px] px-3 py-3 sm:px-4 sm:py-4 lg:px-6">
+          <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-black/22 backdrop-blur-xl sm:rounded-[34px]">
             <BrandSurfaceWatermark />
-            <header className="relative z-10 border-b border-white/10 bg-white/[0.03] px-5 py-5 sm:px-6 lg:px-8">
+            <header className="relative z-10 border-b border-white/10 bg-white/[0.03] px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-start gap-4 rounded-[28px] border border-white/8 bg-white/[0.025] px-3 py-3 sm:px-4">
+                <div className="flex items-center gap-3 rounded-[24px] border border-white/8 bg-white/[0.025] px-3 py-3 sm:items-start sm:gap-4 sm:rounded-[28px] sm:px-4">
                   <Link
                     href="/acesso"
                     aria-label="Entrar na area administrativa"
@@ -179,38 +179,38 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
                         alt={studioBrandName}
                         width={96}
                         height={96}
-                        className="h-[72px] w-[72px] rounded-[20px] object-cover sm:h-[82px] sm:w-[82px]"
+                        className="h-[64px] w-[64px] rounded-[18px] object-cover sm:h-[82px] sm:w-[82px] sm:rounded-[20px]"
                         priority
                       />
                     </div>
                   </Link>
-                  <div className="pt-1">
-                    <div className="inline-flex items-center rounded-full border border-orange-300/18 bg-orange-400/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.32em] text-orange-100/78">
+                  <div className="min-w-0 pt-0.5 sm:pt-1">
+                    <div className="inline-flex max-w-full items-center rounded-full border border-orange-300/18 bg-orange-400/8 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-orange-100/78 sm:text-[11px] sm:tracking-[0.32em]">
                       {studioBrandName}
                     </div>
-                    <h1 className="mt-3 text-[1.9rem] font-semibold leading-tight tracking-tight text-white sm:text-[2.2rem]">
+                    <h1 className="mt-3 text-[1.55rem] font-semibold leading-tight tracking-tight text-white sm:text-[2.2rem]">
                       Pecas 3D autorais com acabamento premium
                     </h1>
-                    <p className="mt-3 max-w-2xl text-sm leading-7 text-white/68 sm:text-[15px]">
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-white/68 sm:text-[15px] sm:leading-7">
                       Decoracao, presentes e encomendas personalizadas com pronta entrega, informacoes reais e atendimento direto no WhatsApp.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="grid w-full gap-3 sm:flex sm:w-auto sm:flex-wrap">
                   <Link
                     href="/"
-                    className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/7 px-4 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/12"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/7 px-4 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/12 sm:w-auto"
                   >
                     <Sparkles className="h-4 w-4" />
                     Ver vitrine
                   </Link>
-                  <ShowcaseCartButton />
+                  <ShowcaseCartButton className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/7 px-4 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/12 sm:w-auto" />
                   <a
                     href={`https://wa.me/${ownerWhatsAppNumber}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-2 rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 sm:w-auto"
                   >
                     Atendimento no WhatsApp
                   </a>
@@ -218,13 +218,13 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
               </div>
             </header>
 
-            <main className="relative z-10 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
-              <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6">
+            <main className="relative z-10 px-3 py-3 sm:px-6 sm:py-6 lg:px-8">
+              <section className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5 sm:rounded-[28px] sm:p-6">
                 <p className="text-xs uppercase tracking-[0.28em] text-white/45">{brandTitle}</p>
                 <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <h2 className="text-3xl font-semibold tracking-tight lg:text-4xl">{title}</h2>
-                    <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70">{subtitle}</p>
+                    <h2 className="text-[1.9rem] font-semibold tracking-tight sm:text-3xl lg:text-4xl">{title}</h2>
+                    <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70 sm:text-[15px]">{subtitle}</p>
                   </div>
                 </div>
               </section>
@@ -232,21 +232,21 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
               <div className="mt-6 space-y-6">{children}</div>
             </main>
 
-            <footer className="relative z-10 border-t border-white/10 bg-white/[0.03] px-5 py-5 sm:px-6 lg:px-8">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+            <footer className="relative z-10 border-t border-white/10 bg-white/[0.03] px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
+              <div className="grid gap-3 md:grid-cols-3 md:gap-4">
+                <div className="rounded-[22px] border border-white/10 bg-black/20 p-4 sm:rounded-[24px]">
                   <p className="text-xs uppercase tracking-[0.2em] text-white/45">Loja autoral</p>
                   <p className="mt-3 text-sm leading-6 text-white/68">
                     Pecas pensadas para decorar, presentear e dar mais personalidade ao seu espaco.
                   </p>
                 </div>
-                <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+                <div className="rounded-[22px] border border-white/10 bg-black/20 p-4 sm:rounded-[24px]">
                   <p className="text-xs uppercase tracking-[0.2em] text-white/45">Compra simples</p>
                   <p className="mt-3 text-sm leading-6 text-white/68">
                     O cliente escolhe a quantidade, informa os dados essenciais e segue direto para a conversa.
                   </p>
                 </div>
-                <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
+                <div className="rounded-[22px] border border-white/10 bg-black/20 p-4 sm:rounded-[24px]">
                   <p className="text-xs uppercase tracking-[0.2em] text-white/45">Informacoes reais</p>
                   <p className="mt-3 text-sm leading-6 text-white/68">
                     Estoque, prazo, material, fotos e video quando houver, sem promessas inventadas.
@@ -264,9 +264,9 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
   return (
     <div className="relative isolate min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.22),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(89,185,255,0.18),_transparent_30%),linear-gradient(180deg,_#05070a_0%,_#091119_45%,_#05070a_100%)] text-white">
       <BrandBackdrop compact />
-      <div className="relative z-10 mx-auto grid min-h-screen max-w-[1600px] gap-6 px-4 py-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:px-6">
-        <aside className="relative rounded-[32px] border border-white/10 bg-black/30 p-6 backdrop-blur-xl">
-          <div className="rounded-[28px] border border-orange-400/20 bg-gradient-to-br from-orange-500/25 via-orange-500/10 to-transparent p-5">
+      <div className="relative z-10 mx-auto grid min-h-screen max-w-[1600px] gap-4 px-3 py-3 sm:px-4 sm:py-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-6 lg:px-6">
+        <aside className="relative rounded-[28px] border border-white/10 bg-black/30 p-4 backdrop-blur-xl sm:rounded-[32px] sm:p-6">
+          <div className="rounded-[24px] border border-orange-400/20 bg-gradient-to-br from-orange-500/25 via-orange-500/10 to-transparent p-4 sm:rounded-[28px] sm:p-5">
             <div className="flex items-center gap-4">
               <div className="overflow-hidden rounded-[22px] border border-white/10 bg-white/5 p-1">
                 <Image
@@ -274,13 +274,13 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
                   alt={studioBrandName}
                   width={76}
                   height={76}
-                  className="h-[60px] w-[60px] rounded-[16px] object-cover"
+                  className="h-[52px] w-[52px] rounded-[14px] object-cover sm:h-[60px] sm:w-[60px] sm:rounded-[16px]"
                   priority
                 />
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.28em] text-orange-200/70">{studioBrandName}</p>
-                <h1 className="mt-2 text-3xl font-semibold tracking-tight">{brandTitle}</h1>
+                <h1 className="mt-2 text-[1.7rem] font-semibold tracking-tight sm:text-3xl">{brandTitle}</h1>
               </div>
             </div>
             {brandDescription ? (
@@ -289,7 +289,7 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
           </div>
 
           {visibleRoutes.length ? (
-            <nav className="mt-6 space-y-2">
+            <nav className="mt-5 flex gap-2 overflow-x-auto pb-1 lg:mt-6 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
               {visibleRoutes.map((route) => {
                 const Icon = iconByRoute[route.href] ?? Box;
                 const active = pathname === route.href;
@@ -299,7 +299,7 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
                     key={route.href}
                     href={route.href}
                     className={cn(
-                      "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition",
+                      "flex min-w-max shrink-0 items-center gap-3 rounded-2xl px-3.5 py-3 text-sm transition lg:min-w-0",
                       active
                         ? "bg-white/12 text-white shadow-[0_18px_60px_rgba(255,122,24,0.16)]"
                         : "text-white/70 hover:bg-white/6 hover:text-white",
@@ -314,7 +314,7 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
           ) : null}
 
           {user ? (
-            <div className="mt-8 rounded-[24px] border border-white/10 bg-white/5 p-4">
+            <div className="mt-6 rounded-[22px] border border-white/10 bg-white/5 p-4 sm:mt-8 sm:rounded-[24px]">
               <p className="text-xs uppercase tracking-[0.24em] text-white/45">Sessão atual</p>
               <p className="mt-3 text-lg font-semibold">{user.name}</p>
               <p className="text-sm text-white/60">{roleLabels[user.role]}</p>
@@ -332,24 +332,24 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
           ) : null}
         </aside>
 
-        <main className="relative overflow-hidden rounded-[32px] border border-white/10 bg-black/20 p-4 backdrop-blur-xl lg:p-6">
+        <main className="relative overflow-hidden rounded-[28px] border border-white/10 bg-black/20 p-3 backdrop-blur-xl sm:rounded-[32px] sm:p-4 lg:p-6">
           <BrandSurfaceWatermark compact />
-          <header className="relative z-10 rounded-[28px] border border-white/10 bg-white/5 p-6">
+          <header className="relative z-10 rounded-[24px] border border-white/10 bg-white/5 p-5 sm:rounded-[28px] sm:p-6">
             <div className="flex items-center gap-3">
               <Image
                 src={studioBrandLogoPath}
                 alt={studioBrandName}
                 width={44}
                 height={44}
-                className="h-11 w-11 rounded-2xl border border-white/10 bg-white/5 object-cover"
+                className="h-10 w-10 rounded-2xl border border-white/10 bg-white/5 object-cover sm:h-11 sm:w-11"
                 priority
               />
               <p className="text-xs uppercase tracking-[0.28em] text-white/45">{studioBrandName}</p>
             </div>
             <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <h2 className="text-3xl font-semibold tracking-tight lg:text-4xl">{title}</h2>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70">{subtitle}</p>
+                <h2 className="text-[1.9rem] font-semibold tracking-tight sm:text-3xl lg:text-4xl">{title}</h2>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70 sm:text-[15px]">{subtitle}</p>
               </div>
             </div>
           </header>
