@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Box, Factory, KeyRound, Layers3, LogOut, Package, Printer, Sparkles, Wallet } from "lucide-react";
+import { ShowcaseCartButton } from "@/components/showcase-cart-button";
 import { dashboardRoutes, ownerWhatsAppNumber, roleLabels } from "@/lib/constants";
 import { logoutAction } from "@/lib/actions";
 import type { SessionUser } from "@/lib/auth";
@@ -60,6 +61,7 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
                     <Sparkles className="h-4 w-4" />
                     Ver vitrine
                   </Link>
+                  <ShowcaseCartButton />
                   <a
                     href={`https://wa.me/${ownerWhatsAppNumber}`}
                     target="_blank"
@@ -112,11 +114,11 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
             <Link
               href="/acesso"
               aria-label="Acesso administrativo"
-              className="group absolute right-5 top-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 p-2 text-white/45 opacity-20 transition hover:opacity-100 focus-visible:opacity-100"
+              className="group absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-black/45 px-3 py-2 text-white/72 shadow-[0_12px_32px_rgba(0,0,0,0.24)] transition hover:border-amber-300/35 hover:bg-black/60 hover:text-white focus-visible:border-amber-300/35 focus-visible:bg-black/60 focus-visible:text-white"
             >
               <KeyRound className="h-3.5 w-3.5" />
-              <span className="max-w-0 overflow-hidden text-xs font-semibold opacity-0 transition-all duration-200 group-hover:max-w-24 group-hover:opacity-100 group-focus-visible:max-w-24 group-focus-visible:opacity-100">
-                Admin
+              <span className="text-xs font-semibold">
+                Area admin
               </span>
             </Link>
           </div>

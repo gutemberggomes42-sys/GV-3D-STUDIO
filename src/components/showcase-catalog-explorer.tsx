@@ -14,10 +14,12 @@ import {
   Play,
   Search,
   ShieldCheck,
+  ShoppingCart,
   Sparkles,
   Star,
   Truck,
 } from "lucide-react";
+import { ShowcaseCartButton } from "@/components/showcase-cart-button";
 import { ShowcaseWishlistButton } from "@/components/showcase-wishlist-button";
 import { ownerWhatsAppNumber } from "@/lib/constants";
 import type {
@@ -26,6 +28,7 @@ import type {
   DbStorefrontSettings,
 } from "@/lib/db-types";
 import { formatCurrency } from "@/lib/format";
+import { addShowcaseCartEntry } from "@/lib/showcase-cart";
 import {
   getShowcaseAvailabilityLabel,
   getShowcaseCategoryLabel,
@@ -199,6 +202,8 @@ type ShelfProps = {
 };
 
 function ShowcaseCard({ item, inquiryCount }: { item: DbShowcaseItem; inquiryCount: number }) {
+  const [quantity, setQuantity] = useState("1");
+  const [cartFeedback, setCartFeedback] = useState("");
   const primaryImage = getShowcasePrimaryImage(item);
   const primaryVideo = getShowcasePrimaryVideo(item);
   const isDisabled = item.fulfillmentType === "STOCK" && item.stockQuantity <= 0;
@@ -334,13 +339,43 @@ function ShowcaseCard({ item, inquiryCount }: { item: DbShowcaseItem; inquiryCou
           <form action={`/comprar/${item.id}`} className="grid gap-3 sm:grid-cols-[116px_minmax(0,1fr)]">
             <label className="block text-sm text-white/70">
               Qtd
-              <input name="quantity" type="number" min="1" max={item.fulfillmentType === "STOCK" ? Math.max(item.stockQuantity, 1) : 999} defaultValue="1" disabled={isDisabled} className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60" />
+              <input name="quantity" type="number" min="1" max={item.fulfillmentType === "STOCK" ? Math.max(item.stockQuantity, 1) : 999} value={quantity} onChange={(event) => setQuantity(event.target.value)} disabled={isDisabled} className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60" />
+              {item.couponCode ? <input type="hidden" name="couponCode" value={item.couponCode} /> : null}
             </label>
             <button type="submit" disabled={isDisabled} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-white/55">
               <MessageCircleMore className="h-4 w-4" />
               {buyLabel}
             </button>
           </form>
+
+          <button
+            type="button"
+            disabled={isDisabled}
+            onClick={() => {
+              const parsedQuantity = Number(quantity);
+              addShowcaseCartEntry({
+                itemId: item.id,
+                quantity: Number.isFinite(parsedQuantity)
+                  ? Math.max(
+                      1,
+                      Math.min(
+                        item.fulfillmentType === "STOCK" ? Math.max(item.stockQuantity, 1) : 999,
+                        Math.round(parsedQuantity),
+                      ),
+                    )
+                  : 1,
+                couponCode: item.couponCode || undefined,
+              });
+              setCartFeedback("Adicionado ao carrinho.");
+              window.setTimeout(() => setCartFeedback(""), 2200);
+            }}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:bg-slate-800/60 disabled:text-white/45"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            Adicionar ao carrinho
+          </button>
+
+          {cartFeedback ? <p className="text-sm text-cyan-100">{cartFeedback}</p> : null}
         </div>
       </div>
     </article>
@@ -516,6 +551,7 @@ export function ShowcaseCatalogExplorer({
                   Gerenciar vitrine
                 </Link>
               ) : null}
+              <ShowcaseCartButton />
             </div>
           </div>
 

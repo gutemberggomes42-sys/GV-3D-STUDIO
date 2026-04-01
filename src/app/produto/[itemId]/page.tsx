@@ -16,6 +16,7 @@ import {
   SwatchBook,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { ShowcaseProductPurchasePanel } from "@/components/showcase-product-purchase-panel";
 import { ShowcaseProductGallery } from "@/components/showcase-product-gallery";
 import { ShowcaseViewTracker } from "@/components/showcase-view-tracker";
 import { ShowcaseWishlistButton } from "@/components/showcase-wishlist-button";
@@ -378,112 +379,11 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
 
           <div id="buy-panel" className="mt-8 rounded-[28px] border border-emerald-400/15 bg-emerald-500/[0.06] p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-emerald-100/70">Compra sem atrito</p>
-            <h4 className="mt-3 text-2xl font-semibold">Escolha a quantidade e siga direto para o WhatsApp</h4>
+            <h4 className="mt-3 text-2xl font-semibold">Escolha a quantidade, adicione ao carrinho ou siga para o WhatsApp</h4>
             <p className="mt-3 text-sm leading-6 text-white/68">
-              Na proxima tela o cliente informa so nome, telefone e uma observacao opcional antes de abrir a conversa.
+              Voce pode reunir varios itens no carrinho ou seguir direto para a tela de contato com nome, telefone e observacao opcional.
             </p>
-
-            <form action={`/comprar/${item.id}`} className="mt-5 space-y-3">
-              <div className="grid gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
-                <label className="block text-sm text-white/70">
-                  Quantidade
-                  <input
-                    name="quantity"
-                    type="number"
-                    min="1"
-                    max={item.fulfillmentType === "STOCK" ? Math.max(item.stockQuantity, 1) : 999}
-                    defaultValue="1"
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
-                  />
-                </label>
-                <label className="block text-sm text-white/70">
-                  Observacao opcional
-                  <textarea
-                    name="notes"
-                    rows={3}
-                    placeholder="Ex.: Quero em outra cor, preciso para presente, retirar pessoalmente..."
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
-                  />
-                </label>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {variantOptions.length ? (
-                  <label className="block text-sm text-white/70">
-                    Variacao
-                    <select
-                      name="selectedVariantId"
-                      defaultValue={variantOptions[0]?.id}
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
-                    >
-                      {variantOptions.map((variant) => (
-                        <option key={variant.id} value={variant.id}>
-                          {variant.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-
-                {item.colorOptions.length ? (
-                  <label className="block text-sm text-white/70">
-                    Cor desejada
-                    <select
-                      name="desiredColor"
-                      defaultValue={item.colorOptions[0]}
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
-                    >
-                      {item.colorOptions.map((color) => (
-                        <option key={color} value={color}>
-                          {color}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-
-                {item.sizeOptions.length ? (
-                  <label className="block text-sm text-white/70">
-                    Tamanho
-                    <select
-                      name="desiredSize"
-                      defaultValue={item.sizeOptions[0]}
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
-                    >
-                      {item.sizeOptions.map((size) => (
-                        <option key={size} value={size}>
-                          {size}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-
-                {item.finishOptions.length ? (
-                  <label className="block text-sm text-white/70">
-                    Acabamento
-                    <select
-                      name="desiredFinish"
-                      defaultValue={item.finishOptions[0]}
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
-                    >
-                      {item.finishOptions.map((finish) => (
-                        <option key={finish} value={finish}>
-                          {finish}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-              </div>
-              {item.couponCode ? <input type="hidden" name="couponCode" value={item.couponCode} /> : null}
-              <button
-                type="submit"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-4 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
-              >
-                <MessageCircleMore className="h-4 w-4" />
-                {buyLabel}
-              </button>
-            </form>
+            <ShowcaseProductPurchasePanel item={item} buyLabel={buyLabel} />
           </div>
         </article>
       </section>
