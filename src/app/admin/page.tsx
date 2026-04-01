@@ -40,6 +40,13 @@ import {
   groupOrdersByStatus,
 } from "@/lib/view-data";
 import { isGeneratedCustomerEmail } from "@/lib/customer-records";
+import {
+  getShowcaseAvailabilityLabel,
+  getShowcaseLeadTimeLabel,
+  getShowcasePrimaryImage,
+  getShowcasePrimaryVideo,
+  getShowcaseTagline,
+} from "@/lib/showcase";
 import { listBackupSnapshots } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -635,17 +642,102 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
           <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
             <p className="text-xs uppercase tracking-[0.24em] text-white/45">Produtos cadastrados</p>
-            <h3 className="mt-2 text-2xl font-semibold">Edite cada item separadamente</h3>
+            <h3 className="mt-2 text-2xl font-semibold">Clique no anúncio para abrir a edição</h3>
+            <p className="mt-2 text-sm text-white/60">
+              Deixei a lista mais compacta. O formulário completo de atualização só aparece quando você abre o produto.
+            </p>
             <div className="mt-6 space-y-4">
               {showcaseItems.length ? (
-                showcaseItems.map((item) => (
-                  <ShowcaseItemEditor
-                    key={item.id}
-                    item={item}
-                    interestCount={showcaseInquiries.filter((inquiry) => inquiry.itemId === item.id).length}
-                    materials={materials}
-                  />
-                ))
+                showcaseItems.map((item) => {
+                  const interestCount = showcaseInquiries.filter((inquiry) => inquiry.itemId === item.id).length;
+                  const primaryImage = getShowcasePrimaryImage(item);
+                  const hasVideo = Boolean(getShowcasePrimaryVideo(item));
+
+                  return (
+                    <details
+                      key={item.id}
+                      className="overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/45"
+                    >
+                      <summary className="list-none cursor-pointer p-4 transition hover:bg-white/5 [&::-webkit-details-marker]:hidden">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[22px] border border-white/10 bg-slate-950/70">
+                              {primaryImage ? (
+                                <div
+                                  className="h-full w-full bg-cover bg-center"
+                                  style={{ backgroundImage: `url("${primaryImage}")` }}
+                                />
+                              ) : (
+                                <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.35),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(89,185,255,0.22),_transparent_32%),linear-gradient(135deg,_rgba(255,255,255,0.08),_rgba(15,23,42,0.95))]" />
+                              )}
+                            </div>
+
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-lg font-semibold text-white">{item.name}</p>
+                                <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/65">
+                                  {item.category}
+                                </span>
+                                {item.featured ? (
+                                  <span className="rounded-full border border-amber-300/20 bg-amber-400/10 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-amber-100">
+                                    Destaque
+                                  </span>
+                                ) : null}
+                                {hasVideo ? (
+                                  <span className="rounded-full border border-sky-400/20 bg-sky-500/10 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-sky-100">
+                                    Com vídeo
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/62">
+                                {getShowcaseTagline(item)}
+                              </p>
+                              <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/55">
+                                <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1">
+                                  {getShowcaseAvailabilityLabel(item)}
+                                </span>
+                                <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1">
+                                  {getShowcaseLeadTimeLabel(item)}
+                                </span>
+                                <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1">
+                                  {interestCount} contatos
+                                </span>
+                                <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1">
+                                  {item.whatsappClickCount} cliques
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[320px]">
+                            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Valor</p>
+                              <p className="mt-2 text-base font-semibold text-white">
+                                {formatCurrency(item.price)}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Visualizações</p>
+                              <p className="mt-2 text-base font-semibold text-white">{item.viewCount}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Abrir edição</p>
+                              <p className="mt-2 text-sm font-semibold text-orange-200">Clique para atualizar</p>
+                            </div>
+                          </div>
+                        </div>
+                      </summary>
+
+                      <div className="border-t border-white/10 p-4 pt-5">
+                        <ShowcaseItemEditor
+                          item={item}
+                          interestCount={interestCount}
+                          materials={materials}
+                        />
+                      </div>
+                    </details>
+                  );
+                })
               ) : (
                 <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-5 text-sm text-white/60">
                   Nenhum item cadastrado ainda. Use o formulário acima para subir a primeira peça da vitrine.
