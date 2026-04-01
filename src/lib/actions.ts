@@ -46,7 +46,7 @@ import {
   parseShowcaseListField,
   parseShowcaseVariantField,
 } from "@/lib/showcase";
-import { createId, readDb, updateDb } from "@/lib/store";
+import { createId, deleteBackupSnapshot, readDb, updateDb } from "@/lib/store";
 import { saveUploadedFile } from "@/lib/upload-storage";
 
 export type ActionState = {
@@ -710,6 +710,13 @@ function normalizeRedirectTarget(value: FormDataEntryValue | null) {
 
 function buildAdminShowcaseSectionUrl(message: string) {
   return `/admin?section=vitrine&message=${encodeURIComponent(message)}`;
+}
+
+function buildAdminSummaryUrl(
+  value: string,
+  type: "message" | "error" = "message",
+) {
+  return `/admin?${type}=${encodeURIComponent(value)}`;
 }
 
 function generateOrderNumber(existingOrders: DbOrder[]) {
@@ -2277,6 +2284,35 @@ export async function deleteExpenseAction(formData: FormData) {
   });
 
   revalidateAll();
+}
+
+export async function deleteBackupSnapshotAction(formData: FormData) {
+  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const fileName = String(formData.get("fileName") ?? "").trim();
+
+  if (!fileName) {
+    redirect(buildAdminSummaryUrl("Snapshot do sistema não encontrado.", "error"));
+  }
+
+  try {
+    const deleted = await deleteBackupSnapshot(fileName);
+
+    if (!deleted) {
+      redirect(buildAdminSummaryUrl("Snapshot do sistema não encontrado.", "error"));
+    }
+
+    revalidateAll();
+    redirect(buildAdminSummaryUrl("Snapshot do sistema excluído com sucesso."));
+  } catch (error) {
+    redirect(
+      buildAdminSummaryUrl(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível excluir o snapshot do sistema.",
+        "error",
+      ),
+    );
+  }
 }
 
 export async function createShowcaseItemAction(

@@ -680,6 +680,39 @@ export async function getBackupSnapshotContent(fileName: string) {
   }
 }
 
+export async function deleteBackupSnapshot(fileName: string) {
+  const safeFileName = path.basename(fileName);
+
+  if (!safeFileName || safeFileName !== fileName) {
+    return false;
+  }
+
+  if (shouldUsePostgresBackend()) {
+    await ensurePostgresSchema();
+    const pool = getPostgresPool();
+    const result = await pool.query(
+      `
+        DELETE FROM ${postgresBackupTable}
+        WHERE file_name = $1
+      `,
+      [safeFileName],
+    );
+
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  await mkdir(backupDirectory, { recursive: true });
+  const filePath = path.join(backupDirectory, safeFileName);
+
+  try {
+    await stat(filePath);
+    await rm(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 let updateQueue = Promise.resolve();
 
 export async function updateDb<T>(updater: (data: PrintFlowDb) => Promise<T> | T) {

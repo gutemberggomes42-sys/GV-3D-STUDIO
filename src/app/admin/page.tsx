@@ -17,6 +17,7 @@ import { StatusPill } from "@/components/status-pill";
 import { StorefrontSettingsForm } from "@/components/storefront-settings-form";
 import { SubmitButton } from "@/components/submit-button";
 import {
+  deleteBackupSnapshotAction,
   updateMachineStatusAction,
   updateShowcaseInquiryOrderStageAction,
 } from "@/lib/actions";
@@ -82,6 +83,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const params = searchParams ? await searchParams : {};
   const rawSection = typeof params.section === "string" ? params.section : undefined;
   const message = typeof params.message === "string" ? params.message : undefined;
+  const error = typeof params.error === "string" ? params.error : undefined;
   const activeSection = isAdminSection(rawSection) ? rawSection : "summary";
   const {
     orders,
@@ -330,6 +332,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       title="Painel administrativo"
       subtitle="Separei o administrativo em áreas com botões próprios para você abrir só o que precisa, sem deixar tudo misturado no mesmo lugar."
     >
+      {error ? (
+        <div className="rounded-[24px] border border-rose-400/25 bg-rose-500/10 px-5 py-4 text-sm text-rose-100">
+          {error}
+        </div>
+      ) : null}
+
       {message ? (
         <div className="rounded-[24px] border border-emerald-400/20 bg-emerald-500/10 px-5 py-4 text-sm text-emerald-50">
           {message}
@@ -584,12 +592,22 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       Gerado em {formatDateTime(new Date(snapshot.createdAt))} · {(snapshot.sizeBytes / 1024).toFixed(1)} KB
                     </p>
                   </div>
-                  <a
-                    href={`/backups/${snapshot.fileName}`}
-                    className="rounded-2xl border border-sky-400/25 bg-sky-500/10 px-4 py-3 text-sm font-semibold text-sky-100 transition hover:bg-sky-500/20"
-                  >
-                    Baixar backup
-                  </a>
+                  <div className="flex flex-wrap gap-3">
+                    <a
+                      href={`/backups/${snapshot.fileName}`}
+                      className="rounded-2xl border border-sky-400/25 bg-sky-500/10 px-4 py-3 text-sm font-semibold text-sky-100 transition hover:bg-sky-500/20"
+                    >
+                      Baixar backup
+                    </a>
+                    <form action={deleteBackupSnapshotAction}>
+                      <input type="hidden" name="fileName" value={snapshot.fileName} />
+                      <SubmitButton
+                        label="Excluir snapshot"
+                        pendingLabel="Excluindo..."
+                        className="border-rose-400/30 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20"
+                      />
+                    </form>
+                  </div>
                 </div>
               ))
             ) : (
