@@ -18,7 +18,7 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
       {redirectTo ? <input type="hidden" name="redirectTo" value={redirectTo} /> : null}
       <div>
         <p className="text-xs uppercase tracking-[0.24em] text-white/45">Acesso</p>
-        <h3 className="mt-2 text-2xl font-semibold">Entrar com uma conta existente</h3>
+        <h3 className="mt-2 text-2xl font-semibold">Entrar na area administrativa</h3>
       </div>
 
       <label className="block text-sm text-white/70">

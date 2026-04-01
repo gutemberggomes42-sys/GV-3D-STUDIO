@@ -1,6 +1,5 @@
 import { AppShell } from "@/components/app-shell";
 import { LoginForm } from "@/components/login-form";
-import { RegisterForm } from "@/components/register-form";
 
 type AccessPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -15,12 +14,11 @@ export default async function AccessPage({ searchParams }: AccessPageProps) {
       user={null}
       pathname="/acesso"
       title="Acesso administrativo"
-      subtitle="Tela reservada para login e cadastro interno."
+      subtitle="Tela reservada para o login interno do administrador."
     >
-      <section className="mx-auto grid max-w-3xl gap-6">
+      <section className="mx-auto grid max-w-xl gap-6">
         <div className="grid gap-6">
           <LoginForm redirectTo={redirectTo} />
-          <RegisterForm redirectTo={redirectTo} />
         </div>
       </section>
     </AppShell>
