@@ -1,4 +1,8 @@
-import type { DbShowcaseItem } from "@/lib/db-types";
+import type {
+  DbShowcaseItem,
+  DbShowcaseVariant,
+  ShowcaseDeliveryMode,
+} from "@/lib/db-types";
 
 export const showcaseCategorySuggestions = [
   "Geek",
@@ -10,6 +14,21 @@ export const showcaseCategorySuggestions = [
   "Casa",
   "Presentes",
 ];
+
+export const showcaseBadgeSuggestions = [
+  "Novo",
+  "Mais vendido",
+  "Exclusivo",
+  "Poucas unidades",
+  "Destaque",
+  "Feito por encomenda",
+];
+
+export const showcaseDeliveryModeLabels: Record<ShowcaseDeliveryMode, string> = {
+  PICKUP: "Retirada",
+  LOCAL_DELIVERY: "Entrega local",
+  SHIPPING: "Envio",
+};
 
 const showcaseColorPalette = [
   { keywords: ["preto", "black", "grafite", "carbon"], hex: "#111827" },
@@ -47,6 +66,16 @@ function normalizeColorLabel(value: string) {
     .trim();
 }
 
+export function normalizeShowcaseSearchText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function parseShowcaseListField(value: FormDataEntryValue | FormDataEntryValue[] | null | undefined) {
   const rawValues = Array.isArray(value) ? value : value ? [value] : [];
 
@@ -64,6 +93,67 @@ export function serializeShowcaseList(values: string[] | undefined) {
   return (values ?? []).join("\n");
 }
 
+export function parseShowcaseVariantField(
+  value: FormDataEntryValue | FormDataEntryValue[] | null | undefined,
+) {
+  const rawValues = Array.isArray(value) ? value : value ? [value] : [];
+  const lines = rawValues.flatMap((entry) =>
+    entry
+      .toString()
+      .split(/\r?\n/)
+      .map((chunk) => chunk.trim())
+      .filter(Boolean),
+  );
+
+  return lines.flatMap((line, index): DbShowcaseVariant[] => {
+    const [label, color, size, finish, priceAdjustment, stockQuantity, galleryUrls] = line
+      .split("|")
+      .map((entry) => entry.trim());
+
+    if (!label) {
+      return [];
+    }
+
+    const parsedPriceAdjustment = Number(priceAdjustment ?? "0");
+    const parsedStockQuantity = Number(stockQuantity ?? "");
+
+    return [
+      {
+        id: `var-${index + 1}-${label.toLowerCase().replace(/\s+/g, "-")}`,
+        label,
+        color: color || undefined,
+        size: size || undefined,
+        finish: finish || undefined,
+        priceAdjustment: Number.isFinite(parsedPriceAdjustment) ? parsedPriceAdjustment : 0,
+        stockQuantity: Number.isFinite(parsedStockQuantity) ? Math.max(0, Math.round(parsedStockQuantity)) : undefined,
+        galleryImageUrls: galleryUrls
+          ? galleryUrls
+              .split(",")
+              .map((entry) => entry.trim())
+              .filter(Boolean)
+          : [],
+        active: true,
+      },
+    ];
+  });
+}
+
+export function serializeShowcaseVariants(variants: DbShowcaseVariant[] | undefined) {
+  return (variants ?? [])
+    .map((variant) =>
+      [
+        variant.label,
+        variant.color ?? "",
+        variant.size ?? "",
+        variant.finish ?? "",
+        variant.priceAdjustment || "",
+        variant.stockQuantity ?? "",
+        (variant.galleryImageUrls ?? []).join(", "),
+      ].join(" | "),
+    )
+    .join("\n");
+}
+
 export function getShowcasePrimaryImage(item: Pick<DbShowcaseItem, "imageUrl" | "galleryImageUrls">) {
   return item.imageUrl ?? item.galleryImageUrls[0] ?? undefined;
 }
@@ -74,6 +164,12 @@ export function getShowcasePrimaryVideo(item: Pick<DbShowcaseItem, "videoUrl">) 
 
 export function getShowcaseGallery(item: Pick<DbShowcaseItem, "imageUrl" | "galleryImageUrls">) {
   return uniqueList([item.imageUrl, ...(item.galleryImageUrls ?? [])]);
+}
+
+export function getShowcaseVariantGallery(item: Pick<DbShowcaseItem, "variants">) {
+  return uniqueList(
+    (item.variants ?? []).flatMap((variant) => variant.galleryImageUrls ?? []),
+  );
 }
 
 export function getShowcaseDescriptionPreview(description: string, maxLength = 140) {
@@ -126,6 +222,22 @@ export function getShowcaseLeadTimeLabel(item: Pick<DbShowcaseItem, "fulfillment
   return `${item.leadTimeDays} dias uteis`;
 }
 
+export function getShowcaseDeliverySummary(item: Pick<DbShowcaseItem, "deliveryModes" | "shippingSummary">) {
+  const deliveryLabels = (item.deliveryModes ?? [])
+    .map((mode) => showcaseDeliveryModeLabels[mode])
+    .filter(Boolean);
+
+  if (item.shippingSummary?.trim()) {
+    return item.shippingSummary.trim();
+  }
+
+  if (!deliveryLabels.length) {
+    return "Entrega sob consulta";
+  }
+
+  return deliveryLabels.join(" • ");
+}
+
 export function getShowcaseCategoryOptions(items: Array<Pick<DbShowcaseItem, "category">>) {
   return uniqueList(items.map((item) => item.category)).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
@@ -149,4 +261,20 @@ export function getShowcaseColorHex(colorLabel: string) {
   );
 
   return match?.hex ?? "#64748b";
+}
+
+export function getShowcaseLowestPrice(item: Pick<DbShowcaseItem, "price" | "variants">) {
+  const variantPrices = (item.variants ?? [])
+    .filter((variant) => variant.active)
+    .map((variant) => item.price + (variant.priceAdjustment ?? 0));
+
+  return variantPrices.length ? Math.min(item.price, ...variantPrices) : item.price;
+}
+
+export function getShowcaseHighestPrice(item: Pick<DbShowcaseItem, "price" | "variants">) {
+  const variantPrices = (item.variants ?? [])
+    .filter((variant) => variant.active)
+    .map((variant) => item.price + (variant.priceAdjustment ?? 0));
+
+  return variantPrices.length ? Math.max(item.price, ...variantPrices) : item.price;
 }

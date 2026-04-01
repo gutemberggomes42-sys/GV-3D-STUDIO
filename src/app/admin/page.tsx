@@ -11,7 +11,10 @@ import { ShowcaseInquiryEditor } from "@/components/showcase-inquiry-editor";
 import { ShowcaseInquiryForm } from "@/components/showcase-inquiry-form";
 import { ShowcaseItemEditor } from "@/components/showcase-item-editor";
 import { ShowcaseItemForm } from "@/components/showcase-item-form";
+import { ShowcaseTestimonialEditor } from "@/components/showcase-testimonial-editor";
+import { ShowcaseTestimonialForm } from "@/components/showcase-testimonial-form";
 import { StatusPill } from "@/components/status-pill";
+import { StorefrontSettingsForm } from "@/components/storefront-settings-form";
 import { SubmitButton } from "@/components/submit-button";
 import {
   updateMachineStatusAction,
@@ -80,8 +83,17 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const rawSection = typeof params.section === "string" ? params.section : undefined;
   const message = typeof params.message === "string" ? params.message : undefined;
   const activeSection = isAdminSection(rawSection) ? rawSection : "summary";
-  const { orders, materials, machines, users, showcaseItems, showcaseInquiries, auditLogs } =
-    await getHydratedData();
+  const {
+    orders,
+    materials,
+    machines,
+    users,
+    storefrontSettings,
+    showcaseItems,
+    showcaseTestimonials,
+    showcaseInquiries,
+    auditLogs,
+  } = await getHydratedData();
   const backupSnapshots = await listBackupSnapshots();
   const now = new Date().getTime();
   const dayInMs = 24 * 60 * 60 * 1000;
@@ -92,6 +104,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const showcaseOutOfStockCount = showcaseItems.filter(
     (item) => item.fulfillmentType === "STOCK" && item.stockQuantity <= 0,
   ).length;
+  const showcaseViewsTotal = showcaseItems.reduce((sum, item) => sum + item.viewCount, 0);
+  const showcaseClicksTotal = showcaseItems.reduce((sum, item) => sum + item.whatsappClickCount, 0);
+  const showcaseConversionRate =
+    showcaseViewsTotal > 0 ? ((showcaseClicksTotal / showcaseViewsTotal) * 100).toFixed(1) : "0.0";
   const showcaseCriticalStockItems = showcaseItems.filter(
     (item) => item.active && item.fulfillmentType === "STOCK" && item.stockQuantity < 2,
   );
@@ -116,6 +132,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   }).length;
   const closedShowcaseOrders = showcaseInquiries.filter((item) => item.status === "CLOSED");
   const showcaseItemPriceMap = new Map(showcaseItems.map((item) => [item.id, item.price]));
+  const topShowcaseByClicks = [...showcaseItems]
+    .sort((left, right) => right.whatsappClickCount - left.whatsappClickCount || right.viewCount - left.viewCount)
+    .slice(0, 5);
+  const topShowcaseByViews = [...showcaseItems]
+    .sort((left, right) => right.viewCount - left.viewCount || right.whatsappClickCount - left.whatsappClickCount)
+    .slice(0, 5);
   const showcaseRevenueValue = closedShowcaseOrders
     .filter((item) => (item.orderStage ?? "RECEIVED") === "COMPLETED")
     .reduce(
@@ -584,11 +606,94 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <section className="grid gap-4 xl:grid-cols-4">
             <MetricCard label="Itens ativos" value={String(showcaseActiveCount)} caption="Produtos visíveis no catálogo." accent="orange" />
             <MetricCard label="Itens sem estoque" value={String(showcaseOutOfStockCount)} caption="Produtos que precisam reposição." accent="rose" />
-            <MetricCard label="Contatos gerados" value={String(showcaseInquiries.length)} caption="Cliques enviados para o WhatsApp." accent="blue" />
-            <MetricCard label="Negócios fechados" value={String(leadsClosedCount)} caption="Leads marcados como fechados." accent="mint" />
+            <MetricCard label="Visualizações" value={String(showcaseViewsTotal)} caption="Acessos nas páginas dos produtos." accent="blue" />
+            <MetricCard label="Cliques no WhatsApp" value={String(showcaseClicksTotal)} caption={`${showcaseConversionRate}% de cliques sobre visualizações.`} accent="mint" />
+          </section>
+
+          <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+            <StorefrontSettingsForm settings={storefrontSettings} />
+
+            <div className="space-y-6">
+              <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-white/45">Relatórios da loja</p>
+                <h3 className="mt-2 text-2xl font-semibold">Entenda o que chama mais atenção</h3>
+
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  <div className="rounded-[24px] border border-white/10 bg-slate-950/60 p-4">
+                    <p className="text-sm font-semibold text-white">Mais clicados no WhatsApp</p>
+                    <div className="mt-4 space-y-3">
+                      {topShowcaseByClicks.length ? (
+                        topShowcaseByClicks.map((item) => (
+                          <div key={item.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                            <div>
+                              <p className="font-medium text-white">{item.name}</p>
+                              <p className="text-sm text-white/55">{item.viewCount} visualizações</p>
+                            </div>
+                            <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-100">
+                              {item.whatsappClickCount} cliques
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-white/60">Ainda não há cliques suficientes para ranking.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[24px] border border-white/10 bg-slate-950/60 p-4">
+                    <p className="text-sm font-semibold text-white">Mais visualizados</p>
+                    <div className="mt-4 space-y-3">
+                      {topShowcaseByViews.length ? (
+                        topShowcaseByViews.map((item) => (
+                          <div key={item.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                            <div>
+                              <p className="font-medium text-white">{item.name}</p>
+                              <p className="text-sm text-white/55">{item.whatsappClickCount} cliques no WhatsApp</p>
+                            </div>
+                            <span className="rounded-full border border-sky-400/20 bg-sky-500/10 px-3 py-1 text-sm text-sky-100">
+                              {item.viewCount} views
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-white/60">Ainda não há visualizações suficientes para ranking.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <ShowcaseTestimonialForm />
+            </div>
           </section>
 
           <ShowcaseItemForm materials={materials} />
+
+          <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-white/45">Depoimentos</p>
+                <h3 className="mt-2 text-2xl font-semibold">Editar prova social da loja</h3>
+              </div>
+              <Link href="/depoimentos" className="text-sm text-orange-200 transition hover:text-orange-100">
+                Abrir página pública de depoimentos
+              </Link>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              {showcaseTestimonials.length ? (
+                [...showcaseTestimonials]
+                  .sort((left, right) => left.sortOrder - right.sortOrder)
+                  .map((testimonial) => (
+                    <ShowcaseTestimonialEditor key={testimonial.id} testimonial={testimonial} />
+                  ))
+              ) : (
+                <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-5 text-sm text-white/60">
+                  Ainda não há depoimentos cadastrados para a loja.
+                </div>
+              )}
+            </div>
+          </section>
 
           <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
             <p className="text-xs uppercase tracking-[0.24em] text-white/45">Produtos cadastrados</p>

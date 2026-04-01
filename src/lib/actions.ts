@@ -25,8 +25,11 @@ import type {
   DbQualityCheck,
   DbShowcaseInquiry,
   DbShowcaseItem,
+  DbShowcaseTestimonial,
+  DbStorefrontSettings,
   DbExpenseCategory,
   DbPayableStatus,
+  ShowcaseDeliveryMode,
   ShowcaseFulfillmentType,
   ShowcaseInquiryStatus,
   ShowcaseLeadTemperature,
@@ -39,7 +42,10 @@ import {
   recommendMachine,
 } from "@/lib/pricing";
 import { formatDateTime, formatDurationMinutes } from "@/lib/format";
-import { parseShowcaseListField } from "@/lib/showcase";
+import {
+  parseShowcaseListField,
+  parseShowcaseVariantField,
+} from "@/lib/showcase";
 import { createId, readDb, updateDb } from "@/lib/store";
 import { saveUploadedFile } from "@/lib/upload-storage";
 
@@ -86,6 +92,24 @@ const changePasswordSchema = z
       });
     }
   });
+
+const optionalPositiveNumberSchema = z.preprocess((value) => {
+  if (value == null || value === "") {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : value;
+}, z.number().positive().optional());
+
+const optionalNonNegativeNumberSchema = z.preprocess((value) => {
+  if (value == null || value === "") {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : value;
+}, z.number().nonnegative().optional());
 
 const orderSchema = z.object({
   title: z.string().min(4, "Dê um nome para o projeto."),
@@ -196,6 +220,18 @@ const payableSchema = z.object({
 
 const payableStatusSchema = z.enum(["PENDING", "PAID", "OVERDUE"]);
 
+const showcaseVariantSchema = z.object({
+  id: z.string().trim().min(1),
+  label: z.string().trim().min(1),
+  color: z.string().trim().optional(),
+  size: z.string().trim().optional(),
+  finish: z.string().trim().optional(),
+  priceAdjustment: z.coerce.number(),
+  stockQuantity: optionalNonNegativeNumberSchema,
+  galleryImageUrls: z.array(z.string().trim()).default([]),
+  active: z.boolean().default(true),
+});
+
 const showcaseItemSchema = z
   .object({
     name: z.string().min(2, "Informe o nome do item."),
@@ -211,10 +247,23 @@ const showcaseItemSchema = z
     materialLabel: z.string().trim().optional(),
     materialId: z.string().trim().optional(),
     colorOptions: z.array(z.string().trim()).default([]),
+    sizeOptions: z.array(z.string().trim()).default([]),
+    finishOptions: z.array(z.string().trim()).default([]),
+    badges: z.array(z.string().trim()).default([]),
+    deliveryModes: z.array(z.enum(["PICKUP", "LOCAL_DELIVERY", "SHIPPING"])).default([]),
     dimensionSummary: z.string().trim().optional(),
+    shippingSummary: z.string().trim().optional(),
+    promotionLabel: z.string().trim().optional(),
+    compareAtPrice: optionalPositiveNumberSchema,
+    couponCode: z.string().trim().optional(),
+    couponDiscountPercent: optionalNonNegativeNumberSchema,
+    seoTitle: z.string().trim().optional(),
+    seoDescription: z.string().trim().optional(),
+    seoKeywords: z.array(z.string().trim()).default([]),
     imageUrl: z.string().trim().optional(),
     videoUrl: z.string().trim().optional(),
     galleryImageUrls: z.array(z.string().trim()).default([]),
+    variants: z.array(showcaseVariantSchema).default([]),
     featured: z.boolean(),
     active: z.boolean(),
   })
@@ -226,7 +275,66 @@ const showcaseItemSchema = z
         path: ["leadTimeDays"],
       });
     }
+
+    if (data.compareAtPrice != null && data.compareAtPrice <= data.price) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "O preço de comparação precisa ser maior que o valor do produto.",
+        path: ["compareAtPrice"],
+      });
+    }
+
+    if (
+      data.couponDiscountPercent != null &&
+      (data.couponDiscountPercent < 0 || data.couponDiscountPercent > 100)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "O desconto do cupom deve ficar entre 0 e 100%.",
+        path: ["couponDiscountPercent"],
+      });
+    }
   });
+
+const storefrontSettingsSchema = z.object({
+  brandName: z.string().trim().min(2, "Informe o nome da loja."),
+  heroEyebrow: z.string().trim().min(2, "Informe a chamada curta do banner."),
+  heroTitle: z.string().trim().min(10, "Informe um titulo principal para o banner."),
+  heroSubtitle: z.string().trim().min(20, "Informe a descricao do banner."),
+  heroPrimaryCtaLabel: z.string().trim().min(2, "Informe o texto do botao principal."),
+  heroSecondaryCtaLabel: z.string().trim().min(2, "Informe o texto do botao secundario."),
+  heroHighlights: z.array(z.string().trim()).default([]),
+  announcementText: z.string().trim().optional(),
+  aboutTitle: z.string().trim().min(2, "Informe o titulo da secao quem somos."),
+  aboutBody: z.string().trim().min(20, "Descreva melhor a sua loja."),
+  customOrderTitle: z.string().trim().min(2, "Informe o titulo da secao encomendas."),
+  customOrderBody: z.string().trim().min(20, "Explique como funciona a encomenda."),
+  averageLeadTimeText: z.string().trim().min(8, "Informe o prazo medio."),
+  materialsText: z.string().trim().min(8, "Explique os materiais usados."),
+  careText: z.string().trim().min(8, "Explique os cuidados com a peca."),
+  shippingTitle: z.string().trim().min(2, "Informe o titulo de entrega."),
+  shippingBody: z.string().trim().min(8, "Explique retirada, entrega ou envio."),
+  instagramUrl: z.string().trim().optional(),
+  instagramHandle: z.string().trim().optional(),
+  portfolioTitle: z.string().trim().min(2, "Informe o titulo do portfolio."),
+  portfolioBody: z.string().trim().min(8, "Explique o portfolio da loja."),
+  seoTitle: z.string().trim().min(8, "Informe o titulo SEO da loja."),
+  seoDescription: z.string().trim().min(20, "Informe a descricao SEO da loja."),
+  seoKeywords: z.array(z.string().trim()).default([]),
+  shareImageUrl: z.string().trim().optional(),
+});
+
+const testimonialSchema = z.object({
+  customerName: z.string().trim().min(2, "Informe o nome do cliente."),
+  city: z.string().trim().optional(),
+  role: z.string().trim().optional(),
+  instagramHandle: z.string().trim().optional(),
+  productName: z.string().trim().optional(),
+  quote: z.string().trim().min(10, "Escreva um depoimento mais completo."),
+  imageUrl: z.string().trim().optional(),
+  featured: z.boolean(),
+  sortOrder: z.coerce.number().int().nonnegative("Informe a ordem do depoimento."),
+});
 
 const showcaseInquiryStatusSchema = z.enum(["PENDING", "CLOSED", "NOT_CLOSED"]);
 const showcaseLeadTemperatureSchema = z.enum(["COLD", "WARM", "HOT"]);
@@ -393,10 +501,26 @@ function parseShowcaseItemFormData(formData: FormData) {
     materialLabel: formData.get("materialLabel")?.toString(),
     materialId: formData.get("materialId")?.toString(),
     colorOptions: parseShowcaseListField(formData.get("colorOptions")),
+    sizeOptions: parseShowcaseListField(formData.get("sizeOptions")),
+    finishOptions: parseShowcaseListField(formData.get("finishOptions")),
+    badges: parseShowcaseListField(formData.get("badges")),
+    deliveryModes: formData
+      .getAll("deliveryModes")
+      .map((entry) => entry.toString())
+      .filter(Boolean),
     dimensionSummary: formData.get("dimensionSummary")?.toString(),
+    shippingSummary: formData.get("shippingSummary")?.toString(),
+    promotionLabel: formData.get("promotionLabel")?.toString(),
+    compareAtPrice: formData.get("compareAtPrice"),
+    couponCode: formData.get("couponCode")?.toString(),
+    couponDiscountPercent: formData.get("couponDiscountPercent"),
+    seoTitle: formData.get("seoTitle")?.toString(),
+    seoDescription: formData.get("seoDescription")?.toString(),
+    seoKeywords: parseShowcaseListField(formData.get("seoKeywords")),
     imageUrl: formData.get("imageUrl")?.toString(),
     videoUrl: formData.get("videoUrl")?.toString(),
     galleryImageUrls: parseShowcaseListField(formData.get("galleryImageUrls")),
+    variants: parseShowcaseVariantField(formData.get("variantsText")),
     featured: formData.get("featured") === "on",
     active: formData.get("active") === "on",
   });
@@ -419,7 +543,20 @@ function getShowcaseItemFormFields(formData: FormData) {
     materialLabel: String(formData.get("materialLabel") ?? ""),
     materialId: String(formData.get("materialId") ?? ""),
     colorOptions: String(formData.get("colorOptions") ?? ""),
+    sizeOptions: String(formData.get("sizeOptions") ?? ""),
+    finishOptions: String(formData.get("finishOptions") ?? ""),
+    badges: String(formData.get("badges") ?? ""),
+    deliveryModes: formData.getAll("deliveryModes").map((entry) => entry.toString()).join(","),
     dimensionSummary: String(formData.get("dimensionSummary") ?? ""),
+    shippingSummary: String(formData.get("shippingSummary") ?? ""),
+    promotionLabel: String(formData.get("promotionLabel") ?? ""),
+    compareAtPrice: String(formData.get("compareAtPrice") ?? ""),
+    couponCode: String(formData.get("couponCode") ?? ""),
+    couponDiscountPercent: String(formData.get("couponDiscountPercent") ?? ""),
+    seoTitle: String(formData.get("seoTitle") ?? ""),
+    seoDescription: String(formData.get("seoDescription") ?? ""),
+    seoKeywords: String(formData.get("seoKeywords") ?? ""),
+    variantsText: String(formData.get("variantsText") ?? ""),
     imageUrl: String(formData.get("imageUrl") ?? ""),
     videoUrl: String(formData.get("videoUrl") ?? ""),
     galleryImageUrls: String(formData.get("galleryImageUrls") ?? ""),
@@ -434,6 +571,95 @@ function getShowcaseItemFormFields(formData: FormData) {
     calculatorMarginPercent: String(formData.get("calculatorMarginPercent") ?? ""),
     featured: formData.get("featured") === "on" ? "true" : "false",
     active: formData.get("active") === "on" ? "true" : "false",
+  };
+}
+
+function parseStorefrontSettingsFormData(formData: FormData) {
+  return storefrontSettingsSchema.safeParse({
+    brandName: formData.get("brandName"),
+    heroEyebrow: formData.get("heroEyebrow"),
+    heroTitle: formData.get("heroTitle"),
+    heroSubtitle: formData.get("heroSubtitle"),
+    heroPrimaryCtaLabel: formData.get("heroPrimaryCtaLabel"),
+    heroSecondaryCtaLabel: formData.get("heroSecondaryCtaLabel"),
+    heroHighlights: parseShowcaseListField(formData.get("heroHighlights")),
+    announcementText: formData.get("announcementText")?.toString(),
+    aboutTitle: formData.get("aboutTitle"),
+    aboutBody: formData.get("aboutBody"),
+    customOrderTitle: formData.get("customOrderTitle"),
+    customOrderBody: formData.get("customOrderBody"),
+    averageLeadTimeText: formData.get("averageLeadTimeText"),
+    materialsText: formData.get("materialsText"),
+    careText: formData.get("careText"),
+    shippingTitle: formData.get("shippingTitle"),
+    shippingBody: formData.get("shippingBody"),
+    instagramUrl: formData.get("instagramUrl")?.toString(),
+    instagramHandle: formData.get("instagramHandle")?.toString(),
+    portfolioTitle: formData.get("portfolioTitle"),
+    portfolioBody: formData.get("portfolioBody"),
+    seoTitle: formData.get("seoTitle"),
+    seoDescription: formData.get("seoDescription"),
+    seoKeywords: parseShowcaseListField(formData.get("seoKeywords")),
+    shareImageUrl: formData.get("shareImageUrl")?.toString(),
+  });
+}
+
+function getStorefrontSettingsFormFields(formData: FormData) {
+  return {
+    brandName: String(formData.get("brandName") ?? ""),
+    heroEyebrow: String(formData.get("heroEyebrow") ?? ""),
+    heroTitle: String(formData.get("heroTitle") ?? ""),
+    heroSubtitle: String(formData.get("heroSubtitle") ?? ""),
+    heroPrimaryCtaLabel: String(formData.get("heroPrimaryCtaLabel") ?? ""),
+    heroSecondaryCtaLabel: String(formData.get("heroSecondaryCtaLabel") ?? ""),
+    heroHighlights: String(formData.get("heroHighlights") ?? ""),
+    announcementText: String(formData.get("announcementText") ?? ""),
+    aboutTitle: String(formData.get("aboutTitle") ?? ""),
+    aboutBody: String(formData.get("aboutBody") ?? ""),
+    customOrderTitle: String(formData.get("customOrderTitle") ?? ""),
+    customOrderBody: String(formData.get("customOrderBody") ?? ""),
+    averageLeadTimeText: String(formData.get("averageLeadTimeText") ?? ""),
+    materialsText: String(formData.get("materialsText") ?? ""),
+    careText: String(formData.get("careText") ?? ""),
+    shippingTitle: String(formData.get("shippingTitle") ?? ""),
+    shippingBody: String(formData.get("shippingBody") ?? ""),
+    instagramUrl: String(formData.get("instagramUrl") ?? ""),
+    instagramHandle: String(formData.get("instagramHandle") ?? ""),
+    portfolioTitle: String(formData.get("portfolioTitle") ?? ""),
+    portfolioBody: String(formData.get("portfolioBody") ?? ""),
+    seoTitle: String(formData.get("seoTitle") ?? ""),
+    seoDescription: String(formData.get("seoDescription") ?? ""),
+    seoKeywords: String(formData.get("seoKeywords") ?? ""),
+    shareImageUrl: String(formData.get("shareImageUrl") ?? ""),
+  };
+}
+
+function parseTestimonialFormData(formData: FormData) {
+  return testimonialSchema.safeParse({
+    customerName: formData.get("customerName"),
+    city: formData.get("city")?.toString(),
+    role: formData.get("role")?.toString(),
+    instagramHandle: formData.get("instagramHandle")?.toString(),
+    productName: formData.get("productName")?.toString(),
+    quote: formData.get("quote"),
+    imageUrl: formData.get("imageUrl")?.toString(),
+    featured: formData.get("featured") === "on",
+    sortOrder: formData.get("sortOrder") || 0,
+  });
+}
+
+function getTestimonialFormFields(formData: FormData) {
+  return {
+    testimonialId: String(formData.get("testimonialId") ?? ""),
+    customerName: String(formData.get("customerName") ?? ""),
+    city: String(formData.get("city") ?? ""),
+    role: String(formData.get("role") ?? ""),
+    instagramHandle: String(formData.get("instagramHandle") ?? ""),
+    productName: String(formData.get("productName") ?? ""),
+    quote: String(formData.get("quote") ?? ""),
+    imageUrl: String(formData.get("imageUrl") ?? ""),
+    sortOrder: String(formData.get("sortOrder") ?? "0"),
+    featured: formData.get("featured") === "on" ? "true" : "false",
   };
 }
 
@@ -610,7 +836,19 @@ function buildShowcaseItemPayload(data: z.infer<typeof showcaseItemSchema>): DbS
     materialLabel: data.materialLabel?.trim() || undefined,
     materialId: data.materialId?.trim() || undefined,
     colorOptions: data.colorOptions,
+    sizeOptions: data.sizeOptions,
+    finishOptions: data.finishOptions,
+    badges: data.badges,
+    deliveryModes: data.deliveryModes as ShowcaseDeliveryMode[],
     dimensionSummary: data.dimensionSummary?.trim() || undefined,
+    shippingSummary: data.shippingSummary?.trim() || undefined,
+    promotionLabel: data.promotionLabel?.trim() || undefined,
+    compareAtPrice: data.compareAtPrice,
+    couponCode: data.couponCode?.trim() || undefined,
+    couponDiscountPercent: data.couponDiscountPercent,
+    seoTitle: data.seoTitle?.trim() || undefined,
+    seoDescription: data.seoDescription?.trim() || undefined,
+    seoKeywords: data.seoKeywords,
     leadTimeDays: data.fulfillmentType === "MADE_TO_ORDER" ? data.leadTimeDays : 0,
     estimatedPrintHours: data.estimatedPrintHours,
     estimatedMaterialGrams: data.estimatedMaterialGrams,
@@ -619,8 +857,65 @@ function buildShowcaseItemPayload(data: z.infer<typeof showcaseItemSchema>): DbS
     imageUrl: data.imageUrl?.trim() || undefined,
     videoUrl: data.videoUrl?.trim() || undefined,
     galleryImageUrls: data.galleryImageUrls,
+    variants: data.variants,
+    viewCount: 0,
+    whatsappClickCount: 0,
     featured: data.featured,
     active: data.active,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function buildStorefrontSettingsPayload(
+  data: z.infer<typeof storefrontSettingsSchema>,
+): DbStorefrontSettings {
+  return {
+    brandName: data.brandName,
+    heroEyebrow: data.heroEyebrow,
+    heroTitle: data.heroTitle,
+    heroSubtitle: data.heroSubtitle,
+    heroPrimaryCtaLabel: data.heroPrimaryCtaLabel,
+    heroSecondaryCtaLabel: data.heroSecondaryCtaLabel,
+    heroHighlights: data.heroHighlights,
+    announcementText: data.announcementText?.trim() || undefined,
+    aboutTitle: data.aboutTitle,
+    aboutBody: data.aboutBody,
+    customOrderTitle: data.customOrderTitle,
+    customOrderBody: data.customOrderBody,
+    averageLeadTimeText: data.averageLeadTimeText,
+    materialsText: data.materialsText,
+    careText: data.careText,
+    shippingTitle: data.shippingTitle,
+    shippingBody: data.shippingBody,
+    instagramUrl: data.instagramUrl?.trim() || undefined,
+    instagramHandle: data.instagramHandle?.trim() || undefined,
+    portfolioTitle: data.portfolioTitle,
+    portfolioBody: data.portfolioBody,
+    seoTitle: data.seoTitle,
+    seoDescription: data.seoDescription,
+    seoKeywords: data.seoKeywords,
+    shareImageUrl: data.shareImageUrl?.trim() || undefined,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function buildShowcaseTestimonialPayload(
+  data: z.infer<typeof testimonialSchema>,
+): DbShowcaseTestimonial {
+  const now = new Date().toISOString();
+
+  return {
+    id: createId("tst"),
+    customerName: data.customerName,
+    city: data.city?.trim() || undefined,
+    role: data.role?.trim() || undefined,
+    instagramHandle: data.instagramHandle?.trim() || undefined,
+    productName: data.productName?.trim() || undefined,
+    quote: data.quote,
+    imageUrl: data.imageUrl?.trim() || undefined,
+    featured: data.featured,
+    sortOrder: data.sortOrder,
     createdAt: now,
     updatedAt: now,
   };
@@ -634,27 +929,70 @@ function getShowcaseFulfillmentLabel(fulfillmentType: ShowcaseFulfillmentType) {
   return fulfillmentType === "MADE_TO_ORDER" ? "Sob encomenda" : "Pronta entrega";
 }
 
+function getShowcaseLeadTimeText(
+  fulfillmentType: ShowcaseFulfillmentType,
+  leadTimeDays?: number,
+) {
+  if (fulfillmentType === "STOCK") {
+    return "Pronta entrega";
+  }
+
+  if (!leadTimeDays) {
+    return "Prazo sob consulta";
+  }
+
+  return leadTimeDays === 1 ? "1 dia util" : `${leadTimeDays} dias uteis`;
+}
+
 function buildShowcaseWhatsAppUrl({
   itemName,
   quantity,
   fulfillmentType,
   customerName,
   customerPhone,
+  estimatedTotal,
+  selectedVariantLabel,
+  desiredColor,
+  desiredSize,
+  desiredFinish,
+  notes,
+  leadTimeLabel,
+  couponCode,
 }: {
   itemName: string;
   quantity: number;
   fulfillmentType: ShowcaseFulfillmentType;
   customerName: string;
   customerPhone: string;
+  estimatedTotal?: number;
+  selectedVariantLabel?: string;
+  desiredColor?: string;
+  desiredSize?: string;
+  desiredFinish?: string;
+  notes?: string;
+  leadTimeLabel?: string;
+  couponCode?: string;
 }) {
   const message = [
     "Olá! Quero comprar este item da vitrine.",
     `Item: ${itemName}`,
     `Quantidade: ${quantity}`,
     `Disponibilidade: ${getShowcaseFulfillmentLabel(fulfillmentType)}`,
+    estimatedTotal != null
+      ? `Valor estimado: ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(estimatedTotal)}`
+      : null,
+    leadTimeLabel ? `Prazo: ${leadTimeLabel}` : null,
+    selectedVariantLabel ? `Variacao: ${selectedVariantLabel}` : null,
+    desiredColor ? `Cor desejada: ${desiredColor}` : null,
+    desiredSize ? `Tamanho desejado: ${desiredSize}` : null,
+    desiredFinish ? `Acabamento desejado: ${desiredFinish}` : null,
+    couponCode ? `Cupom: ${couponCode}` : null,
     `Cliente: ${customerName}`,
     `Telefone: ${customerPhone}`,
-  ].join("\n");
+    notes ? `Observacao: ${notes}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return `https://api.whatsapp.com/send?phone=${ownerWhatsAppNumber}&text=${encodeURIComponent(message)}`;
 }
@@ -759,6 +1097,22 @@ async function resolveShowcaseGalleryImageUrls(formData: FormData) {
   }
 
   return Array.from(new Set([...manualGalleryUrls, ...uploadedGalleryUrls])).slice(0, 8);
+}
+
+async function resolveShowcaseTestimonialImageUrl(formData: FormData) {
+  const imageFile = formData.get("testimonialImageFile");
+
+  if (!(imageFile instanceof File) || !imageFile.name) {
+    return null;
+  }
+
+  const fileExtension = getFileExtension(imageFile.name);
+
+  if (!allowedImageFormats.includes(fileExtension as (typeof allowedImageFormats)[number])) {
+    throw new Error("Use uma imagem PNG, JPG, JPEG, WEBP ou GIF no depoimento.");
+  }
+
+  return saveUpload(imageFile);
 }
 
 async function saveUpload(file: File) {
@@ -2021,26 +2375,39 @@ export async function updateShowcaseItemAction(
       item.category = parsed.data.category;
       item.tagline = parsed.data.tagline?.trim() || undefined;
       item.description = parsed.data.description;
-      item.price = parsed.data.price;
-      item.materialLabel = materialSelection.materialLabel;
-      item.materialId = materialSelection.materialId;
-      item.colorOptions = parsed.data.colorOptions;
-      item.dimensionSummary = parsed.data.dimensionSummary?.trim() || undefined;
-      item.leadTimeDays =
-        parsed.data.fulfillmentType === "MADE_TO_ORDER" ? parsed.data.leadTimeDays : 0;
-      item.estimatedPrintHours = parsed.data.estimatedPrintHours;
-      item.estimatedMaterialGrams = parsed.data.estimatedMaterialGrams;
-      item.fulfillmentType = parsed.data.fulfillmentType;
+        item.price = parsed.data.price;
+        item.materialLabel = materialSelection.materialLabel;
+        item.materialId = materialSelection.materialId;
+        item.colorOptions = parsed.data.colorOptions;
+        item.sizeOptions = parsed.data.sizeOptions;
+        item.finishOptions = parsed.data.finishOptions;
+        item.badges = parsed.data.badges;
+        item.deliveryModes = parsed.data.deliveryModes as ShowcaseDeliveryMode[];
+        item.dimensionSummary = parsed.data.dimensionSummary?.trim() || undefined;
+        item.shippingSummary = parsed.data.shippingSummary?.trim() || undefined;
+        item.promotionLabel = parsed.data.promotionLabel?.trim() || undefined;
+        item.compareAtPrice = parsed.data.compareAtPrice;
+        item.couponCode = parsed.data.couponCode?.trim() || undefined;
+        item.couponDiscountPercent = parsed.data.couponDiscountPercent;
+        item.seoTitle = parsed.data.seoTitle?.trim() || undefined;
+        item.seoDescription = parsed.data.seoDescription?.trim() || undefined;
+        item.seoKeywords = parsed.data.seoKeywords;
+        item.leadTimeDays =
+          parsed.data.fulfillmentType === "MADE_TO_ORDER" ? parsed.data.leadTimeDays : 0;
+        item.estimatedPrintHours = parsed.data.estimatedPrintHours;
+        item.estimatedMaterialGrams = parsed.data.estimatedMaterialGrams;
+        item.fulfillmentType = parsed.data.fulfillmentType;
       item.stockQuantity =
         parsed.data.fulfillmentType === "STOCK"
           ? parsed.data.stockQuantity + restockQuantity
           : 0;
-      item.imageUrl = uploadedImageUrl ?? (parsed.data.imageUrl?.trim() || undefined);
-      item.videoUrl = uploadedVideoUrl ?? (parsed.data.videoUrl?.trim() || undefined);
-      item.galleryImageUrls = galleryImageUrls;
-      item.featured = parsed.data.featured;
-      item.active = parsed.data.active;
-      item.updatedAt = new Date().toISOString();
+        item.imageUrl = uploadedImageUrl ?? (parsed.data.imageUrl?.trim() || undefined);
+        item.videoUrl = uploadedVideoUrl ?? (parsed.data.videoUrl?.trim() || undefined);
+        item.galleryImageUrls = galleryImageUrls;
+        item.variants = parsed.data.variants;
+        item.featured = parsed.data.featured;
+        item.active = parsed.data.active;
+        item.updatedAt = new Date().toISOString();
       pushAuditLog(db, {
         actorId: user.id,
         area: "showcase",
@@ -2108,6 +2475,202 @@ export async function deleteShowcaseItemAction(
   }
 }
 
+export async function updateStorefrontSettingsAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const fields = getStorefrontSettingsFormFields(formData);
+  const parsed = parseStorefrontSettingsFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error:
+        parsed.error.issues[0]?.message ?? "Nao foi possivel salvar as configuracoes da loja.",
+      fields,
+    };
+  }
+
+  try {
+    await updateDb((db) => {
+      db.storefrontSettings = buildStorefrontSettingsPayload(parsed.data);
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "storefront",
+        action: "update_settings",
+        summary: "Configuracoes publicas da loja atualizadas.",
+      });
+    });
+
+    revalidateAll();
+    redirect(buildAdminShowcaseSectionUrl("Configuracoes da loja salvas com sucesso."));
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Nao foi possivel salvar as configuracoes da loja.",
+      fields,
+    };
+  }
+}
+
+export async function createShowcaseTestimonialAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const fields = getTestimonialFormFields(formData);
+  const parsed = parseTestimonialFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Nao foi possivel salvar o depoimento.",
+      fields,
+    };
+  }
+
+  try {
+    const uploadedImageUrl = await resolveShowcaseTestimonialImageUrl(formData);
+
+    await updateDb((db) => {
+      const testimonial = buildShowcaseTestimonialPayload({
+        ...parsed.data,
+        imageUrl: uploadedImageUrl ?? parsed.data.imageUrl,
+      });
+      db.showcaseTestimonials.unshift(testimonial);
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "storefront",
+        action: "create_testimonial",
+        summary: `Depoimento cadastrado para ${testimonial.customerName}.`,
+      });
+    });
+
+    revalidateAll();
+    redirect(buildAdminShowcaseSectionUrl("Depoimento salvo com sucesso."));
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "Nao foi possivel salvar o depoimento.",
+      fields,
+    };
+  }
+}
+
+export async function updateShowcaseTestimonialAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const fields = getTestimonialFormFields(formData);
+  const testimonialId = String(formData.get("testimonialId") ?? "");
+  const parsed = parseTestimonialFormData(formData);
+
+  if (!testimonialId) {
+    return {
+      ok: false,
+      error: "Depoimento nao encontrado para atualizacao.",
+      fields,
+    };
+  }
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Nao foi possivel atualizar o depoimento.",
+      fields,
+    };
+  }
+
+  try {
+    const uploadedImageUrl = await resolveShowcaseTestimonialImageUrl(formData);
+
+    await updateDb((db) => {
+      const testimonial = db.showcaseTestimonials.find((entry) => entry.id === testimonialId);
+
+      if (!testimonial) {
+        throw new Error("Depoimento nao encontrado.");
+      }
+
+      testimonial.customerName = parsed.data.customerName;
+      testimonial.city = parsed.data.city?.trim() || undefined;
+      testimonial.role = parsed.data.role?.trim() || undefined;
+      testimonial.instagramHandle = parsed.data.instagramHandle?.trim() || undefined;
+      testimonial.productName = parsed.data.productName?.trim() || undefined;
+      testimonial.quote = parsed.data.quote;
+      testimonial.imageUrl = uploadedImageUrl ?? (parsed.data.imageUrl?.trim() || undefined);
+      testimonial.featured = parsed.data.featured;
+      testimonial.sortOrder = parsed.data.sortOrder;
+      testimonial.updatedAt = new Date().toISOString();
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "storefront",
+        action: "update_testimonial",
+        summary: `Depoimento atualizado: ${testimonial.customerName}.`,
+      });
+    });
+
+    revalidateAll();
+    redirect(buildAdminShowcaseSectionUrl("Depoimento atualizado com sucesso."));
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "Nao foi possivel atualizar o depoimento.",
+      fields,
+    };
+  }
+}
+
+export async function deleteShowcaseTestimonialAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const testimonialId = String(formData.get("testimonialId") ?? "");
+
+  if (!testimonialId) {
+    return {
+      ok: false,
+      error: "Depoimento nao encontrado para exclusao.",
+    };
+  }
+
+  try {
+    await updateDb((db) => {
+      const testimonialIndex = db.showcaseTestimonials.findIndex(
+        (entry) => entry.id === testimonialId,
+      );
+
+      if (testimonialIndex === -1) {
+        throw new Error("Depoimento nao encontrado.");
+      }
+
+      const [testimonial] = db.showcaseTestimonials.splice(testimonialIndex, 1);
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "storefront",
+        action: "delete_testimonial",
+        summary: `Depoimento removido: ${testimonial.customerName}.`,
+      });
+    });
+
+    revalidateAll();
+    redirect(buildAdminShowcaseSectionUrl("Depoimento removido com sucesso."));
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error ? error.message : "Nao foi possivel excluir o depoimento.",
+    };
+  }
+}
+
 export async function createShowcaseInquiryAction(
   _previousState: ActionState,
   formData: FormData,
@@ -2159,13 +2722,17 @@ export async function createShowcaseInquiryAction(
         notes: parsed.data.notes?.trim() || undefined,
         ownerEmail,
         whatsappNumber: ownerWhatsAppNumber,
-        whatsappUrl: buildShowcaseWhatsAppUrl({
-          itemName: item.name,
-          quantity: parsed.data.quantity,
-          fulfillmentType: item.fulfillmentType,
-          customerName,
-          customerPhone,
-        }),
+          whatsappUrl: buildShowcaseWhatsAppUrl({
+            itemName: item.name,
+            quantity: parsed.data.quantity,
+            fulfillmentType: item.fulfillmentType,
+            customerName,
+            customerPhone,
+            estimatedTotal: item.price * parsed.data.quantity,
+            notes: parsed.data.notes?.trim() || undefined,
+            leadTimeLabel: getShowcaseLeadTimeText(item.fulfillmentType, item.leadTimeDays),
+            couponCode: item.couponCode,
+          }),
         status,
         tags: parsed.data.tags,
         leadTemperature: parsed.data.leadTemperature as ShowcaseLeadTemperature,
@@ -2281,13 +2848,17 @@ export async function updateShowcaseInquiryAction(
       );
       inquiry.assignedMachineId = nextStatus === "CLOSED" ? inquiry.assignedMachineId : undefined;
       inquiry.closedAt = nextStatus === "CLOSED" ? now : undefined;
-      inquiry.whatsappUrl = buildShowcaseWhatsAppUrl({
-        itemName: nextItem.name,
-        quantity: parsed.data.quantity,
-        fulfillmentType: nextItem.fulfillmentType,
-        customerName,
-        customerPhone,
-      });
+        inquiry.whatsappUrl = buildShowcaseWhatsAppUrl({
+          itemName: nextItem.name,
+          quantity: parsed.data.quantity,
+          fulfillmentType: nextItem.fulfillmentType,
+          customerName,
+          customerPhone,
+          estimatedTotal: nextItem.price * parsed.data.quantity,
+          notes: parsed.data.notes?.trim() || undefined,
+          leadTimeLabel: getShowcaseLeadTimeText(nextItem.fulfillmentType, nextItem.leadTimeDays),
+          couponCode: nextItem.couponCode,
+        });
       if (nextStatus === "CLOSED") {
         applyShowcaseOperationalMetadata(db, inquiry, nextItem, now);
       } else {

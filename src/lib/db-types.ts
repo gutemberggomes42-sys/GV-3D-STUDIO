@@ -252,6 +252,7 @@ export type ShowcaseInquiryStatus = "PENDING" | "CLOSED" | "NOT_CLOSED";
 export type ShowcaseInquirySource = "CATALOG" | "MANUAL";
 export type ShowcaseFulfillmentType = "STOCK" | "MADE_TO_ORDER";
 export type ShowcaseLeadTemperature = "COLD" | "WARM" | "HOT";
+export type ShowcaseDeliveryMode = "PICKUP" | "LOCAL_DELIVERY" | "SHIPPING";
 export type ShowcaseOrderStage =
   | "RECEIVED"
   | "ANALYSIS"
@@ -267,6 +268,62 @@ export type ShowcaseOrderStage =
   | "FAILED_REWORK"
   | "CANCELED";
 
+export type DbShowcaseVariant = {
+  id: string;
+  label: string;
+  color?: string;
+  size?: string;
+  finish?: string;
+  priceAdjustment: number;
+  stockQuantity?: number;
+  galleryImageUrls: string[];
+  active: boolean;
+};
+
+export type DbStorefrontSettings = {
+  brandName: string;
+  heroEyebrow: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  heroPrimaryCtaLabel: string;
+  heroSecondaryCtaLabel: string;
+  heroHighlights: string[];
+  announcementText?: string;
+  aboutTitle: string;
+  aboutBody: string;
+  customOrderTitle: string;
+  customOrderBody: string;
+  averageLeadTimeText: string;
+  materialsText: string;
+  careText: string;
+  shippingTitle: string;
+  shippingBody: string;
+  instagramUrl?: string;
+  instagramHandle?: string;
+  portfolioTitle: string;
+  portfolioBody: string;
+  seoTitle: string;
+  seoDescription: string;
+  seoKeywords: string[];
+  shareImageUrl?: string;
+  updatedAt: IsoDateString;
+};
+
+export type DbShowcaseTestimonial = {
+  id: string;
+  customerName: string;
+  city?: string;
+  role?: string;
+  instagramHandle?: string;
+  productName?: string;
+  quote: string;
+  imageUrl?: string;
+  featured: boolean;
+  sortOrder: number;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+};
+
 export type DbShowcaseItem = {
   id: string;
   name: string;
@@ -277,15 +334,30 @@ export type DbShowcaseItem = {
   materialLabel?: string;
   materialId?: string;
   colorOptions: string[];
+  sizeOptions: string[];
+  finishOptions: string[];
+  badges: string[];
+  deliveryModes: ShowcaseDeliveryMode[];
   dimensionSummary?: string;
+  shippingSummary?: string;
+  promotionLabel?: string;
+  compareAtPrice?: number;
+  couponCode?: string;
+  couponDiscountPercent?: number;
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords: string[];
   leadTimeDays: number;
   imageUrl?: string;
   videoUrl?: string;
   galleryImageUrls: string[];
+  variants: DbShowcaseVariant[];
   fulfillmentType: ShowcaseFulfillmentType;
   stockQuantity: number;
   estimatedPrintHours: number;
   estimatedMaterialGrams: number;
+  viewCount: number;
+  whatsappClickCount: number;
   featured: boolean;
   active: boolean;
   createdAt: IsoDateString;
@@ -307,6 +379,12 @@ export type DbShowcaseInquiry = {
   ownerEmail: string;
   whatsappNumber: string;
   whatsappUrl: string;
+  estimatedTotal?: number;
+  selectedVariantLabel?: string;
+  desiredColor?: string;
+  desiredSize?: string;
+  desiredFinish?: string;
+  couponCode?: string;
   status: ShowcaseInquiryStatus;
   tags: string[];
   leadTemperature: ShowcaseLeadTemperature;
@@ -349,7 +427,9 @@ export type PrintFlowDb = {
   expenses: DbExpense[];
   payables: DbPayable[];
   orders: DbOrder[];
+  storefrontSettings: DbStorefrontSettings;
   showcaseItems: DbShowcaseItem[];
+  showcaseTestimonials: DbShowcaseTestimonial[];
   showcaseInquiries: DbShowcaseInquiry[];
   auditLogs: DbAuditLog[];
 };

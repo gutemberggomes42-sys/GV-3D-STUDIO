@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,16 +17,20 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ShowcaseProductGallery } from "@/components/showcase-product-gallery";
+import { ShowcaseViewTracker } from "@/components/showcase-view-tracker";
+import { ShowcaseWishlistButton } from "@/components/showcase-wishlist-button";
 import { getCurrentUser } from "@/lib/auth";
-import type { DbShowcaseItem } from "@/lib/db-types";
+import type { DbShowcaseItem, DbShowcaseTestimonial } from "@/lib/db-types";
 import { formatCurrency, formatHours } from "@/lib/format";
 import {
   getShowcaseAvailabilityLabel,
   getShowcaseCategoryLabel,
   getShowcaseColorHex,
   getShowcaseColorSummary,
+  getShowcaseDeliverySummary,
   getShowcaseGallery,
   getShowcaseLeadTimeLabel,
+  getShowcaseLowestPrice,
   getShowcasePrimaryVideo,
 } from "@/lib/showcase";
 import { getHydratedData } from "@/lib/view-data";
@@ -69,10 +74,52 @@ function getProductPromises(item: DbShowcaseItem) {
   ]).slice(0, 4);
 }
 
+function getMatchingTestimonials(
+  item: DbShowcaseItem,
+  testimonials: DbShowcaseTestimonial[],
+) {
+  return testimonials
+    .filter(
+      (testimonial) =>
+        testimonial.featured &&
+        (!testimonial.productName ||
+          testimonial.productName.toLowerCase().includes(item.name.toLowerCase()) ||
+          item.name.toLowerCase().includes(testimonial.productName.toLowerCase())),
+    )
+    .slice(0, 2);
+}
+
+export async function generateMetadata({
+  params,
+}: ShowcaseProductPageProps): Promise<Metadata> {
+  const { itemId } = await params;
+  const { showcaseItems, storefrontSettings } = await getHydratedData();
+  const item = showcaseItems.find((candidate) => candidate.id === itemId && candidate.active);
+
+  if (!item) {
+    return {
+      title: storefrontSettings.seoTitle,
+      description: storefrontSettings.seoDescription,
+    };
+  }
+
+  return {
+    title: item.seoTitle ?? `${item.name} | ${storefrontSettings.brandName}`,
+    description:
+      item.seoDescription ?? item.tagline ?? getShowcaseCategoryLabel(item),
+    keywords: item.seoKeywords.length ? item.seoKeywords : storefrontSettings.seoKeywords,
+    openGraph: {
+      title: item.seoTitle ?? `${item.name} | ${storefrontSettings.brandName}`,
+      description: item.seoDescription ?? item.description,
+      images: item.imageUrl ? [item.imageUrl] : storefrontSettings.shareImageUrl ? [storefrontSettings.shareImageUrl] : [],
+    },
+  };
+}
+
 export default async function ShowcaseProductPage({ params }: ShowcaseProductPageProps) {
   const user = await getCurrentUser();
   const { itemId } = await params;
-  const { showcaseItems } = await getHydratedData();
+  const { showcaseItems, showcaseTestimonials, storefrontSettings } = await getHydratedData();
   const item = showcaseItems.find((candidate) => candidate.id === itemId && candidate.active);
 
   if (!item) {
@@ -94,6 +141,9 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
     item.fulfillmentType === "STOCK" ? "Comprar pelo WhatsApp" : "Encomendar pelo WhatsApp";
   const idealUseCases = getIdealUseCases(item);
   const productPromises = getProductPromises(item);
+  const matchingTestimonials = getMatchingTestimonials(item, showcaseTestimonials);
+  const variantOptions = item.variants.filter((variant) => variant.active);
+  const lowestPrice = getShowcaseLowestPrice(item);
 
   return (
     <AppShell
@@ -102,6 +152,8 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
       title={item.name}
       subtitle="Fotos, video, detalhes reais e um caminho de compra simples para o cliente gostar e seguir rapido para o WhatsApp."
     >
+      <ShowcaseViewTracker itemId={item.id} />
+
       <div className="flex flex-wrap items-center gap-3">
         <Link
           href="/"
@@ -113,6 +165,7 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
         <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/65">
           {getShowcaseCategoryLabel(item)}
         </span>
+        <ShowcaseWishlistButton itemId={item.id} className="px-4 py-2" />
       </div>
 
       <section className="grid gap-6 xl:grid-cols-[1.02fr_0.98fr]">
@@ -144,6 +197,11 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
                 Com video
               </span>
             ) : null}
+            {(item.badges ?? []).map((badge) => (
+              <span key={badge} className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/78">
+                {badge}
+              </span>
+            ))}
           </div>
 
           <h3 className="mt-5 text-4xl font-semibold tracking-tight">{item.name}</h3>
@@ -154,11 +212,24 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
           <div className="mt-6 flex items-end justify-between gap-4 rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-white/45">Valor da peca</p>
-              <p className="mt-2 text-4xl font-semibold">{formatCurrency(item.price)}</p>
+              {item.compareAtPrice ? (
+                <p className="mt-2 text-sm text-white/45 line-through">
+                  {formatCurrency(item.compareAtPrice)}
+                </p>
+              ) : null}
+              <p className="mt-1 text-4xl font-semibold">{formatCurrency(item.price)}</p>
+              {lowestPrice !== item.price ? (
+                <p className="mt-2 text-sm text-white/60">
+                  Variacoes a partir de {formatCurrency(lowestPrice)}
+                </p>
+              ) : null}
             </div>
             <div className="text-right">
               <p className="text-xs uppercase tracking-[0.2em] text-white/45">Compra</p>
               <p className="mt-2 text-sm font-semibold text-white/82">Fluxo simples pelo WhatsApp</p>
+              {item.promotionLabel ? (
+                <p className="mt-2 text-sm text-orange-100">{item.promotionLabel}</p>
+              ) : null}
             </div>
           </div>
 
@@ -239,6 +310,53 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
             </div>
           </div>
 
+          <div className="mt-6 grid gap-4 xl:grid-cols-2">
+            <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Entrega e retirada</p>
+              <p className="mt-3 text-sm leading-7 text-white/74">
+                {getShowcaseDeliverySummary(item)}
+              </p>
+            </div>
+            <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Variacoes disponiveis</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {variantOptions.length ? (
+                  variantOptions.map((variant) => (
+                    <span key={variant.id} className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/82">
+                      {variant.label}
+                    </span>
+                  ))
+                ) : (
+                  <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/82">
+                    Produto sem variacao cadastrada
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {item.couponCode || item.shippingSummary ? (
+            <div className="mt-6 grid gap-4 xl:grid-cols-2">
+              {item.couponCode ? (
+                <div className="rounded-[28px] border border-emerald-400/15 bg-emerald-500/[0.06] p-5">
+                  <p className="text-xs uppercase tracking-[0.2em] text-emerald-100/70">Cupom disponivel</p>
+                  <p className="mt-3 text-2xl font-semibold text-emerald-50">{item.couponCode}</p>
+                  <p className="mt-2 text-sm text-emerald-100/75">
+                    {item.couponDiscountPercent
+                      ? `${item.couponDiscountPercent}% de desconto na conversa pelo WhatsApp.`
+                      : "Mencione esse cupom ao falar com a loja."}
+                  </p>
+                </div>
+              ) : null}
+              {item.shippingSummary ? (
+                <div className="rounded-[28px] border border-white/10 bg-black/20 p-5">
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/45">Resumo de envio</p>
+                  <p className="mt-3 text-sm leading-7 text-white/74">{item.shippingSummary}</p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="mt-6 rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-white/45">Descricao</p>
             <p className="mt-3 text-sm leading-7 text-white/74">{item.description}</p>
@@ -288,6 +406,76 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
                   />
                 </label>
               </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {variantOptions.length ? (
+                  <label className="block text-sm text-white/70">
+                    Variacao
+                    <select
+                      name="selectedVariantId"
+                      defaultValue={variantOptions[0]?.id}
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
+                    >
+                      {variantOptions.map((variant) => (
+                        <option key={variant.id} value={variant.id}>
+                          {variant.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+
+                {item.colorOptions.length ? (
+                  <label className="block text-sm text-white/70">
+                    Cor desejada
+                    <select
+                      name="desiredColor"
+                      defaultValue={item.colorOptions[0]}
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
+                    >
+                      {item.colorOptions.map((color) => (
+                        <option key={color} value={color}>
+                          {color}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+
+                {item.sizeOptions.length ? (
+                  <label className="block text-sm text-white/70">
+                    Tamanho
+                    <select
+                      name="desiredSize"
+                      defaultValue={item.sizeOptions[0]}
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
+                    >
+                      {item.sizeOptions.map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+
+                {item.finishOptions.length ? (
+                  <label className="block text-sm text-white/70">
+                    Acabamento
+                    <select
+                      name="desiredFinish"
+                      defaultValue={item.finishOptions[0]}
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
+                    >
+                      {item.finishOptions.map((finish) => (
+                        <option key={finish} value={finish}>
+                          {finish}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+              </div>
+              {item.couponCode ? <input type="hidden" name="couponCode" value={item.couponCode} /> : null}
               <button
                 type="submit"
                 className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-4 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
@@ -356,6 +544,59 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
           </p>
         </div>
       </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <div className="rounded-[30px] border border-white/10 bg-white/[0.04] p-6">
+          <p className="text-xs uppercase tracking-[0.24em] text-white/45">{storefrontSettings.aboutTitle}</p>
+          <h3 className="mt-2 text-2xl font-semibold">Uma compra com contexto real</h3>
+          <p className="mt-4 text-sm leading-7 text-white/72">{storefrontSettings.aboutBody}</p>
+          <p className="mt-4 text-sm leading-7 text-white/72">{storefrontSettings.materialsText}</p>
+          <p className="mt-4 text-sm leading-7 text-white/72">{storefrontSettings.careText}</p>
+        </div>
+
+        <div className="rounded-[30px] border border-white/10 bg-white/[0.04] p-6">
+          <p className="text-xs uppercase tracking-[0.24em] text-white/45">Entrega e atendimento</p>
+          <h3 className="mt-2 text-2xl font-semibold">Tudo pensado para o cliente confiar mais rapido</h3>
+          <p className="mt-4 text-sm leading-7 text-white/72">{storefrontSettings.shippingBody}</p>
+          <p className="mt-4 text-sm leading-7 text-white/72">{storefrontSettings.customOrderBody}</p>
+        </div>
+      </section>
+
+      {matchingTestimonials.length ? (
+        <section className="rounded-[30px] border border-white/10 bg-white/[0.04] p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-white/45">Quem ja comprou</p>
+              <h3 className="mt-2 text-2xl font-semibold">Depoimentos que combinam com esta peca</h3>
+            </div>
+            <Link href="/depoimentos" className="inline-flex items-center gap-2 text-sm font-semibold text-orange-200 transition hover:text-orange-100">
+              Ver mais depoimentos
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            {matchingTestimonials.map((testimonial) => (
+              <article key={testimonial.id} className="rounded-[26px] border border-white/10 bg-slate-950/60 p-5">
+                <div className="flex items-center gap-4">
+                  {testimonial.imageUrl ? (
+                    <img src={testimonial.imageUrl} alt={testimonial.customerName} className="h-14 w-14 rounded-2xl object-cover" />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500/20 text-lg font-semibold text-orange-100">
+                      {testimonial.customerName.slice(0, 1)}
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-lg font-semibold">{testimonial.customerName}</p>
+                    <p className="text-sm text-white/55">{[testimonial.city, testimonial.role].filter(Boolean).join(" · ") || "Cliente da loja"}</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm leading-7 text-white/74">&quot;{testimonial.quote}&quot;</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {relatedItems.length ? (
         <section className="rounded-[30px] border border-white/10 bg-white/[0.04] p-6">

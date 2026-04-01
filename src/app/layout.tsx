@@ -15,7 +15,7 @@ const bodyFont = Manrope({
 
 export const metadata: Metadata = {
   title: "PrintFlow 3D",
-  description: "Sistema completo para operação de impressão 3D, do orçamento ao financeiro.",
+  description: "Loja e operacao completa para pecas impressas em 3D, encomendas e atendimento pelo WhatsApp.",
 };
 
 export default function RootLayout({

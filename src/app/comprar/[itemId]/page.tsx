@@ -8,6 +8,7 @@ import { formatCurrency, formatHours } from "@/lib/format";
 import {
   getShowcaseAvailabilityLabel,
   getShowcaseColorSummary,
+  getShowcaseDeliverySummary,
   getShowcaseGallery,
   getShowcaseLeadTimeLabel,
   getShowcasePrimaryVideo,
@@ -34,6 +35,10 @@ function getRequestedNotes(value: string | string[] | undefined) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function getRequestedValue(value: string | string[] | undefined) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 export default async function BuyItemPage({
   params,
   searchParams,
@@ -43,6 +48,11 @@ export default async function BuyItemPage({
   const query = searchParams ? await searchParams : {};
   const requestedQuantity = getRequestedQuantity(query.quantity);
   const requestedNotes = getRequestedNotes(query.notes);
+  const selectedVariantId = getRequestedValue(query.selectedVariantId);
+  const desiredColor = getRequestedValue(query.desiredColor);
+  const desiredSize = getRequestedValue(query.desiredSize);
+  const desiredFinish = getRequestedValue(query.desiredFinish);
+  const couponCode = getRequestedValue(query.couponCode);
   const message = typeof query.message === "string" ? query.message : null;
   const { showcaseItems } = await getHydratedData();
   const item = showcaseItems.find((candidate) => candidate.id === itemId && candidate.active);
@@ -60,7 +70,13 @@ export default async function BuyItemPage({
   const quantity = managesStock ? Math.min(requestedQuantity, item.stockQuantity) : requestedQuantity;
   const heroImage = getShowcaseGallery(item)[0];
   const heroVideo = getShowcasePrimaryVideo(item);
-  const totalPrice = item.price * quantity;
+  const selectedVariant = item.variants.find((variant) => variant.id === selectedVariantId && variant.active);
+  const unitPrice = item.price + (selectedVariant?.priceAdjustment ?? 0);
+  const couponDiscount =
+    couponCode && item.couponCode && couponCode.toLowerCase() === item.couponCode.toLowerCase()
+      ? item.couponDiscountPercent ?? 0
+      : 0;
+  const totalPrice = unitPrice * quantity * (1 - couponDiscount / 100);
 
   return (
     <AppShell
@@ -121,7 +137,7 @@ export default async function BuyItemPage({
             <div className="mt-6 grid gap-3 md:grid-cols-3">
               <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
                 <p className="text-xs uppercase tracking-[0.18em] text-white/45">Valor</p>
-                <p className="mt-2 text-2xl font-semibold">{formatCurrency(item.price)}</p>
+                <p className="mt-2 text-2xl font-semibold">{formatCurrency(unitPrice)}</p>
               </div>
               <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
                 <p className="text-xs uppercase tracking-[0.18em] text-white/45">Quantidade</p>
@@ -138,6 +154,11 @@ export default async function BuyItemPage({
               <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4 md:col-span-3">
                 <p className="text-xs uppercase tracking-[0.18em] text-white/45">Total estimado</p>
                 <p className="mt-2 text-3xl font-semibold">{formatCurrency(totalPrice)}</p>
+                {couponDiscount ? (
+                  <p className="mt-2 text-sm text-emerald-100">
+                    Cupom aplicado: {couponCode} · {couponDiscount}% off
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -170,7 +191,42 @@ export default async function BuyItemPage({
                 </div>
                 <p className="mt-2 text-sm font-semibold text-white/88">{formatHours(item.estimatedPrintHours)}</p>
               </div>
+              <div className="sm:col-span-2">
+                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/45">
+                  <PackageCheck className="h-3.5 w-3.5" />
+                  Entrega
+                </div>
+                <p className="mt-2 text-sm font-semibold text-white/88">{getShowcaseDeliverySummary(item)}</p>
+              </div>
             </div>
+
+            {(selectedVariant || desiredColor || desiredSize || desiredFinish) ? (
+              <div className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Preferencias escolhidas</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedVariant ? (
+                    <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/82">
+                      Variacao: {selectedVariant.label}
+                    </span>
+                  ) : null}
+                  {desiredColor ? (
+                    <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/82">
+                      Cor: {desiredColor}
+                    </span>
+                  ) : null}
+                  {desiredSize ? (
+                    <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/82">
+                      Tamanho: {desiredSize}
+                    </span>
+                  ) : null}
+                  {desiredFinish ? (
+                    <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/82">
+                      Acabamento: {desiredFinish}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
         </article>
 
@@ -180,6 +236,11 @@ export default async function BuyItemPage({
           className="space-y-4 rounded-[28px] border border-white/10 bg-white/5 p-6"
         >
           <input type="hidden" name="quantity" value={String(quantity)} />
+          <input type="hidden" name="selectedVariantId" value={selectedVariantId} />
+          <input type="hidden" name="desiredColor" value={desiredColor} />
+          <input type="hidden" name="desiredSize" value={desiredSize} />
+          <input type="hidden" name="desiredFinish" value={desiredFinish} />
+          <input type="hidden" name="couponCode" value={couponCode} />
 
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-white/45">
@@ -202,6 +263,12 @@ export default async function BuyItemPage({
                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Prazo</p>
                 <p className="mt-2 text-sm font-semibold text-white/86">{getShowcaseLeadTimeLabel(item)}</p>
               </div>
+              {selectedVariant ? (
+                <div className="rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3 sm:col-span-2">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Variacao</p>
+                  <p className="mt-2 text-sm font-semibold text-white/86">{selectedVariant.label}</p>
+                </div>
+              ) : null}
             </div>
           </div>
 

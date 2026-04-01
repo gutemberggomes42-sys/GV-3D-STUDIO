@@ -22,18 +22,44 @@ function sanitizeNotes(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
+function sanitizeField(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
 function buildBuyPageRedirect(
   request: NextRequest,
   itemId: string,
   quantity: number,
   message: string,
   notes?: string,
+  options?: {
+    selectedVariantId?: string;
+    desiredColor?: string;
+    desiredSize?: string;
+    desiredFinish?: string;
+    couponCode?: string;
+  },
 ) {
   const url = new URL(`/comprar/${itemId}`, request.url);
   url.searchParams.set("quantity", String(quantity));
   url.searchParams.set("message", message);
   if (notes) {
     url.searchParams.set("notes", notes);
+  }
+  if (options?.selectedVariantId) {
+    url.searchParams.set("selectedVariantId", options.selectedVariantId);
+  }
+  if (options?.desiredColor) {
+    url.searchParams.set("desiredColor", options.desiredColor);
+  }
+  if (options?.desiredSize) {
+    url.searchParams.set("desiredSize", options.desiredSize);
+  }
+  if (options?.desiredFinish) {
+    url.searchParams.set("desiredFinish", options.desiredFinish);
+  }
+  if (options?.couponCode) {
+    url.searchParams.set("couponCode", options.couponCode);
   }
   return new NextResponse(null, {
     status: 303,
@@ -62,6 +88,11 @@ export async function POST(
   const customerName = String(formData.get("customerName") ?? "").trim();
   const customerPhone = sanitizePhone(String(formData.get("customerPhone") ?? ""));
   const notes = sanitizeNotes(String(formData.get("notes") ?? ""));
+  const selectedVariantId = sanitizeField(String(formData.get("selectedVariantId") ?? ""));
+  const desiredColor = sanitizeField(String(formData.get("desiredColor") ?? ""));
+  const desiredSize = sanitizeField(String(formData.get("desiredSize") ?? ""));
+  const desiredFinish = sanitizeField(String(formData.get("desiredFinish") ?? ""));
+  const couponCode = sanitizeField(String(formData.get("couponCode") ?? ""));
 
   if (customerName.length < 2) {
     return buildBuyPageRedirect(
@@ -70,6 +101,7 @@ export async function POST(
       quantity,
       "Informe o nome para continuar.",
       notes,
+      { selectedVariantId, desiredColor, desiredSize, desiredFinish, couponCode },
     );
   }
 
@@ -80,6 +112,7 @@ export async function POST(
       quantity,
       "Informe um telefone ou WhatsApp valido.",
       notes,
+      { selectedVariantId, desiredColor, desiredSize, desiredFinish, couponCode },
     );
   }
 
@@ -103,22 +136,42 @@ export async function POST(
         throw new Error(`Quantidade indisponivel. Estoque atual: ${item.stockQuantity}.`);
       }
 
+      const selectedVariant = item.variants.find(
+        (variant) => variant.id === selectedVariantId && variant.active,
+      );
+      const unitPrice = item.price + (selectedVariant?.priceAdjustment ?? 0);
+      const couponDiscount =
+        couponCode && item.couponCode && couponCode.toLowerCase() === item.couponCode.toLowerCase()
+          ? item.couponDiscountPercent ?? 0
+          : 0;
+      const estimatedTotal = unitPrice * quantity * (1 - couponDiscount / 100);
+
       const message = [
         "Olá! Quero comprar este item da vitrine.",
         `Item: ${item.name}`,
         `Quantidade: ${quantity}`,
         `Disponibilidade: ${item.fulfillmentType === "MADE_TO_ORDER" ? "Sob encomenda" : "Pronta entrega"}`,
-        `Valor estimado: ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.price * quantity)}`,
+        `Valor estimado: ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(estimatedTotal)}`,
+        selectedVariant ? `Variacao: ${selectedVariant.label}` : null,
+        desiredColor ? `Cor desejada: ${desiredColor}` : null,
+        desiredSize ? `Tamanho desejado: ${desiredSize}` : null,
+        desiredFinish ? `Acabamento: ${desiredFinish}` : null,
+        couponDiscount ? `Cupom aplicado: ${couponCode}` : null,
         `Cliente: ${customerName}`,
         `Telefone: ${customerPhone}`,
         ...(notes ? [`Observacao: ${notes}`] : []),
-      ].join("\n");
+      ]
+        .filter(Boolean)
+        .join("\n");
       const url = `https://api.whatsapp.com/send?phone=${ownerWhatsAppNumber}&text=${encodeURIComponent(message)}`;
       const now = new Date().toISOString();
       const customer = await ensureCustomerRecord(db, {
         name: customerName,
         phone: customerPhone,
       });
+
+      item.whatsappClickCount += 1;
+      item.updatedAt = now;
 
       db.showcaseInquiries.unshift({
         id: createId("ldw"),
@@ -134,6 +187,12 @@ export async function POST(
         ownerEmail,
         whatsappNumber: ownerWhatsAppNumber,
         whatsappUrl: url,
+        estimatedTotal,
+        selectedVariantLabel: selectedVariant?.label,
+        desiredColor: desiredColor || undefined,
+        desiredSize: desiredSize || undefined,
+        desiredFinish: desiredFinish || undefined,
+        couponCode: couponDiscount ? couponCode : undefined,
         status: "PENDING",
         tags: [],
         leadTemperature: "WARM",
@@ -157,6 +216,7 @@ export async function POST(
       quantity,
       error instanceof Error ? error.message : "Nao foi possivel abrir o WhatsApp.",
       notes,
+      { selectedVariantId, desiredColor, desiredSize, desiredFinish, couponCode },
     );
   }
 }

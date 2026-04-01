@@ -2,12 +2,18 @@ import { UserRole } from "@prisma/client";
 import { AppShell } from "@/components/app-shell";
 import { ShowcaseCatalogExplorer } from "@/components/showcase-catalog-explorer";
 import type { SessionUser } from "@/lib/auth";
-import type { DbShowcaseItem } from "@/lib/db-types";
+import type {
+  DbShowcaseItem,
+  DbShowcaseTestimonial,
+  DbStorefrontSettings,
+} from "@/lib/db-types";
 
 type ShowcaseCatalogProps = {
   user: SessionUser | null;
   items: DbShowcaseItem[];
   inquiryCounts: Record<string, number>;
+  settings: DbStorefrontSettings;
+  testimonials: DbShowcaseTestimonial[];
   message?: string | null;
   pathname: string;
 };
@@ -16,6 +22,8 @@ export function ShowcaseCatalog({
   user,
   items,
   inquiryCounts,
+  settings,
+  testimonials,
   message,
   pathname,
 }: ShowcaseCatalogProps) {
@@ -25,8 +33,8 @@ export function ShowcaseCatalog({
     <AppShell
       user={user}
       pathname={pathname}
-      title="Catalogo da loja"
-      subtitle="Explore a colecao, descubra pecas com personalidade e compre ou encomende com um atendimento rapido no WhatsApp."
+      title={settings.brandName}
+      subtitle={settings.heroSubtitle}
     >
       {message ? (
         <div className="rounded-[24px] border border-amber-400/20 bg-amber-500/10 px-5 py-4 text-sm text-amber-50">
@@ -37,6 +45,8 @@ export function ShowcaseCatalog({
       <ShowcaseCatalogExplorer
         items={visibleItems}
         inquiryCounts={inquiryCounts}
+        settings={settings}
+        testimonials={testimonials}
         canManage={Boolean(user && user.role !== UserRole.CLIENT)}
       />
     </AppShell>

@@ -30,9 +30,16 @@ export async function getHydratedData() {
     payables: db.payables,
     auditLogs: db.auditLogs,
     orders,
+    storefrontSettings: db.storefrontSettings,
     showcaseItems: [...db.showcaseItems].sort(
       (a, b) =>
         Number(b.featured) - Number(a.featured) ||
+        b.updatedAt.localeCompare(a.updatedAt),
+    ),
+    showcaseTestimonials: [...db.showcaseTestimonials].sort(
+      (a, b) =>
+        Number(b.featured) - Number(a.featured) ||
+        a.sortOrder - b.sortOrder ||
         b.updatedAt.localeCompare(a.updatedAt),
     ),
     showcaseInquiries: [...db.showcaseInquiries].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),

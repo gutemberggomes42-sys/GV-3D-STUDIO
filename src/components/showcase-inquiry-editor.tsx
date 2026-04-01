@@ -14,7 +14,7 @@ import {
   showcaseLeadTemperatureMeta,
 } from "@/lib/constants";
 import type { DbShowcaseInquiry, DbShowcaseItem } from "@/lib/db-types";
-import { formatDateTime } from "@/lib/format";
+import { formatCurrency, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type ShowcaseInquiryEditorProps = {
@@ -57,6 +57,40 @@ export function ShowcaseInquiryEditor({
             Produto: <span className="font-semibold text-white">{inquiry.itemName}</span>
             {" · "}Quantidade: {inquiry.quantity}
           </p>
+          {inquiry.estimatedTotal != null ? (
+            <p className="mt-2 text-sm text-white/60">
+              Valor estimado: {formatCurrency(inquiry.estimatedTotal)}
+            </p>
+          ) : null}
+          {(inquiry.selectedVariantLabel || inquiry.desiredColor || inquiry.desiredSize || inquiry.desiredFinish) ? (
+            <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/55">
+              {inquiry.selectedVariantLabel ? (
+                <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1">
+                  Variacao: {inquiry.selectedVariantLabel}
+                </span>
+              ) : null}
+              {inquiry.desiredColor ? (
+                <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1">
+                  Cor: {inquiry.desiredColor}
+                </span>
+              ) : null}
+              {inquiry.desiredSize ? (
+                <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1">
+                  Tamanho: {inquiry.desiredSize}
+                </span>
+              ) : null}
+              {inquiry.desiredFinish ? (
+                <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1">
+                  Acabamento: {inquiry.desiredFinish}
+                </span>
+              ) : null}
+              {inquiry.couponCode ? (
+                <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-emerald-100">
+                  Cupom: {inquiry.couponCode}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
           <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/55">
             <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1">
               Follow-up: {followUpLabel}

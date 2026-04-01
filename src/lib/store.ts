@@ -315,6 +315,18 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
         materialConsumptionValue: normalizedOrder.materialConsumptionValue ?? 0,
       };
     }),
+    storefrontSettings: {
+      ...initial.storefrontSettings,
+      ...(data.storefrontSettings ?? {}),
+      heroHighlights:
+        data.storefrontSettings?.heroHighlights?.map((entry) => entry.trim()).filter(Boolean) ??
+        initial.storefrontSettings.heroHighlights,
+      seoKeywords:
+        data.storefrontSettings?.seoKeywords?.map((entry) => entry.trim()).filter(Boolean) ??
+        initial.storefrontSettings.seoKeywords,
+      updatedAt:
+        data.storefrontSettings?.updatedAt ?? initial.storefrontSettings.updatedAt,
+    },
     showcaseItems: (data.showcaseItems ?? initial.showcaseItems).map((item) => {
       const normalizedItem = item as Partial<PrintFlowDb["showcaseItems"][number]>;
       return {
@@ -326,21 +338,65 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
         materialId: normalizedItem.materialId ?? undefined,
         colorOptions:
           normalizedItem.colorOptions?.map((entry) => entry.trim()).filter(Boolean) ?? [],
+        sizeOptions:
+          normalizedItem.sizeOptions?.map((entry) => entry.trim()).filter(Boolean) ?? [],
+        finishOptions:
+          normalizedItem.finishOptions?.map((entry) => entry.trim()).filter(Boolean) ?? [],
+        badges:
+          normalizedItem.badges?.map((entry) => entry.trim()).filter(Boolean) ?? [],
+        deliveryModes:
+          normalizedItem.deliveryModes?.filter(Boolean) ?? ["PICKUP", "SHIPPING"],
         dimensionSummary: normalizedItem.dimensionSummary?.trim() || undefined,
+        shippingSummary: normalizedItem.shippingSummary?.trim() || undefined,
+        promotionLabel: normalizedItem.promotionLabel?.trim() || undefined,
+        compareAtPrice: normalizedItem.compareAtPrice ?? undefined,
+        couponCode: normalizedItem.couponCode?.trim() || undefined,
+        couponDiscountPercent: normalizedItem.couponDiscountPercent ?? undefined,
+        seoTitle: normalizedItem.seoTitle?.trim() || undefined,
+        seoDescription: normalizedItem.seoDescription?.trim() || undefined,
+        seoKeywords:
+          normalizedItem.seoKeywords?.map((entry) => entry.trim()).filter(Boolean) ?? [],
         leadTimeDays:
           normalizedItem.leadTimeDays ??
           (normalizedItem.fulfillmentType === "MADE_TO_ORDER" ? 5 : 0),
         videoUrl: normalizedItem.videoUrl ?? undefined,
         galleryImageUrls:
           normalizedItem.galleryImageUrls?.map((entry) => entry.trim()).filter(Boolean) ?? [],
+        variants:
+          normalizedItem.variants?.map((variant) => ({
+            ...variant,
+            label: variant.label?.trim() || "Variacao",
+            color: variant.color?.trim() || undefined,
+            size: variant.size?.trim() || undefined,
+            finish: variant.finish?.trim() || undefined,
+            priceAdjustment: variant.priceAdjustment ?? 0,
+            stockQuantity: variant.stockQuantity ?? undefined,
+            galleryImageUrls:
+              variant.galleryImageUrls?.map((entry) => entry.trim()).filter(Boolean) ?? [],
+            active: variant.active ?? true,
+          })) ?? [],
         fulfillmentType: normalizedItem.fulfillmentType ?? "STOCK",
         stockQuantity: normalizedItem.stockQuantity ?? 0,
         estimatedPrintHours: normalizedItem.estimatedPrintHours ?? 1,
         estimatedMaterialGrams: normalizedItem.estimatedMaterialGrams ?? 0,
+        viewCount: normalizedItem.viewCount ?? 0,
+        whatsappClickCount: normalizedItem.whatsappClickCount ?? 0,
         featured: normalizedItem.featured ?? false,
         active: normalizedItem.active ?? true,
       };
     }),
+    showcaseTestimonials: (data.showcaseTestimonials ?? initial.showcaseTestimonials).map(
+      (testimonial) => ({
+        ...testimonial,
+        city: testimonial.city?.trim() || undefined,
+        role: testimonial.role?.trim() || undefined,
+        instagramHandle: testimonial.instagramHandle?.trim() || undefined,
+        productName: testimonial.productName?.trim() || undefined,
+        imageUrl: testimonial.imageUrl?.trim() || undefined,
+        featured: testimonial.featured ?? true,
+        sortOrder: testimonial.sortOrder ?? 0,
+      }),
+    ),
     showcaseInquiries: (data.showcaseInquiries ?? initial.showcaseInquiries).map((inquiry) => {
       const normalizedInquiry = inquiry as Partial<PrintFlowDb["showcaseInquiries"][number]>;
       return {
@@ -348,6 +404,12 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
         orderNumber: normalizedInquiry.orderNumber ?? undefined,
         customerEmail: normalizedInquiry.customerEmail ?? "",
         customerPhone: normalizedInquiry.customerPhone ?? undefined,
+        estimatedTotal: normalizedInquiry.estimatedTotal ?? undefined,
+        selectedVariantLabel: normalizedInquiry.selectedVariantLabel?.trim() || undefined,
+        desiredColor: normalizedInquiry.desiredColor?.trim() || undefined,
+        desiredSize: normalizedInquiry.desiredSize?.trim() || undefined,
+        desiredFinish: normalizedInquiry.desiredFinish?.trim() || undefined,
+        couponCode: normalizedInquiry.couponCode?.trim() || undefined,
         source: normalizedInquiry.source ?? "CATALOG",
         notes: normalizedInquiry.notes ?? undefined,
         status: normalizedInquiry.status ?? "PENDING",
