@@ -92,6 +92,62 @@ function BrandBackdrop({ compact = false }: { compact?: boolean }) {
   );
 }
 
+function BrandSurfaceWatermark({ compact = false }: { compact?: boolean }) {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div
+        className={cn(
+          "absolute right-[-8%] top-[10%] rounded-full blur-3xl",
+          compact
+            ? "h-[24rem] w-[24rem] bg-cyan-400/14 sm:h-[34rem] sm:w-[34rem] lg:h-[42rem] lg:w-[42rem]"
+            : "h-[28rem] w-[28rem] bg-cyan-400/16 sm:h-[38rem] sm:w-[38rem] lg:h-[48rem] lg:w-[48rem]",
+        )}
+      />
+      <div
+        className={cn(
+          "absolute bottom-[-12%] left-[-10%] rounded-full blur-3xl",
+          compact
+            ? "h-[20rem] w-[20rem] bg-fuchsia-500/10 sm:h-[28rem] sm:w-[28rem]"
+            : "h-[24rem] w-[24rem] bg-fuchsia-500/12 sm:h-[34rem] sm:w-[34rem]",
+        )}
+      />
+      <div
+        className={cn(
+          "absolute right-[-4%] top-1/2 -translate-y-1/2",
+          compact
+            ? "h-[34rem] w-[34rem] opacity-[0.16] sm:h-[46rem] sm:w-[46rem] lg:h-[58rem] lg:w-[58rem]"
+            : "h-[40rem] w-[40rem] opacity-[0.2] sm:h-[54rem] sm:w-[54rem] lg:h-[68rem] lg:w-[68rem]",
+        )}
+      >
+        <Image
+          src={studioBrandLogoPath}
+          alt=""
+          fill
+          sizes={compact ? "72vw" : "88vw"}
+          className="object-contain saturate-[1.7] brightness-[1.14] contrast-[1.12] drop-shadow-[0_0_110px_rgba(105,189,255,0.22)]"
+        />
+      </div>
+      <div
+        className={cn(
+          "absolute left-[14%] top-[14%] -rotate-[16deg]",
+          compact
+            ? "h-40 w-40 opacity-[0.08] sm:h-56 sm:w-56"
+            : "h-48 w-48 opacity-[0.1] sm:h-64 sm:w-64",
+        )}
+      >
+        <Image
+          src={studioBrandLogoPath}
+          alt=""
+          fill
+          sizes="20vw"
+          className="object-contain saturate-[1.5] brightness-[1.1]"
+        />
+      </div>
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,7,11,0.52)_0%,rgba(3,7,11,0.25)_36%,rgba(3,7,11,0.08)_62%,rgba(3,7,11,0.24)_100%)]" />
+    </div>
+  );
+}
+
 export function AppShell({ user, pathname, title, subtitle, children }: AppShellProps) {
   const visibleRoutes = user
     ? dashboardRoutes.filter((route) => route.roles.includes(user.role))
@@ -107,7 +163,8 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
         <BrandBackdrop />
         <div className="relative z-10 mx-auto max-w-[1700px] px-4 py-4 lg:px-6">
           <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-black/22 backdrop-blur-xl">
-            <header className="border-b border-white/10 bg-white/[0.03] px-5 py-5 sm:px-6 lg:px-8">
+            <BrandSurfaceWatermark />
+            <header className="relative z-10 border-b border-white/10 bg-white/[0.03] px-5 py-5 sm:px-6 lg:px-8">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <Link href="/" className="flex items-start gap-4 rounded-[28px] border border-white/8 bg-white/[0.025] px-3 py-3 transition hover:border-white/12 hover:bg-white/[0.04] sm:px-4">
                   <div className="relative shrink-0">
@@ -157,7 +214,7 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
               </div>
             </header>
 
-            <main className="px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+            <main className="relative z-10 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
               <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6">
                 <p className="text-xs uppercase tracking-[0.28em] text-white/45">{brandTitle}</p>
                 <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -171,7 +228,7 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
               <div className="mt-6 space-y-6">{children}</div>
             </main>
 
-            <footer className="border-t border-white/10 bg-white/[0.03] px-5 py-5 sm:px-6 lg:px-8">
+            <footer className="relative z-10 border-t border-white/10 bg-white/[0.03] px-5 py-5 sm:px-6 lg:px-8">
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-white/45">Loja autoral</p>
@@ -197,7 +254,7 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
             <Link
               href="/acesso"
               aria-label="Acesso administrativo"
-              className="group absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-black/45 px-3 py-2 text-white/72 shadow-[0_12px_32px_rgba(0,0,0,0.24)] transition hover:border-amber-300/35 hover:bg-black/60 hover:text-white focus-visible:border-amber-300/35 focus-visible:bg-black/60 focus-visible:text-white"
+              className="group absolute bottom-5 left-5 z-10 inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-black/45 px-3 py-2 text-white/72 shadow-[0_12px_32px_rgba(0,0,0,0.24)] transition hover:border-amber-300/35 hover:bg-black/60 hover:text-white focus-visible:border-amber-300/35 focus-visible:bg-black/60 focus-visible:text-white"
             >
               <KeyRound className="h-3.5 w-3.5" />
               <span className="text-xs font-semibold">
@@ -294,8 +351,9 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
           ) : null}
         </aside>
 
-        <main className="rounded-[32px] border border-white/10 bg-black/20 p-4 backdrop-blur-xl lg:p-6">
-          <header className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+        <main className="relative overflow-hidden rounded-[32px] border border-white/10 bg-black/20 p-4 backdrop-blur-xl lg:p-6">
+          <BrandSurfaceWatermark compact />
+          <header className="relative z-10 rounded-[28px] border border-white/10 bg-white/5 p-6">
             <div className="flex items-center gap-3">
               <Image
                 src={studioBrandLogoPath}
@@ -315,7 +373,7 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
             </div>
           </header>
 
-          <div className="mt-6 space-y-6">{children}</div>
+          <div className="relative z-10 mt-6 space-y-6">{children}</div>
         </main>
       </div>
     </div>
