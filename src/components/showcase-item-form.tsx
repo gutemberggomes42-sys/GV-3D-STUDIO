@@ -383,6 +383,9 @@ function ShowcaseItemFormContent({
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-white/45">Midia</p>
           <h4 className="mt-2 text-lg font-semibold text-white/92">Imagem, video e galeria</h4>
+          <p className="mt-2 text-sm text-white/55">
+            O video e opcional e serve apenas como adicional para destacar o produto.
+          </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">

@@ -1076,14 +1076,32 @@ async function resolveShowcaseImageUrl(formData: FormData) {
 async function resolveShowcaseVideoUrl(formData: FormData) {
   const videoFile = formData.get("videoFile");
 
-  if (!(videoFile instanceof File) || !videoFile.name) {
+  if (!(videoFile instanceof File) || !videoFile.name || videoFile.size === 0) {
     return null;
   }
 
   const fileExtension = getFileExtension(videoFile.name);
+  const contentType = (videoFile.type || "").toLowerCase();
+  const allowedVideoMimeTypes = new Set([
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+    "video/x-m4v",
+  ]);
 
-  if (!allowedVideoFormats.includes(fileExtension as (typeof allowedVideoFormats)[number])) {
-    throw new Error("Use um video MP4, WEBM ou MOV.");
+  // O video eh opcional. Se um arquivo de imagem cair aqui por engano, ignoramos
+  // para nao bloquear o cadastro do produto por causa do campo adicional.
+  if (contentType.startsWith("image/")) {
+    return null;
+  }
+
+  const hasAcceptedExtension = allowedVideoFormats.includes(
+    fileExtension as (typeof allowedVideoFormats)[number],
+  );
+  const hasAcceptedMimeType = allowedVideoMimeTypes.has(contentType);
+
+  if (!hasAcceptedExtension && !hasAcceptedMimeType) {
+    throw new Error("Use um video MP4, WEBM, MOV ou M4V.");
   }
 
   return saveUpload(videoFile);

@@ -458,6 +458,9 @@ function ShowcaseItemEditorContent({
               </div>
 
               <div className="space-y-4 rounded-[24px] border border-white/10 bg-black/20 p-4">
+                <p className="text-sm text-white/55">
+                  O video continua opcional e funciona apenas como midia extra do produto.
+                </p>
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="block text-sm text-white/70">
                     Imagem principal por URL
