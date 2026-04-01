@@ -26,6 +26,44 @@ type AppShellProps = {
   children: React.ReactNode;
 };
 
+function BrandBackdrop({ compact = false }: { compact?: boolean }) {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute left-[-10%] top-[-8%] h-[24rem] w-[24rem] rounded-full bg-cyan-400/10 blur-3xl sm:h-[32rem] sm:w-[32rem]" />
+      <div className="absolute bottom-[-12%] right-[-8%] h-[24rem] w-[24rem] rounded-full bg-fuchsia-500/10 blur-3xl sm:h-[34rem] sm:w-[34rem]" />
+      <div
+        className={cn(
+          "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
+          compact ? "h-[30rem] w-[30rem] opacity-[0.06] sm:h-[38rem] sm:w-[38rem]" : "h-[34rem] w-[34rem] opacity-[0.07] sm:h-[48rem] sm:w-[48rem]",
+        )}
+      >
+        <Image
+          src={studioBrandLogoPath}
+          alt=""
+          fill
+          sizes={compact ? "55vw" : "70vw"}
+          className="object-contain saturate-150"
+          priority
+        />
+      </div>
+      <div
+        className={cn(
+          "absolute -right-12 top-10 rotate-[-10deg] blur-[2px]",
+          compact ? "h-44 w-44 opacity-[0.04] sm:h-56 sm:w-56" : "h-52 w-52 opacity-[0.05] sm:h-72 sm:w-72",
+        )}
+      >
+        <Image
+          src={studioBrandLogoPath}
+          alt=""
+          fill
+          sizes="24vw"
+          className="object-contain"
+        />
+      </div>
+    </div>
+  );
+}
+
 export function AppShell({ user, pathname, title, subtitle, children }: AppShellProps) {
   const visibleRoutes = user
     ? dashboardRoutes.filter((route) => route.roles.includes(user.role))
@@ -37,8 +75,9 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.22),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(89,185,255,0.18),_transparent_30%),linear-gradient(180deg,_#05070a_0%,_#091119_45%,_#05070a_100%)] text-white">
-        <div className="mx-auto max-w-[1700px] px-4 py-4 lg:px-6">
+      <div className="relative isolate min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.22),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(89,185,255,0.18),_transparent_30%),linear-gradient(180deg,_#05070a_0%,_#091119_45%,_#05070a_100%)] text-white">
+        <BrandBackdrop />
+        <div className="relative z-10 mx-auto max-w-[1700px] px-4 py-4 lg:px-6">
           <div className="relative overflow-hidden rounded-[34px] border border-white/10 bg-black/22 backdrop-blur-xl">
             <header className="border-b border-white/10 bg-white/[0.03] px-5 py-5 sm:px-6 lg:px-8">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -144,8 +183,9 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.22),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(89,185,255,0.18),_transparent_30%),linear-gradient(180deg,_#05070a_0%,_#091119_45%,_#05070a_100%)] text-white">
-      <div className="mx-auto grid min-h-screen max-w-[1600px] gap-6 px-4 py-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:px-6">
+    <div className="relative isolate min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.22),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(89,185,255,0.18),_transparent_30%),linear-gradient(180deg,_#05070a_0%,_#091119_45%,_#05070a_100%)] text-white">
+      <BrandBackdrop compact />
+      <div className="relative z-10 mx-auto grid min-h-screen max-w-[1600px] gap-6 px-4 py-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:px-6">
         <aside className="relative rounded-[32px] border border-white/10 bg-black/30 p-6 backdrop-blur-xl">
           <div className="rounded-[28px] border border-orange-400/20 bg-gradient-to-br from-orange-500/25 via-orange-500/10 to-transparent p-5">
             <div className="flex items-center gap-4">
