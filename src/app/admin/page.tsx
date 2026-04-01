@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 type AdminSection =
   | "summary"
   | "vitrine"
+  | "configuracoes"
   | "leads"
   | "pedidos"
   | "clientes"
@@ -63,6 +64,7 @@ const adminSections: Array<{
 }> = [
   { key: "summary", label: "Resumo", description: "Visão geral e atalhos do dono" },
   { key: "vitrine", label: "Vitrine", description: "Cadastrar e editar produtos expostos" },
+  { key: "configuracoes", label: "Configurações", description: "Banner, textos e presença da marca" },
   { key: "leads", label: "Leads", description: "Ver quem chamou no WhatsApp" },
   { key: "pedidos", label: "Pedidos", description: "Faturamento, fila e andamento" },
   { key: "clientes", label: "Clientes", description: "Carteira e recorrência" },
@@ -316,8 +318,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   });
 
   const sectionCounts: Record<AdminSection, string> = {
-    summary: "7 areas",
+    summary: "8 areas",
     vitrine: `${showcaseItems.length} itens`,
+    configuracoes: `${showcaseTestimonials.length} ajustes`,
     leads: `${showcaseInquiries.length} contatos`,
     pedidos: `${orders.length + closedShowcaseOrders.length} pedidos`,
     clientes: `${customers.length} clientes`,
@@ -628,6 +631,40 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <MetricCard label="Cliques no WhatsApp" value={String(showcaseClicksTotal)} caption={`${showcaseConversionRate}% de cliques sobre visualizações.`} accent="mint" />
           </section>
 
+          <ShowcaseItemForm materials={materials} />
+
+          <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Produtos cadastrados</p>
+            <h3 className="mt-2 text-2xl font-semibold">Edite cada item separadamente</h3>
+            <div className="mt-6 space-y-4">
+              {showcaseItems.length ? (
+                showcaseItems.map((item) => (
+                  <ShowcaseItemEditor
+                    key={item.id}
+                    item={item}
+                    interestCount={showcaseInquiries.filter((inquiry) => inquiry.itemId === item.id).length}
+                    materials={materials}
+                  />
+                ))
+              ) : (
+                <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-5 text-sm text-white/60">
+                  Nenhum item cadastrado ainda. Use o formulário acima para subir a primeira peça da vitrine.
+                </div>
+              )}
+            </div>
+          </section>
+        </>
+      ) : null}
+
+      {activeSection === "configuracoes" ? (
+        <>
+          <section className="grid gap-4 xl:grid-cols-4">
+            <MetricCard label="Visualizações" value={String(showcaseViewsTotal)} caption="Acessos nas páginas dos produtos." accent="blue" />
+            <MetricCard label="Cliques no WhatsApp" value={String(showcaseClicksTotal)} caption={`${showcaseConversionRate}% de cliques sobre visualizações.`} accent="mint" />
+            <MetricCard label="Depoimentos" value={String(showcaseTestimonials.length)} caption="Prova social cadastrada para a loja." accent="orange" />
+            <MetricCard label="Itens em destaque" value={String(showcaseItems.filter((item) => item.featured).length)} caption="Produtos marcados como destaque." accent="rose" />
+          </section>
+
           <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
             <StorefrontSettingsForm settings={storefrontSettings} />
 
@@ -685,8 +722,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </div>
           </section>
 
-          <ShowcaseItemForm materials={materials} />
-
           <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
@@ -708,27 +743,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               ) : (
                 <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-5 text-sm text-white/60">
                   Ainda não há depoimentos cadastrados para a loja.
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
-            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Produtos cadastrados</p>
-            <h3 className="mt-2 text-2xl font-semibold">Edite cada item separadamente</h3>
-            <div className="mt-6 space-y-4">
-              {showcaseItems.length ? (
-                showcaseItems.map((item) => (
-                  <ShowcaseItemEditor
-                    key={item.id}
-                    item={item}
-                    interestCount={showcaseInquiries.filter((inquiry) => inquiry.itemId === item.id).length}
-                    materials={materials}
-                  />
-                ))
-              ) : (
-                <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-5 text-sm text-white/60">
-                  Nenhum item cadastrado ainda. Use o formulário acima para subir a primeira peça da vitrine.
                 </div>
               )}
             </div>

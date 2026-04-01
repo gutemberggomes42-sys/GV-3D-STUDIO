@@ -712,6 +712,10 @@ function buildAdminShowcaseSectionUrl(message: string) {
   return `/admin?section=vitrine&message=${encodeURIComponent(message)}`;
 }
 
+function buildAdminSettingsSectionUrl(message: string) {
+  return `/admin?section=configuracoes&message=${encodeURIComponent(message)}`;
+}
+
 function buildAdminSummaryUrl(
   value: string,
   type: "message" | "error" = "message",
@@ -2540,7 +2544,7 @@ export async function updateStorefrontSettingsAction(
     });
 
     revalidateAll();
-    redirect(buildAdminShowcaseSectionUrl("Configuracoes da loja salvas com sucesso."));
+    redirect(buildAdminSettingsSectionUrl("Configuracoes da loja salvas com sucesso."));
   } catch (error) {
     return {
       ok: false,
@@ -2587,7 +2591,7 @@ export async function createShowcaseTestimonialAction(
     });
 
     revalidateAll();
-    redirect(buildAdminShowcaseSectionUrl("Depoimento salvo com sucesso."));
+    redirect(buildAdminSettingsSectionUrl("Depoimento salvo com sucesso."));
   } catch (error) {
     return {
       ok: false,
@@ -2652,7 +2656,7 @@ export async function updateShowcaseTestimonialAction(
     });
 
     revalidateAll();
-    redirect(buildAdminShowcaseSectionUrl("Depoimento atualizado com sucesso."));
+    redirect(buildAdminSettingsSectionUrl("Depoimento atualizado com sucesso."));
   } catch (error) {
     return {
       ok: false,
@@ -2697,7 +2701,7 @@ export async function deleteShowcaseTestimonialAction(
     });
 
     revalidateAll();
-    redirect(buildAdminShowcaseSectionUrl("Depoimento removido com sucesso."));
+    redirect(buildAdminSettingsSectionUrl("Depoimento removido com sucesso."));
   } catch (error) {
     return {
       ok: false,
