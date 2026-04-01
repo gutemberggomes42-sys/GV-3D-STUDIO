@@ -3,7 +3,7 @@ import { hashPassword } from "@/lib/auth";
 import type { DbUser, PrintFlowDb } from "@/lib/db-types";
 import { createId } from "@/lib/store";
 
-const generatedCustomerEmailDomain = "@printflow3d.local";
+const generatedCustomerEmailDomain = "@gv3dstudio.local";
 
 function normalizeEmail(value?: string) {
   return value?.trim().toLowerCase() ?? "";

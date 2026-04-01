@@ -206,7 +206,7 @@ export function StorefrontSettingsForm({ settings }: StorefrontSettingsFormProps
             <input
               name="instagramHandle"
               defaultValue={fields.instagramHandle ?? settings.instagramHandle ?? ""}
-              placeholder="@printflow3d"
+              placeholder="@gv3dstudio"
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             />
           </label>

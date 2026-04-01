@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
 import { ErrorRecoveryReset } from "@/components/error-recovery-reset";
+import { studioBrandLogoPath, studioBrandName } from "@/lib/branding";
 import "./globals.css";
 
 const headingFont = Space_Grotesk({
@@ -13,9 +14,24 @@ const bodyFont = Manrope({
   subsets: ["latin"],
 });
 
+const metadataBaseUrl =
+  process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+  process.env.RENDER_EXTERNAL_URL?.trim() ||
+  "http://localhost:3000";
+
 export const metadata: Metadata = {
-  title: "PrintFlow 3D",
-  description: "Loja e operacao completa para pecas impressas em 3D, encomendas e atendimento pelo WhatsApp.",
+  metadataBase: new URL(metadataBaseUrl),
+  title: studioBrandName,
+  description: "Loja e operacao completa da GV 3D Studio para pecas impressas em 3D, encomendas e atendimento pelo WhatsApp.",
+  icons: {
+    icon: studioBrandLogoPath,
+    apple: studioBrandLogoPath,
+  },
+  openGraph: {
+    title: studioBrandName,
+    description: "Loja e operacao completa da GV 3D Studio para pecas impressas em 3D, encomendas e atendimento pelo WhatsApp.",
+    images: [studioBrandLogoPath],
+  },
 };
 
 export default function RootLayout({

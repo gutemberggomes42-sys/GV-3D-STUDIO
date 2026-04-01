@@ -1,4 +1,5 @@
 import type { PrintFlowDb } from "@/lib/db-types";
+import { studioBrandLogoPath, studioBrandName } from "@/lib/branding";
 
 export function createInitialData(): PrintFlowDb {
   const now = new Date().toISOString();
@@ -12,7 +13,7 @@ export function createInitialData(): PrintFlowDb {
     payables: [],
     orders: [],
     storefrontSettings: {
-      brandName: "PrintFlow 3D",
+      brandName: studioBrandName,
       heroEyebrow: "Colecao autoral",
       heroTitle: "Pecas 3D feitas para impressionar, decorar e presentear",
       heroSubtitle:
@@ -24,10 +25,10 @@ export function createInitialData(): PrintFlowDb {
         "Pronta entrega e encomenda",
         "Atendimento rapido no WhatsApp",
       ],
-      announcementText: "Bem-vindo a uma loja de impressao 3D com pecas feitas para chamar atencao.",
+      announcementText: "Bem-vindo a GV 3D Studio, uma loja de impressao 3D com pecas feitas para chamar atencao.",
       aboutTitle: "Quem somos",
       aboutBody:
-        "A PrintFlow 3D cria pecas impressas em 3D com foco em qualidade visual, praticidade e atendimento direto para cada cliente.",
+        "A GV 3D Studio cria pecas impressas em 3D com foco em qualidade visual, praticidade e atendimento direto para cada cliente.",
       customOrderTitle: "Como funciona a encomenda",
       customOrderBody:
         "Escolha um produto, informe a quantidade e os detalhes desejados e continue a conversa no WhatsApp para alinhar cor, prazo e entrega.",
@@ -42,11 +43,11 @@ export function createInitialData(): PrintFlowDb {
       portfolioTitle: "Portfolio da loja",
       portfolioBody:
         "Mostre aqui o Instagram, fotos reais de pecas prontas e trabalhos especiais para passar mais confianca.",
-      seoTitle: "PrintFlow 3D | Loja de pecas impressas em 3D",
+      seoTitle: "GV 3D Studio | Loja de pecas impressas em 3D",
       seoDescription:
         "Vitrine de pecas impressas em 3D com pronta entrega e encomenda, atendimento rapido no WhatsApp e informacoes reais de prazo, material e acabamento.",
       seoKeywords: ["impressao 3d", "pecas decorativas", "presentes geek", "vitrine 3d"],
-      shareImageUrl: "",
+      shareImageUrl: studioBrandLogoPath,
       updatedAt: now,
     },
     showcaseItems: [],

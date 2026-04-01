@@ -365,7 +365,7 @@ function ShowcaseItemFormContent({
         <div className="grid gap-4 md:grid-cols-2">
           <label className="block text-sm text-white/70">
             Título SEO do produto
-            <input name="seoTitle" defaultValue={fields.seoTitle ?? ""} placeholder="Nome do produto | PrintFlow 3D" className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60" />
+            <input name="seoTitle" defaultValue={fields.seoTitle ?? ""} placeholder="Nome do produto | GV 3D Studio" className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60" />
           </label>
           <label className="block text-sm text-white/70">
             Descrição SEO do produto

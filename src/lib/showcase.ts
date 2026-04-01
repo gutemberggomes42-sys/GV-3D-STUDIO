@@ -3,6 +3,7 @@ import type {
   DbShowcaseVariant,
   ShowcaseDeliveryMode,
 } from "@/lib/db-types";
+import { studioCollectionName } from "@/lib/branding";
 
 export const showcaseCategorySuggestions = [
   "Geek",
@@ -187,7 +188,7 @@ export function getShowcaseTagline(item: Pick<DbShowcaseItem, "tagline" | "descr
 }
 
 export function getShowcaseCategoryLabel(item: Pick<DbShowcaseItem, "category">) {
-  return item.category?.trim() || "Colecao PrintFlow";
+  return item.category?.trim() || studioCollectionName;
 }
 
 export function getShowcaseAvailabilityLabel(item: Pick<DbShowcaseItem, "fulfillmentType" | "stockQuantity">) {

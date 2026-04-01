@@ -1,6 +1,8 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Box, Factory, KeyRound, Layers3, LogOut, Package, Printer, Sparkles, Wallet } from "lucide-react";
 import { ShowcaseCartButton } from "@/components/showcase-cart-button";
+import { studioBrandLogoPath, studioBrandName } from "@/lib/branding";
 import { dashboardRoutes, ownerWhatsAppNumber, roleLabels } from "@/lib/constants";
 import { logoutAction } from "@/lib/actions";
 import type { SessionUser } from "@/lib/auth";
@@ -28,7 +30,7 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
   const visibleRoutes = user
     ? dashboardRoutes.filter((route) => route.roles.includes(user.role))
     : [];
-  const brandTitle = user ? "Operação 3D de ponta a ponta" : "PrintFlow 3D";
+  const brandTitle = studioBrandName;
   const brandDescription = user
     ? "Portal do cliente, fila de produção, máquinas, estoque e financeiro no mesmo painel."
     : null;
@@ -41,12 +43,19 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
             <header className="border-b border-white/10 bg-white/[0.03] px-5 py-5 sm:px-6 lg:px-8">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <Link href="/" className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-orange-400/20 bg-gradient-to-br from-orange-500/30 via-orange-500/12 to-transparent text-sm font-semibold text-orange-100">
-                    PF
+                  <div className="overflow-hidden rounded-[24px] border border-white/10 bg-white/5 p-1 shadow-[0_12px_36px_rgba(0,0,0,0.22)]">
+                    <Image
+                      src={studioBrandLogoPath}
+                      alt={studioBrandName}
+                      width={72}
+                      height={72}
+                      className="h-[58px] w-[58px] rounded-[18px] object-cover"
+                      priority
+                    />
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-[0.28em] text-orange-200/70">PrintFlow 3D</p>
-                    <h1 className="mt-2 text-2xl font-semibold tracking-tight">Loja de pecas impressas em 3D</h1>
+                    <p className="text-xs uppercase tracking-[0.28em] text-orange-200/70">{studioBrandName}</p>
+                    <h1 className="mt-2 text-2xl font-semibold tracking-tight">Studio e loja de pecas impressas em 3D</h1>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
                       Pronta entrega e encomenda com visual bonito, informacoes reais e atendimento humano pelo WhatsApp.
                     </p>
@@ -132,8 +141,22 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
       <div className="mx-auto grid min-h-screen max-w-[1600px] gap-6 px-4 py-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:px-6">
         <aside className="relative rounded-[32px] border border-white/10 bg-black/30 p-6 backdrop-blur-xl">
           <div className="rounded-[28px] border border-orange-400/20 bg-gradient-to-br from-orange-500/25 via-orange-500/10 to-transparent p-5">
-            <p className="text-xs uppercase tracking-[0.28em] text-orange-200/70">PrintFlow 3D</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight">{brandTitle}</h1>
+            <div className="flex items-center gap-4">
+              <div className="overflow-hidden rounded-[22px] border border-white/10 bg-white/5 p-1">
+                <Image
+                  src={studioBrandLogoPath}
+                  alt={studioBrandName}
+                  width={76}
+                  height={76}
+                  className="h-[60px] w-[60px] rounded-[16px] object-cover"
+                  priority
+                />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.28em] text-orange-200/70">{studioBrandName}</p>
+                <h1 className="mt-2 text-3xl font-semibold tracking-tight">{brandTitle}</h1>
+              </div>
+            </div>
             {brandDescription ? (
               <p className="mt-3 text-sm leading-6 text-white/70">{brandDescription}</p>
             ) : null}
@@ -198,7 +221,17 @@ export function AppShell({ user, pathname, title, subtitle, children }: AppShell
 
         <main className="rounded-[32px] border border-white/10 bg-black/20 p-4 backdrop-blur-xl lg:p-6">
           <header className="rounded-[28px] border border-white/10 bg-white/5 p-6">
-            <p className="text-xs uppercase tracking-[0.28em] text-white/45">PrintFlow 3D</p>
+            <div className="flex items-center gap-3">
+              <Image
+                src={studioBrandLogoPath}
+                alt={studioBrandName}
+                width={44}
+                height={44}
+                className="h-11 w-11 rounded-2xl border border-white/10 bg-white/5 object-cover"
+                priority
+              />
+              <p className="text-xs uppercase tracking-[0.28em] text-white/45">{studioBrandName}</p>
+            </div>
             <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <h2 className="text-3xl font-semibold tracking-tight lg:text-4xl">{title}</h2>

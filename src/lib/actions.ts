@@ -715,7 +715,7 @@ function buildAdminShowcaseSectionUrl(message: string) {
 function generateOrderNumber(existingOrders: DbOrder[]) {
   const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const todaysOrders = existingOrders.filter((order) => order.orderNumber.includes(datePart)).length + 1;
-  return `PF-${datePart}-${String(todaysOrders).padStart(3, "0")}`;
+  return `GV-${datePart}-${String(todaysOrders).padStart(3, "0")}`;
 }
 
 function generateShowcaseOrderNumber(existingInquiries: DbShowcaseInquiry[]) {
@@ -1032,7 +1032,7 @@ function buildCompletionNotificationUrl({
   elapsedPrintMinutes?: number;
 }) {
   const message = [
-    "Pedido finalizado no PrintFlow 3D.",
+    "Pedido finalizado na GV 3D Studio.",
     `Item: ${label}`,
     `Cliente: ${customerName}`,
     typeof quantity === "number" ? `Quantidade: ${quantity}` : null,

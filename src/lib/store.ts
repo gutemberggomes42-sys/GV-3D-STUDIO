@@ -4,6 +4,12 @@ import path from "node:path";
 import { hashSync } from "bcryptjs";
 import { UserRole } from "@prisma/client";
 import { Pool } from "pg";
+import {
+  isLegacyStudioBrandName,
+  studioBrandLogoPath,
+  studioBrandName,
+  studioCollectionName,
+} from "@/lib/branding";
 import { ownerEmail } from "@/lib/constants";
 import type { DbBackupSnapshot, PrintFlowDb } from "@/lib/db-types";
 import { createInitialData } from "@/lib/seed-data";
@@ -219,7 +225,10 @@ async function ensureOwnerBootstrap(data: PrintFlowDb) {
       email: bootstrapEmail,
       role: UserRole.ADMIN,
       phone: restoredOwner.phone || bootstrapPhone,
-      company: restoredOwner.company || "PrintFlow 3D",
+      company:
+        !restoredOwner.company || isLegacyStudioBrandName(restoredOwner.company)
+          ? studioBrandName
+          : restoredOwner.company,
       address: restoredOwner.address || "A configurar",
       projectType: restoredOwner.projectType || "Vitrine e vendas",
       avatarColor: restoredOwner.avatarColor || "#ffc857",
@@ -245,7 +254,7 @@ async function ensureOwnerBootstrap(data: PrintFlowDb) {
     passwordHash: hashSync(bootstrapPassword, 10),
     role: UserRole.ADMIN,
     phone: bootstrapPhone,
-    company: "PrintFlow 3D",
+    company: studioBrandName,
     address: "A configurar",
     projectType: "Vitrine e vendas",
     avatarColor: "#ffc857",
@@ -259,9 +268,40 @@ async function ensureOwnerBootstrap(data: PrintFlowDb) {
 
 function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
   const initial = createInitialData();
+  const sourceStorefrontSettings: Partial<PrintFlowDb["storefrontSettings"]> =
+    data.storefrontSettings ?? {};
+  const normalizedStorefrontBrandName =
+    !sourceStorefrontSettings.brandName || isLegacyStudioBrandName(sourceStorefrontSettings.brandName)
+      ? initial.storefrontSettings.brandName
+      : sourceStorefrontSettings.brandName.trim();
+  const normalizedAboutBody =
+    !sourceStorefrontSettings.aboutBody ||
+    sourceStorefrontSettings.aboutBody.includes("PrintFlow 3D")
+      ? initial.storefrontSettings.aboutBody
+      : sourceStorefrontSettings.aboutBody;
+  const normalizedAnnouncementText =
+    !sourceStorefrontSettings.announcementText ||
+    sourceStorefrontSettings.announcementText.includes("PrintFlow")
+      ? initial.storefrontSettings.announcementText
+      : sourceStorefrontSettings.announcementText;
+  const normalizedSeoTitle =
+    !sourceStorefrontSettings.seoTitle ||
+    sourceStorefrontSettings.seoTitle.includes("PrintFlow 3D")
+      ? initial.storefrontSettings.seoTitle
+      : sourceStorefrontSettings.seoTitle;
+  const normalizedShareImageUrl =
+    sourceStorefrontSettings.shareImageUrl?.trim() || studioBrandLogoPath;
 
   return {
-    users: data.users ?? initial.users,
+    users: (data.users ?? initial.users).map((user) => ({
+      ...user,
+      company:
+        !user.company || isLegacyStudioBrandName(user.company)
+          ? user.role === UserRole.ADMIN
+            ? studioBrandName
+            : user.company
+          : user.company,
+    })),
     sessions: data.sessions ?? initial.sessions,
     materials: (data.materials ?? initial.materials).map((material) => {
       const normalizedMaterial = material as Partial<PrintFlowDb["materials"][number]>;
@@ -304,6 +344,10 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
       const normalizedOrder = order as Partial<PrintFlowDb["orders"][number]>;
       return {
         ...order,
+        orderNumber:
+          normalizedOrder.orderNumber?.startsWith("PF-")
+            ? normalizedOrder.orderNumber.replace(/^PF-/, "GV-")
+            : order.orderNumber,
         estimatedMetersUsed: normalizedOrder.estimatedMetersUsed ?? 0,
         printingStartedAt: normalizedOrder.printingStartedAt ?? undefined,
         printingCompletedAt: normalizedOrder.printingCompletedAt ?? undefined,
@@ -317,21 +361,29 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
     }),
     storefrontSettings: {
       ...initial.storefrontSettings,
-      ...(data.storefrontSettings ?? {}),
+      ...sourceStorefrontSettings,
+      brandName: normalizedStorefrontBrandName,
+      aboutBody: normalizedAboutBody,
+      announcementText: normalizedAnnouncementText,
+      seoTitle: normalizedSeoTitle,
+      shareImageUrl: normalizedShareImageUrl,
       heroHighlights:
-        data.storefrontSettings?.heroHighlights?.map((entry) => entry.trim()).filter(Boolean) ??
+        sourceStorefrontSettings.heroHighlights?.map((entry) => entry.trim()).filter(Boolean) ??
         initial.storefrontSettings.heroHighlights,
       seoKeywords:
-        data.storefrontSettings?.seoKeywords?.map((entry) => entry.trim()).filter(Boolean) ??
+        sourceStorefrontSettings.seoKeywords?.map((entry) => entry.trim()).filter(Boolean) ??
         initial.storefrontSettings.seoKeywords,
       updatedAt:
-        data.storefrontSettings?.updatedAt ?? initial.storefrontSettings.updatedAt,
+        sourceStorefrontSettings.updatedAt ?? initial.storefrontSettings.updatedAt,
     },
     showcaseItems: (data.showcaseItems ?? initial.showcaseItems).map((item) => {
       const normalizedItem = item as Partial<PrintFlowDb["showcaseItems"][number]>;
       return {
         ...item,
-        category: normalizedItem.category?.trim() || "Colecao PrintFlow",
+        category:
+          !normalizedItem.category?.trim() || normalizedItem.category.trim() === "Colecao PrintFlow"
+            ? studioCollectionName
+            : normalizedItem.category.trim(),
         tagline: normalizedItem.tagline?.trim() || undefined,
         imageUrl: normalizedItem.imageUrl ?? undefined,
         materialLabel: normalizedItem.materialLabel?.trim() || undefined,
@@ -401,7 +453,10 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
       const normalizedInquiry = inquiry as Partial<PrintFlowDb["showcaseInquiries"][number]>;
       return {
         ...inquiry,
-        orderNumber: normalizedInquiry.orderNumber ?? undefined,
+        orderNumber:
+          normalizedInquiry.orderNumber?.startsWith("PF-")
+            ? normalizedInquiry.orderNumber.replace(/^PF-/, "GV-")
+            : normalizedInquiry.orderNumber ?? undefined,
         customerEmail: normalizedInquiry.customerEmail ?? "",
         customerPhone: normalizedInquiry.customerPhone ?? undefined,
         estimatedTotal: normalizedInquiry.estimatedTotal ?? undefined,

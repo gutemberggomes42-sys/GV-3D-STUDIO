@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { studioBrandName } from "@/lib/branding";
 
 const recoveryKey = "printflow_action_recovery";
 
@@ -37,7 +38,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
       <section className="w-full max-w-xl rounded-[32px] border border-white/10 bg-white/5 p-8 shadow-[0_30px_90px_rgba(0,0,0,0.35)]">
-        <p className="text-xs uppercase tracking-[0.24em] text-white/45">PrintFlow 3D</p>
+        <p className="text-xs uppercase tracking-[0.24em] text-white/45">{studioBrandName}</p>
         <h1 className="mt-4 text-3xl font-semibold">
           {isServerActionMismatch ? "Atualizando a tela" : "Não foi possível carregar esta página"}
         </h1>
