@@ -1,5 +1,5 @@
 export const studioBrandName = "GV 3D Studio";
-export const studioBrandLogoPath = "/branding/gv-3d-studio-logo.png";
+export const studioBrandLogoPath = "/branding/gv-3d-studio-logo-transparent.png";
 export const studioCollectionName = "Colecao GV 3D Studio";
 
 export const legacyStudioBrandNames = ["PrintFlow 3D"];
