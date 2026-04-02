@@ -17,16 +17,21 @@ import { StatusPill } from "@/components/status-pill";
 import { StorefrontSettingsForm } from "@/components/storefront-settings-form";
 import { SubmitButton } from "@/components/submit-button";
 import {
+  createBackupSnapshotAction,
   deleteBackupSnapshotAction,
   updateMachineStatusAction,
   updateShowcaseInquiryOrderStageAction,
 } from "@/lib/actions";
 import { requireRoles } from "@/lib/auth";
 import {
+  payableStatusLabels,
   machineStatusMeta,
   orderStatusMeta,
+  showcaseInquiryStatusMeta,
+  showcaseLeadTemperatureMeta,
   showcaseOrderStageMeta,
   showcaseOrderStageOptions,
+  technologyLabels,
 } from "@/lib/constants";
 import {
   formatCurrency,
@@ -87,18 +92,55 @@ function getSectionHref(section: AdminSection) {
   return section === "summary" ? "/admin" : `/admin?section=${section}`;
 }
 
+function normalizeSearchText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function matchesSearch(query: string, ...parts: Array<string | number | undefined | null>) {
+  if (!query) {
+    return false;
+  }
+
+  const haystack = normalizeSearchText(
+    parts
+      .filter((part) => part != null)
+      .map((part) => String(part))
+      .join(" "),
+  );
+
+  return haystack.includes(query);
+}
+
+function formatShortDate(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const user = await requireRoles([UserRole.SUPERVISOR, UserRole.ADMIN]);
   const params = searchParams ? await searchParams : {};
   const rawSection = typeof params.section === "string" ? params.section : undefined;
   const message = typeof params.message === "string" ? params.message : undefined;
   const error = typeof params.error === "string" ? params.error : undefined;
+  const rawQuery = typeof params.q === "string" ? params.q : "";
+  const searchQuery = rawQuery.trim();
+  const normalizedSearchQuery = normalizeSearchText(searchQuery);
   const activeSection = isAdminSection(rawSection) ? rawSection : "summary";
   const {
     orders,
     materials,
     machines,
     users,
+    expenses,
+    payables,
     storefrontSettings,
     showcaseItems,
     showcaseTestimonials,
@@ -335,6 +377,241 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     maquinas: `${machines.length} máquinas`,
   };
 
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const monthStartTime = monthStart.getTime();
+  const weekAheadTime = now + 7 * dayInMs;
+  const overduePayables = payables.filter((payable) => {
+    if (payable.status === "PAID") {
+      return false;
+    }
+
+    return new Date(payable.dueDate).getTime() < now;
+  });
+  const upcomingPayables = payables.filter((payable) => {
+    if (payable.status === "PAID") {
+      return false;
+    }
+
+    const dueTime = new Date(payable.dueDate).getTime();
+    return dueTime >= now && dueTime <= weekAheadTime;
+  });
+  const currentMonthRevenue = [
+    ...orders
+      .filter(
+        (order) =>
+          order.paymentStatus === "PAID" &&
+          new Date(order.paidAt ?? order.updatedAt).getTime() >= monthStartTime,
+      )
+      .map((order) => order.totalPrice),
+    ...closedShowcaseOrders
+      .filter(
+        (inquiry) =>
+          (inquiry.orderStage ?? "RECEIVED") === "COMPLETED" &&
+          new Date(inquiry.closedAt ?? inquiry.updatedAt).getTime() >= monthStartTime,
+      )
+      .map(
+        (inquiry) =>
+          (showcaseItems.find((item) => item.id === inquiry.itemId)?.price ?? 0) * inquiry.quantity,
+      ),
+  ].reduce((sum, value) => sum + value, 0);
+  const currentMonthExpenses = [
+    ...expenses
+      .filter((expense) => new Date(expense.paidAt).getTime() >= monthStartTime)
+      .map((expense) => expense.amount),
+    ...payables
+      .filter(
+        (payable) =>
+          payable.status === "PAID" &&
+          payable.paidAt &&
+          new Date(payable.paidAt).getTime() >= monthStartTime,
+      )
+      .map((payable) => payable.amount),
+  ].reduce((sum, value) => sum + value, 0);
+  const quickActions = [
+    { label: "Novo produto", href: "/admin?section=vitrine#novo-produto", description: "Cadastrar peça nova na vitrine" },
+    { label: "Novo lead manual", href: "/admin?section=leads#novo-lead", description: "Lançar contato vindo do WhatsApp" },
+    { label: "Novo material", href: "/admin?section=materiais#novo-material", description: "Registrar filamento ou resina" },
+    { label: "Nova impressora", href: "/admin?section=maquinas#nova-maquina", description: "Cadastrar máquina e custo" },
+    { label: "Financeiro", href: "/financeiro", description: "Abrir contas, lucro e fluxo" },
+    { label: "Produção", href: "/producao", description: "Ver fila, impressão e acabamento" },
+  ];
+  const reminderItems = [
+    ...dueFollowUpLeads.map((lead) => ({
+      id: `lead-${lead.id}`,
+      title: `${lead.customerName} precisa de retorno`,
+      detail: `${lead.itemName} · follow-up ${lead.followUpAt ? formatShortDate(lead.followUpAt) : "agora"}`,
+      href: `/admin?section=leads#lead-${lead.id}`,
+      tone: "amber" as const,
+    })),
+    ...overduePayables.map((payable) => ({
+      id: `payable-${payable.id}`,
+      title: `Conta vencida: ${payable.title}`,
+      detail: `${formatCurrency(payable.amount)} · venceu em ${formatShortDate(payable.dueDate)}`,
+      href: "/financeiro",
+      tone: "rose" as const,
+    })),
+    ...upcomingPayables.slice(0, 4).map((payable) => ({
+      id: `upcoming-${payable.id}`,
+      title: `Conta perto do vencimento: ${payable.title}`,
+      detail: `${formatCurrency(payable.amount)} · vence em ${formatShortDate(payable.dueDate)}`,
+      href: "/financeiro",
+      tone: "sky" as const,
+    })),
+    ...maintenanceDueMachines.map((machine) => ({
+      id: `machine-${machine.id}`,
+      title: `Manutenção atrasada: ${machine.name}`,
+      detail: `${machine.model} · revisar hoje`,
+      href: `/admin?section=maquinas#maquina-${machine.id}`,
+      tone: "violet" as const,
+    })),
+    ...staleOrders.slice(0, 4).map((order) => ({
+      id: `order-${order.id}`,
+      title: `Pedido parado: ${order.orderNumber}`,
+      detail: `${order.title} · sem atualização recente`,
+      href: "/admin?section=pedidos",
+      tone: "slate" as const,
+    })),
+  ].slice(0, 10);
+  const roleSummary = [
+    {
+      label: "Administradores",
+      count: users.filter((candidate) => candidate.role === UserRole.ADMIN).length,
+      description: "Controle total, financeiro, vitrine e configurações.",
+    },
+    {
+      label: "Supervisores",
+      count: users.filter((candidate) => candidate.role === UserRole.SUPERVISOR).length,
+      description: "Acompanham produção, leads, materiais e máquinas.",
+    },
+    {
+      label: "Operadores",
+      count: users.filter((candidate) => candidate.role === UserRole.OPERATOR).length,
+      description: "Movem produção e status das impressoras.",
+    },
+  ];
+  const monthLabels = Array.from({ length: 6 }).map((_, index) => {
+    const reference = new Date();
+    reference.setMonth(reference.getMonth() - (5 - index), 1);
+    reference.setHours(0, 0, 0, 0);
+    return reference;
+  });
+  const monthlyPerformance = monthLabels.map((reference) => {
+    const key = `${reference.getFullYear()}-${String(reference.getMonth() + 1).padStart(2, "0")}`;
+    const label = new Intl.DateTimeFormat("pt-BR", {
+      month: "short",
+    }).format(reference);
+    const revenue = orders.reduce((sum, order) => {
+      const referenceDate = order.paidAt ?? order.updatedAt;
+      return order.paymentStatus === "PAID" && referenceDate.startsWith(key)
+        ? sum + order.totalPrice
+        : sum;
+    }, 0);
+    const storefrontRevenue = closedShowcaseOrders.reduce((sum, inquiry) => {
+      const referenceDate = inquiry.closedAt ?? inquiry.updatedAt;
+      return (inquiry.orderStage ?? "RECEIVED") === "COMPLETED" && referenceDate.startsWith(key)
+        ? sum + (showcaseItems.find((item) => item.id === inquiry.itemId)?.price ?? 0) * inquiry.quantity
+        : sum;
+    }, 0);
+    const outgoing = expenses.reduce((sum, expense) => {
+      return expense.paidAt.startsWith(key) ? sum + expense.amount : sum;
+    }, 0) + payables.reduce((sum, payable) => {
+      return payable.status === "PAID" && payable.paidAt?.startsWith(key) ? sum + payable.amount : sum;
+    }, 0);
+    const conversions = closedShowcaseOrders.filter(
+      (inquiry) => (inquiry.closedAt ?? inquiry.updatedAt).startsWith(key),
+    ).length;
+
+    return {
+      key,
+      label,
+      revenue: revenue + storefrontRevenue,
+      outgoing,
+      conversions,
+    };
+  });
+  const performanceMax = Math.max(
+    1,
+    ...monthlyPerformance.flatMap((entry) => [entry.revenue, entry.outgoing, entry.conversions * 100]),
+  );
+  const matchedOrders = normalizedSearchQuery
+    ? orders.filter((order) =>
+        matchesSearch(
+          normalizedSearchQuery,
+          order.orderNumber,
+          order.title,
+          order.customer?.name,
+          order.customer?.company,
+          order.materialName,
+        ),
+      )
+    : [];
+  const matchedShowcaseItems = normalizedSearchQuery
+    ? showcaseItems.filter((item) =>
+        matchesSearch(
+          normalizedSearchQuery,
+          item.name,
+          item.category,
+          item.description,
+          item.materialLabel,
+          item.tagline,
+        ),
+      )
+    : [];
+  const matchedLeads = normalizedSearchQuery
+    ? showcaseInquiries.filter((inquiry) =>
+        matchesSearch(
+          normalizedSearchQuery,
+          inquiry.customerName,
+          inquiry.customerPhone,
+          inquiry.customerEmail,
+          inquiry.itemName,
+          inquiry.tags.join(" "),
+        ),
+      )
+    : [];
+  const matchedCustomers = normalizedSearchQuery
+    ? customers.filter(({ customer }) =>
+        matchesSearch(
+          normalizedSearchQuery,
+          customer.name,
+          customer.company,
+          customer.email,
+          customer.phone,
+        ),
+      )
+    : [];
+  const matchedMaterials = normalizedSearchQuery
+    ? materials.filter((material) =>
+        matchesSearch(
+          normalizedSearchQuery,
+          material.name,
+          material.brand,
+          material.color,
+          material.category,
+        ),
+      )
+    : [];
+  const matchedMachines = normalizedSearchQuery
+    ? machines.filter((machine) =>
+        matchesSearch(
+          normalizedSearchQuery,
+          machine.name,
+          machine.model,
+          machine.location,
+          machine.supportedMaterialNames,
+        ),
+      )
+    : [];
+  const totalSearchResults =
+    matchedOrders.length +
+    matchedShowcaseItems.length +
+    matchedLeads.length +
+    matchedCustomers.length +
+    matchedMaterials.length +
+    matchedMachines.length;
+
   return (
     <AppShell
       user={user}
@@ -360,6 +637,178 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <MetricCard label="Leads pendentes" value={String(leadsPendingCount)} caption="Clientes aguardando retorno no WhatsApp." accent="blue" />
         <MetricCard label="Máquinas ocupadas" value={String(summaryMachinesBusy)} caption="Impressoras em uso em pedidos internos e da vitrine." accent="rose" />
       </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-white/45">Busca global</p>
+              <h3 className="mt-2 text-2xl font-semibold">Encontre qualquer item do admin sem caçar tela por tela</h3>
+              <p className="mt-2 text-sm leading-6 text-white/65">
+                Procure por cliente, pedido, produto da vitrine, material, máquina ou lead do WhatsApp.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-white/65">
+              {searchQuery ? `${totalSearchResults} resultados para “${searchQuery}”` : "Digite um termo para filtrar tudo"}
+            </div>
+          </div>
+
+          <form action="/admin" method="GET" className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+            {activeSection !== "summary" ? <input type="hidden" name="section" value={activeSection} /> : null}
+            <input
+              type="search"
+              name="q"
+              defaultValue={searchQuery}
+              placeholder="Buscar por nome, pedido, telefone, material, máquina..."
+              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-orange-400/60"
+            />
+            <button
+              type="submit"
+              className="rounded-2xl border border-orange-400/30 bg-orange-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
+            >
+              Buscar
+            </button>
+            <Link
+              href={getSectionHref(activeSection)}
+              className="rounded-2xl border border-white/10 bg-slate-950/60 px-5 py-3 text-center text-sm text-white/75 transition hover:bg-white/10 hover:text-white"
+            >
+              Limpar
+            </Link>
+          </form>
+
+          <div className="mt-4 flex flex-wrap gap-2 text-xs text-white/55">
+            {["leads quentes", "pedido gv", "resina", "cliente", "bambu", "faturamento"].map((hint) => (
+              <span key={hint} className="rounded-full border border-white/10 bg-black/25 px-3 py-1">
+                {hint}
+              </span>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-white/45">Ações rápidas</p>
+              <h3 className="mt-2 text-2xl font-semibold">Resolva o mais comum em poucos cliques</h3>
+            </div>
+            <form action={createBackupSnapshotAction}>
+              <SubmitButton
+                label="Criar snapshot"
+                pendingLabel="Criando..."
+                className="border-sky-400/30 bg-sky-500/10 text-sky-100 hover:bg-sky-500/20"
+              />
+            </form>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            {quickActions.map((action) => (
+              <Link
+                key={action.label}
+                href={action.href}
+                className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4 transition hover:bg-white/10"
+              >
+                <p className="font-semibold text-white">{action.label}</p>
+                <p className="mt-2 text-sm leading-6 text-white/60">{action.description}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      </section>
+
+      {searchQuery ? (
+        <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-white/45">Resultados da busca</p>
+              <h3 className="mt-2 text-2xl font-semibold">Atalhos diretos para o que você procurou</h3>
+            </div>
+            <p className="text-sm text-white/60">
+              {totalSearchResults ? `${totalSearchResults} resultados encontrados` : "Nenhum resultado encontrado"}
+            </p>
+          </div>
+
+          <div className="mt-6 grid gap-4 xl:grid-cols-3">
+            {[
+              {
+                label: "Pedidos",
+                items: matchedOrders.slice(0, 4).map((order) => ({
+                  key: order.id,
+                  title: order.orderNumber,
+                  detail: `${order.title} · ${order.customer?.company ?? order.customer?.name ?? "Sem cliente"}`,
+                  href: "/admin?section=pedidos",
+                })),
+              },
+              {
+                label: "Produtos da vitrine",
+                items: matchedShowcaseItems.slice(0, 4).map((item) => ({
+                  key: item.id,
+                  title: item.name,
+                  detail: `${item.category} · ${formatCurrency(item.price)}`,
+                  href: `/admin?section=vitrine#produto-${item.id}`,
+                })),
+              },
+              {
+                label: "Leads do WhatsApp",
+                items: matchedLeads.slice(0, 4).map((lead) => ({
+                  key: lead.id,
+                  title: lead.customerName,
+                  detail: `${lead.itemName} · ${lead.customerPhone ?? "sem telefone"}`,
+                  href: `/admin?section=leads#lead-${lead.id}`,
+                })),
+              },
+              {
+                label: "Clientes",
+                items: matchedCustomers.slice(0, 4).map(({ customer }) => ({
+                  key: customer.id,
+                  title: customer.company ?? customer.name,
+                  detail: customer.phone ?? customer.email,
+                  href: `/admin?section=clientes#cliente-${customer.id}`,
+                })),
+              },
+              {
+                label: "Materiais",
+                items: matchedMaterials.slice(0, 4).map((material) => ({
+                  key: material.id,
+                  title: material.name,
+                  detail: `${material.brand} · ${material.color} · ${technologyLabels[material.technology]}`,
+                  href: `/admin?section=materiais#material-${material.id}`,
+                })),
+              },
+              {
+                label: "Máquinas",
+                items: matchedMachines.slice(0, 4).map((machine) => ({
+                  key: machine.id,
+                  title: machine.name,
+                  detail: `${machine.model} · ${machine.location ?? "Sem localização"}`,
+                  href: `/admin?section=maquinas#maquina-${machine.id}`,
+                })),
+              },
+            ].map((group) => (
+              <div key={group.label} className="rounded-[24px] border border-white/10 bg-slate-950/60 p-4">
+                <p className="text-sm font-semibold text-white">{group.label}</p>
+                <div className="mt-4 space-y-3">
+                  {group.items.length ? (
+                    group.items.map((item) => (
+                      <Link
+                        key={item.key}
+                        href={item.href}
+                        className="block rounded-2xl border border-white/10 bg-black/25 px-4 py-3 transition hover:bg-white/10"
+                      >
+                        <p className="font-medium text-white">{item.title}</p>
+                        <p className="mt-1 text-sm text-white/60">{item.detail}</p>
+                      </Link>
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 px-4 py-3 text-sm text-white/45">
+                      Nada encontrado nesta área.
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -445,6 +894,174 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               Ir para a vitrine e repor
             </Link>
           </div>
+        </section>
+      ) : null}
+
+      {activeSection === "summary" ? (
+        <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+          <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-white/45">Agenda do admin</p>
+                <h3 className="mt-2 text-2xl font-semibold">Lembretes que pedem ação hoje</h3>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white/65">
+                {reminderItems.length} itens na fila
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              {reminderItems.length ? (
+                reminderItems.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center justify-between gap-4 rounded-[22px] border p-4 transition hover:bg-white/10",
+                      item.tone === "amber" && "border-amber-400/20 bg-amber-500/5",
+                      item.tone === "rose" && "border-rose-400/20 bg-rose-500/5",
+                      item.tone === "sky" && "border-sky-400/20 bg-sky-500/5",
+                      item.tone === "violet" && "border-violet-400/20 bg-violet-500/5",
+                      item.tone === "slate" && "border-white/10 bg-slate-950/60",
+                    )}
+                  >
+                    <div>
+                      <p className="font-semibold text-white">{item.title}</p>
+                      <p className="mt-1 text-sm text-white/60">{item.detail}</p>
+                    </div>
+                    <span className="text-sm text-orange-200">Abrir</span>
+                  </Link>
+                ))
+              ) : (
+                <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-4 text-sm text-white/60">
+                  Sem pendências urgentes agora. O painel está sob controle.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <div className="grid gap-6">
+            <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+              <p className="text-xs uppercase tracking-[0.24em] text-white/45">Resumo financeiro no admin</p>
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                  <p className="text-sm text-white/55">Receita do mês</p>
+                  <p className="mt-2 text-2xl font-semibold">{formatCurrency(currentMonthRevenue)}</p>
+                </div>
+                <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                  <p className="text-sm text-white/55">Saídas do mês</p>
+                  <p className="mt-2 text-2xl font-semibold">{formatCurrency(currentMonthExpenses)}</p>
+                </div>
+                <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                  <p className="text-sm text-white/55">Contas vencidas</p>
+                  <p className="mt-2 text-2xl font-semibold">{overduePayables.length}</p>
+                  <p className="mt-2 text-sm text-white/60">
+                    {formatCurrency(overduePayables.reduce((sum, payable) => sum + payable.amount, 0))}
+                  </p>
+                </div>
+                <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                  <p className="text-sm text-white/55">Saldo do mês</p>
+                  <p className="mt-2 text-2xl font-semibold">
+                    {formatCurrency(currentMonthRevenue - currentMonthExpenses)}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+              <p className="text-xs uppercase tracking-[0.24em] text-white/45">Equipe e permissões</p>
+              <div className="mt-5 grid gap-4 md:grid-cols-3">
+                {roleSummary.map((role) => (
+                  <div key={role.label} className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                    <p className="text-sm text-white/55">{role.label}</p>
+                    <p className="mt-2 text-2xl font-semibold">{role.count}</p>
+                    <p className="mt-2 text-sm leading-6 text-white/60">{role.description}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </section>
+      ) : null}
+
+      {activeSection === "summary" ? (
+        <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+          <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Produção no admin</p>
+            <h3 className="mt-2 text-2xl font-semibold">Situação rápida da operação</h3>
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                <p className="text-sm text-white/55">Recebidos / análise</p>
+                <p className="mt-2 text-2xl font-semibold">
+                  {(ordersByStatus[OrderStatus.RECEIVED]?.length ?? 0) + (ordersByStatus[OrderStatus.ANALYSIS]?.length ?? 0)}
+                </p>
+              </div>
+              <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                <p className="text-sm text-white/55">Em fila / imprimindo</p>
+                <p className="mt-2 text-2xl font-semibold">
+                  {(ordersByStatus[OrderStatus.QUEUED]?.length ?? 0) + (ordersByStatus[OrderStatus.PRINTING]?.length ?? 0) + (showcaseOrdersByStage.QUEUED ?? 0) + (showcaseOrdersByStage.PRINTING ?? 0)}
+                </p>
+              </div>
+              <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                <p className="text-sm text-white/55">Pós / qualidade</p>
+                <p className="mt-2 text-2xl font-semibold">
+                  {(ordersByStatus[OrderStatus.POST_PROCESSING]?.length ?? 0) + (ordersByStatus[OrderStatus.QUALITY]?.length ?? 0) + (showcaseOrdersByStage.POST_PROCESSING ?? 0) + (showcaseOrdersByStage.QUALITY ?? 0)}
+                </p>
+              </div>
+              <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                <p className="text-sm text-white/55">Falhas / manutenção</p>
+                <p className="mt-2 text-2xl font-semibold">
+                  {(ordersByStatus[OrderStatus.FAILED_REWORK]?.length ?? 0) + machineAttentionCount}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-white/45">Relatórios com gráfico</p>
+                <h3 className="mt-2 text-2xl font-semibold">Últimos 6 meses do admin</h3>
+              </div>
+              <p className="text-sm text-white/60">Receita, saídas e conversões da vitrine</p>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-6">
+              {monthlyPerformance.map((entry) => (
+                <div key={entry.key} className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/45">{entry.label}</p>
+                  <div className="mt-4 grid h-36 grid-cols-3 items-end gap-2">
+                    <div className="flex flex-col items-center gap-2">
+                      <div
+                        className="w-full rounded-t-xl bg-emerald-400/80"
+                        style={{ height: `${Math.max(10, (entry.revenue / performanceMax) * 100)}%` }}
+                      />
+                      <span className="text-[10px] text-white/45">Receita</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <div
+                        className="w-full rounded-t-xl bg-rose-400/80"
+                        style={{ height: `${Math.max(10, (entry.outgoing / performanceMax) * 100)}%` }}
+                      />
+                      <span className="text-[10px] text-white/45">Saídas</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <div
+                        className="w-full rounded-t-xl bg-sky-400/80"
+                        style={{ height: `${Math.max(10, ((entry.conversions * 100) / performanceMax) * 100)}%` }}
+                      />
+                      <span className="text-[10px] text-white/45">Leads</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 space-y-1 text-xs text-white/55">
+                    <p>{formatCurrency(entry.revenue)}</p>
+                    <p>{formatCurrency(entry.outgoing)}</p>
+                    <p>{entry.conversions} fechados</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         </section>
       ) : null}
 
@@ -614,6 +1231,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       <SubmitButton
                         label="Excluir snapshot"
                         pendingLabel="Excluindo..."
+                        confirmMessage="Excluir este snapshot do sistema?"
                         className="border-rose-400/30 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20"
                       />
                     </form>
@@ -638,7 +1256,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <MetricCard label="Cliques no WhatsApp" value={String(showcaseClicksTotal)} caption={`${showcaseConversionRate}% de cliques sobre visualizações.`} accent="mint" />
           </section>
 
-          <ShowcaseItemForm materials={materials} />
+          <section id="novo-produto">
+            <ShowcaseItemForm materials={materials} />
+          </section>
 
           <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
             <p className="text-xs uppercase tracking-[0.24em] text-white/45">Produtos cadastrados</p>
@@ -656,6 +1276,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   return (
                     <details
                       key={item.id}
+                      id={`produto-${item.id}`}
                       className="overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/45"
                     >
                       <summary className="list-none cursor-pointer p-4 transition hover:bg-white/5 [&::-webkit-details-marker]:hidden">
@@ -851,7 +1472,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <MetricCard label="Total de leads" value={String(showcaseInquiries.length)} caption="Histórico completo de contatos." accent="blue" />
           </section>
 
-          <ShowcaseInquiryForm items={showcaseItems} />
+          <section id="novo-lead">
+            <ShowcaseInquiryForm items={showcaseItems} />
+          </section>
 
           <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -867,11 +1490,47 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <div className="mt-6 space-y-4">
               {crmQueue.length ? (
                 crmQueue.map((inquiry) => (
-                  <ShowcaseInquiryEditor
+                  <details
                     key={inquiry.id}
-                    inquiry={inquiry}
-                    items={showcaseItems}
-                  />
+                    id={`lead-${inquiry.id}`}
+                    className="overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/45"
+                  >
+                    <summary className="list-none cursor-pointer p-4 transition hover:bg-white/5 [&::-webkit-details-marker]:hidden">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-lg font-semibold text-white">{inquiry.customerName}</p>
+                            <StatusPill {...showcaseInquiryStatusMeta[inquiry.status]} />
+                            <StatusPill {...showcaseLeadTemperatureMeta[inquiry.leadTemperature]} />
+                          </div>
+                          <p className="mt-2 text-sm text-white/60">
+                            {inquiry.itemName} · {inquiry.customerPhone ?? "sem telefone"}
+                          </p>
+                          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-white/40">
+                            Follow-up {inquiry.followUpAt ? formatDateTime(new Date(inquiry.followUpAt)) : "sem data"} · origem {inquiry.source === "MANUAL" ? "manual" : "catálogo"}
+                          </p>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[320px]">
+                          <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Quantidade</p>
+                            <p className="mt-2 text-base font-semibold text-white">{inquiry.quantity}</p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Etiquetas</p>
+                            <p className="mt-2 text-base font-semibold text-white">{inquiry.tags.length}</p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Abrir edição</p>
+                            <p className="mt-2 text-sm font-semibold text-orange-200">Clique para editar</p>
+                          </div>
+                        </div>
+                      </div>
+                    </summary>
+
+                    <div className="border-t border-white/10 p-4 pt-5">
+                      <ShowcaseInquiryEditor inquiry={inquiry} items={showcaseItems} />
+                    </div>
+                  </details>
                 ))
               ) : (
                 <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-5 text-sm text-white/60">
@@ -1132,7 +1791,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     lastShowcaseOrder,
                     hasLatestShowcaseOrder,
                   }) => (
-                  <article key={customer.id} className="rounded-[24px] border border-white/10 bg-slate-950/60 p-5">
+                  <article id={`cliente-${customer.id}`} key={customer.id} className="rounded-[24px] border border-white/10 bg-slate-950/60 p-5">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-xl font-semibold">{customer.company ?? customer.name}</p>
@@ -1190,24 +1849,66 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <MetricCard label="Compra registrada" value={formatCurrency(materials.reduce((sum, material) => sum + material.purchasePrice, 0))} caption="Soma dos valores pagos nos insumos." accent="mint" />
           </section>
 
-          <MaterialForm redirectTo="/admin?section=materiais" />
+          <section id="novo-material">
+            <MaterialForm redirectTo="/admin?section=materiais" />
+          </section>
 
           <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
             <p className="text-xs uppercase tracking-[0.24em] text-white/45">Materiais cadastrados</p>
             <h3 className="mt-2 text-2xl font-semibold">Edite um material por vez</h3>
             <div className="mt-6 space-y-4">
               {materials.length ? (
-                materials.map((material) => (
-                  <MaterialEditor
-                    key={material.id}
-                    material={material}
-                    linkedOrderCount={
-                      orders.filter((order) => order.materialId === material.id).length +
-                      showcaseItems.filter((item) => item.materialId === material.id).length
-                    }
-                    redirectTo="/admin?section=materiais"
-                  />
-                ))
+                materials.map((material) => {
+                  const linkedCount =
+                    orders.filter((order) => order.materialId === material.id).length +
+                    showcaseItems.filter((item) => item.materialId === material.id).length;
+
+                  return (
+                    <details
+                      key={material.id}
+                      id={`material-${material.id}`}
+                      className="overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/45"
+                    >
+                      <summary className="list-none cursor-pointer p-4 transition hover:bg-white/5 [&::-webkit-details-marker]:hidden">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-lg font-semibold text-white">{material.name}</p>
+                              <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/65">
+                                {technologyLabels[material.technology]}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-sm text-white/60">
+                              {material.brand} · {material.color} · {material.stockAmount.toFixed(0)} {material.unit}
+                            </p>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[320px]">
+                            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Valor pago</p>
+                              <p className="mt-2 text-base font-semibold text-white">{formatCurrency(material.purchasePrice)}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Vínculos</p>
+                              <p className="mt-2 text-base font-semibold text-white">{linkedCount}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Abrir edição</p>
+                              <p className="mt-2 text-sm font-semibold text-orange-200">Clique para editar</p>
+                            </div>
+                          </div>
+                        </div>
+                      </summary>
+
+                      <div className="border-t border-white/10 p-4 pt-5">
+                        <MaterialEditor
+                          material={material}
+                          linkedOrderCount={linkedCount}
+                          redirectTo="/admin?section=materiais"
+                        />
+                      </div>
+                    </details>
+                  );
+                })
               ) : (
                 <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-5 text-sm text-white/60">
                   Nenhum material cadastrado ainda.
@@ -1227,7 +1928,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <MetricCard label="Com atenção" value={String(machineAttentionCount)} caption="Erro, manutenção ou offline." accent="blue" />
           </section>
 
-          <MachineForm />
+          <section id="nova-maquina">
+            <MachineForm />
+          </section>
 
           <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -1251,71 +1954,98 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   );
 
                   return (
-                    <article key={machine.id} className="rounded-[24px] border border-white/10 bg-slate-950/60 p-5">
-                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div>
-                          <p className="text-sm text-white/45">{machine.model}</p>
-                          <h4 className="mt-1 text-2xl font-semibold">{machine.name}</h4>
-                          <p className="mt-2 text-sm text-white/60">
-                            {machine.location ?? "Sem localização definida"} · {machine.supportedMaterialNames}
-                          </p>
-                          {machine.notes ? <p className="mt-2 text-sm text-white/60">{machine.notes}</p> : null}
-                        </div>
-                        <StatusPill {...machineStatusMeta[machine.status]} />
-                      </div>
+                    <details
+                      key={machine.id}
+                      id={`maquina-${machine.id}`}
+                      className="overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/45"
+                    >
+                      <summary className="list-none cursor-pointer p-4 transition hover:bg-white/5 [&::-webkit-details-marker]:hidden">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-lg font-semibold text-white">{machine.name}</p>
+                              <StatusPill {...machineStatusMeta[machine.status]} />
+                            </div>
+                            <p className="mt-2 text-sm text-white/60">
+                              {machine.model} · {machine.location ?? "Sem localização"} · {technologyLabels[machine.technology]}
+                            </p>
+                          </div>
 
-                      <div className="mt-5 grid gap-3 md:grid-cols-4">
-                        <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
-                          <p className="text-xs uppercase tracking-[0.18em] text-white/45">Bico</p>
-                          <p className="mt-2 text-lg font-semibold">{machine.nozzleTemp ?? 0}°C</p>
+                          <div className="grid gap-3 sm:grid-cols-4 lg:min-w-[420px]">
+                            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Progresso</p>
+                              <p className="mt-2 text-base font-semibold text-white">{machine.progressPercent}%</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Pedidos</p>
+                              <p className="mt-2 text-base font-semibold text-white">{activeOrders.length}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Restante</p>
+                              <p className="mt-2 text-base font-semibold text-white">{machine.timeRemainingMinutes} min</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Abrir edição</p>
+                              <p className="mt-2 text-sm font-semibold text-orange-200">Clique para editar</p>
+                            </div>
+                          </div>
                         </div>
-                        <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
-                          <p className="text-xs uppercase tracking-[0.18em] text-white/45">Mesa</p>
-                          <p className="mt-2 text-lg font-semibold">{machine.bedTemp ?? 0}°C</p>
-                        </div>
-                        <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
-                          <p className="text-xs uppercase tracking-[0.18em] text-white/45">Progresso</p>
-                          <p className="mt-2 text-lg font-semibold">{machine.progressPercent}%</p>
-                        </div>
-                        <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
-                          <p className="text-xs uppercase tracking-[0.18em] text-white/45">Restante</p>
-                          <p className="mt-2 text-lg font-semibold">{machine.timeRemainingMinutes} min</p>
-                        </div>
-                      </div>
+                      </summary>
 
-                      <div className="mt-5 flex flex-wrap gap-3">
-                        {[MachineStatus.AVAILABLE, MachineStatus.BUSY, MachineStatus.PAUSED, MachineStatus.MAINTENANCE, MachineStatus.OFFLINE].map((status) => (
-                          <form key={status} action={updateMachineStatusAction}>
-                            <input type="hidden" name="machineId" value={machine.id} />
-                            <input type="hidden" name="status" value={status} />
-                            <SubmitButton label={machineStatusMeta[status].label} pendingLabel="Atualizando..." />
-                          </form>
-                        ))}
-                      </div>
+                      <div className="border-t border-white/10 p-5">
+                        <div className="grid gap-3 md:grid-cols-4">
+                          <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
+                            <p className="text-xs uppercase tracking-[0.18em] text-white/45">Bico</p>
+                            <p className="mt-2 text-lg font-semibold">{machine.nozzleTemp ?? 0}°C</p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
+                            <p className="text-xs uppercase tracking-[0.18em] text-white/45">Mesa</p>
+                            <p className="mt-2 text-lg font-semibold">{machine.bedTemp ?? 0}°C</p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
+                            <p className="text-xs uppercase tracking-[0.18em] text-white/45">Valor</p>
+                            <p className="mt-2 text-lg font-semibold">{formatCurrency(machine.purchasePrice)}</p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
+                            <p className="text-xs uppercase tracking-[0.18em] text-white/45">Já pago</p>
+                            <p className="mt-2 text-lg font-semibold">{formatCurrency(machine.amountPaid)}</p>
+                          </div>
+                        </div>
 
-                      <div className="mt-5 rounded-[22px] border border-white/10 bg-black/20 p-4">
-                        <p className="text-xs uppercase tracking-[0.18em] text-white/45">Ordens vinculadas</p>
-                        <div className="mt-4 space-y-3">
-                          {activeOrders.length ? (
-                            activeOrders.map((order) => (
-                              <div key={order.id} className="rounded-2xl border border-white/10 bg-black/30 p-3">
-                                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                  <div>
-                                    <p className="font-semibold">{order.orderNumber}</p>
-                                    <p className="mt-1 text-sm text-white/60">{order.title}</p>
+                        <div className="mt-5 flex flex-wrap gap-3">
+                          {[MachineStatus.AVAILABLE, MachineStatus.BUSY, MachineStatus.PAUSED, MachineStatus.MAINTENANCE, MachineStatus.OFFLINE].map((status) => (
+                            <form key={status} action={updateMachineStatusAction}>
+                              <input type="hidden" name="machineId" value={machine.id} />
+                              <input type="hidden" name="status" value={status} />
+                              <SubmitButton label={machineStatusMeta[status].label} pendingLabel="Atualizando..." />
+                            </form>
+                          ))}
+                        </div>
+
+                        <div className="mt-5 rounded-[22px] border border-white/10 bg-black/20 p-4">
+                          <p className="text-xs uppercase tracking-[0.18em] text-white/45">Ordens vinculadas</p>
+                          <div className="mt-4 space-y-3">
+                            {activeOrders.length ? (
+                              activeOrders.map((order) => (
+                                <div key={order.id} className="rounded-2xl border border-white/10 bg-black/30 p-3">
+                                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                    <div>
+                                      <p className="font-semibold">{order.orderNumber}</p>
+                                      <p className="mt-1 text-sm text-white/60">{order.title}</p>
+                                    </div>
+                                    <StatusPill {...orderStatusMeta[order.status]} />
                                   </div>
-                                  <StatusPill {...orderStatusMeta[order.status]} />
                                 </div>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-sm text-white/60">Nenhum pedido ativo vinculado neste momento.</p>
-                          )}
+                              ))
+                            ) : (
+                              <p className="text-sm text-white/60">Nenhum pedido ativo vinculado neste momento.</p>
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      <MachineEditor machine={machine} activeOrderCount={activeOrders.length} />
-                    </article>
+                        <MachineEditor machine={machine} activeOrderCount={activeOrders.length} />
+                      </div>
+                    </details>
                   );
                 })
               ) : (

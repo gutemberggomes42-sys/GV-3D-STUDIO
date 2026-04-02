@@ -194,6 +194,7 @@ export function MachineEditor({ machine, activeOrderCount }: MachineEditorProps)
             label="Excluir impressora"
             pendingLabel="Excluindo..."
             disabled={!canDelete}
+            confirmMessage="Excluir esta impressora agora?"
             className="bg-rose-500/90 text-white hover:bg-rose-400"
           />
         </div>

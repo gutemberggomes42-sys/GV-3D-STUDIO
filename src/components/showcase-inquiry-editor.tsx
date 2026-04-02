@@ -299,6 +299,7 @@ export function ShowcaseInquiryEditor({
           <SubmitButton
             label="Excluir pedido"
             pendingLabel="Excluindo..."
+            confirmMessage="Excluir este pedido do WhatsApp agora?"
             className="bg-rose-500/90 text-white hover:bg-rose-400"
           />
         </div>

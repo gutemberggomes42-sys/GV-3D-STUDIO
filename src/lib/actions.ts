@@ -46,7 +46,7 @@ import {
   parseShowcaseListField,
   parseShowcaseVariantField,
 } from "@/lib/showcase";
-import { createId, deleteBackupSnapshot, readDb, updateDb } from "@/lib/store";
+import { createId, deleteBackupSnapshot, readDb, updateDb, writeDb } from "@/lib/store";
 import { saveUploadedFile } from "@/lib/upload-storage";
 
 export type ActionState = {
@@ -2343,6 +2343,27 @@ export async function deleteBackupSnapshotAction(formData: FormData) {
         error instanceof Error
           ? error.message
           : "Não foi possível excluir o snapshot do sistema.",
+        "error",
+      ),
+    );
+  }
+}
+
+export async function createBackupSnapshotAction() {
+  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+
+  try {
+    const db = await readDb();
+    await writeDb(db);
+    revalidateAll();
+    redirect(buildAdminSummaryUrl("Snapshot manual criado com sucesso."));
+  } catch (error) {
+    rethrowNextRedirect(error);
+    redirect(
+      buildAdminSummaryUrl(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível criar o snapshot manual do sistema.",
         "error",
       ),
     );

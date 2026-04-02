@@ -274,6 +274,7 @@ export function MaterialEditor({ material, linkedOrderCount, redirectTo }: Mater
             label="Excluir material"
             pendingLabel="Excluindo..."
             disabled={!canDelete}
+            confirmMessage="Excluir este material agora?"
             className="bg-rose-500/90 text-white hover:bg-rose-400"
           />
         </div>
