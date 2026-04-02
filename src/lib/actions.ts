@@ -572,6 +572,8 @@ function getShowcaseItemFormFields(formData: FormData) {
     calculatorPrintDurationHours: String(formData.get("calculatorPrintDurationHours") ?? ""),
     calculatorEnergyRate: String(formData.get("calculatorEnergyRate") ?? ""),
     calculatorPrinterPowerWatts: String(formData.get("calculatorPrinterPowerWatts") ?? ""),
+    calculatorLaborRatePerHour: String(formData.get("calculatorLaborRatePerHour") ?? ""),
+    calculatorLaborHours: String(formData.get("calculatorLaborHours") ?? ""),
     calculatorMarginPercent: String(formData.get("calculatorMarginPercent") ?? ""),
     featured: formData.get("featured") === "on" ? "true" : "false",
     active: formData.get("active") === "on" ? "true" : "false",

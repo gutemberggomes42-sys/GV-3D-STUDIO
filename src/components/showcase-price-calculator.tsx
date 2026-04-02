@@ -30,6 +30,8 @@ type ShowcasePriceCalculatorProps = {
     printDurationHours?: string;
     energyRate?: string;
     printerPowerWatts?: string;
+    laborRatePerHour?: string;
+    laborHours?: string;
     marginPercent?: string;
   };
   initialValues?: {
@@ -38,6 +40,8 @@ type ShowcasePriceCalculatorProps = {
     printDurationHours?: number;
     energyRate?: number;
     printerPowerWatts?: number;
+    laborRatePerHour?: number;
+    laborHours?: number;
     marginPercent?: number;
   };
 };
@@ -144,6 +148,10 @@ export function ShowcasePriceCalculator({
   const [printerPowerWatts, setPrinterPowerWatts] = useState(
     String(initialValues?.printerPowerWatts ?? 95),
   );
+  const [laborRatePerHour, setLaborRatePerHour] = useState(
+    String(initialValues?.laborRatePerHour ?? 0),
+  );
+  const [laborHours, setLaborHours] = useState(String(initialValues?.laborHours ?? 0));
   const [marginPercent, setMarginPercent] = useState(
     String(initialValues?.marginPercent ?? 10),
   );
@@ -151,6 +159,8 @@ export function ShowcasePriceCalculator({
   const durationHours = parseNumber(printDurationHours);
   const rate = parseNumber(energyRate);
   const powerWatts = parseNumber(printerPowerWatts);
+  const laborRate = parseNumber(laborRatePerHour);
+  const laborTime = parseNumber(laborHours);
   const margin = parseNumber(marginPercent);
   const packaging = parseNumber(packagingCost);
   const totalGrams = roundCurrency(
@@ -163,7 +173,8 @@ export function ShowcasePriceCalculator({
     ),
   );
   const energyCost = roundCurrency(rate * (powerWatts / 1000) * durationHours);
-  const totalCost = roundCurrency(materialCost + energyCost + packaging);
+  const laborCost = roundCurrency(laborRate * laborTime);
+  const totalCost = roundCurrency(materialCost + energyCost + laborCost + packaging);
   const costPerGram = totalGrams > 0 ? roundCurrency(totalCost / totalGrams) : 0;
   const suggestedPrice = roundCurrency(totalCost * (1 + margin / 100));
 
@@ -218,7 +229,7 @@ export function ShowcasePriceCalculator({
         <p className="text-xs uppercase tracking-[0.24em] text-sky-100/55">Calculadora</p>
         <h3 className="mt-2 text-2xl font-semibold">Calculo do valor do produto</h3>
         <p className="mt-2 text-sm leading-6 text-white/65">
-          Some mais de um filamento, inclua o custo da embalagem e aplique o valor sugerido direto no produto.
+          Some mais de um filamento, inclua energia, mao de obra, embalagem e aplique o valor sugerido direto no produto.
         </p>
       </div>
 
@@ -405,6 +416,36 @@ export function ShowcasePriceCalculator({
           </div>
 
           <div className="rounded-[24px] border border-white/10 bg-slate-950/60 p-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-sky-100/70">Mao de obra</p>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="block text-sm text-white/70">
+                Valor da hora (R$)
+                <input
+                  name={fieldNames?.laborRatePerHour}
+                  value={laborRatePerHour}
+                  onChange={(event) => setLaborRatePerHour(event.target.value)}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-sky-400/60"
+                />
+              </label>
+              <label className="block text-sm text-white/70">
+                Tempo de mao de obra (h)
+                <input
+                  name={fieldNames?.laborHours}
+                  value={laborHours}
+                  onChange={(event) => setLaborHours(event.target.value)}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-sky-400/60"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-white/10 bg-slate-950/60 p-4">
             <p className="text-xs uppercase tracking-[0.18em] text-sky-100/70">Embalagem</p>
             <label className="mt-4 block text-sm text-white/70">
               Custo da embalagem (R$)
@@ -449,7 +490,15 @@ export function ShowcasePriceCalculator({
               <span className="font-semibold text-white">{formatCurrency(energyCost)}</span>
             </p>
             <p>
+              Mao de obra:{" "}
+              <span className="font-semibold text-white">{formatCurrency(laborCost)}</span>
+            </p>
+            <p>
               Embalagem: <span className="font-semibold text-white">{formatCurrency(packaging)}</span>
+            </p>
+            <p>
+              Tempo de mao de obra:{" "}
+              <span className="font-semibold text-white">{formatNumber(laborTime, 2)} h</span>
             </p>
             <p>
               Material total usado:{" "}
@@ -463,7 +512,7 @@ export function ShowcasePriceCalculator({
               Custo total: <span className="font-semibold text-white">{formatCurrency(totalCost)}</span>
             </p>
             <p className="pt-2 text-base leading-7 text-white/90">
-              Considerando material, energia, embalagem e margem, voce devera cobrar:{" "}
+              Considerando material, energia, mao de obra, embalagem e margem, voce devera cobrar:{" "}
               <span className="font-semibold text-emerald-300">{formatCurrency(suggestedPrice)}</span>
             </p>
           </div>

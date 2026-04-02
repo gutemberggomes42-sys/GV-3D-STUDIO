@@ -337,6 +337,8 @@ function ShowcaseItemEditorContent({
                 printDurationHours: "calculatorPrintDurationHours",
                 energyRate: "calculatorEnergyRate",
                 printerPowerWatts: "calculatorPrinterPowerWatts",
+                laborRatePerHour: "calculatorLaborRatePerHour",
+                laborHours: "calculatorLaborHours",
                 marginPercent: "calculatorMarginPercent",
               }}
               initialValues={{
@@ -347,6 +349,8 @@ function ShowcaseItemEditorContent({
                 ),
                 energyRate: getOptionalNumber(fields.calculatorEnergyRate),
                 printerPowerWatts: getOptionalNumber(fields.calculatorPrinterPowerWatts),
+                laborRatePerHour: getOptionalNumber(fields.calculatorLaborRatePerHour),
+                laborHours: getOptionalNumber(fields.calculatorLaborHours),
                 marginPercent: getOptionalNumber(fields.calculatorMarginPercent),
               }}
               onApplyPrice={(value) => setPrice(value)}
