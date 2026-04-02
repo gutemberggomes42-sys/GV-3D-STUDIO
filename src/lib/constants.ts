@@ -248,7 +248,7 @@ export const dashboardRoutes: Array<{
   { href: "/admin", label: "Painel administrativo", roles: [UserRole.SUPERVISOR, UserRole.ADMIN] },
   { href: "/producao", label: "Produção", roles: [UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.ADMIN] },
   { href: "/maquinas", label: "Máquinas / IoT", roles: [UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.ADMIN] },
-  { href: "/filamentos", label: "Controle de filamento", roles: [UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.ADMIN] },
+  { href: "/filamentos", label: "Controle de materiais", roles: [UserRole.OPERATOR, UserRole.SUPERVISOR, UserRole.ADMIN] },
   { href: "/financeiro", label: "Financeiro", roles: [UserRole.SUPERVISOR, UserRole.ADMIN] },
 ];
 

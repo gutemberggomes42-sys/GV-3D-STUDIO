@@ -1,7 +1,7 @@
 "use client";
 
 import { PrintTechnology } from "@prisma/client";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import {
   deleteMaterialAction,
@@ -26,6 +26,12 @@ export function MaterialEditor({ material, linkedOrderCount, redirectTo }: Mater
   const derived = getMaterialDerivedMetrics(material);
   const canDelete = linkedOrderCount === 0;
   const fields = updateState.fields ?? {};
+  const [technology, setTechnology] = useState<PrintTechnology>(
+    (fields.technology as PrintTechnology) ?? material.technology,
+  );
+  const isFdm = technology === PrintTechnology.FDM;
+  const isResinLike =
+    technology === PrintTechnology.RESIN || technology === PrintTechnology.SLA;
 
   return (
     <article className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
@@ -33,7 +39,7 @@ export function MaterialEditor({ material, linkedOrderCount, redirectTo }: Mater
         <div>
           <p className="text-lg font-semibold">{material.name}</p>
           <p className="mt-1 text-sm text-white/60">
-            {material.brand} · {material.color} · Lote {material.lot}
+            {material.brand} · {material.color} · {material.technology} · Lote {material.lot}
           </p>
         </div>
         <div className="text-right">
@@ -113,7 +119,8 @@ export function MaterialEditor({ material, linkedOrderCount, redirectTo }: Mater
             Tecnologia
             <select
               name="technology"
-              defaultValue={fields.technology ?? material.technology}
+              value={technology}
+              onChange={(event) => setTechnology(event.target.value as PrintTechnology)}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             >
               {Object.values(PrintTechnology).map((technology) => (
@@ -162,7 +169,7 @@ export function MaterialEditor({ material, linkedOrderCount, redirectTo }: Mater
             />
           </label>
           <label className="block text-sm text-white/70">
-            Peso total do rolo (g)
+            {isFdm ? "Peso total do rolo (g)" : "Volume total do frasco (g/ml)"}
             <input
               name="spoolWeightGrams"
               type="number"
@@ -172,33 +179,45 @@ export function MaterialEditor({ material, linkedOrderCount, redirectTo }: Mater
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             />
           </label>
-          <label className="block text-sm text-white/70">
-            Metragem total (m)
-            <input
-              name="spoolLengthMeters"
-              type="number"
-              step="0.01"
-              min="0"
-              defaultValue={fields.spoolLengthMeters ?? String(material.spoolLengthMeters ?? 0)}
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
-            />
-          </label>
-          <label className="block text-sm text-white/70">
-            Diâmetro do filamento (mm)
-            <input
-              name="filamentDiameterMm"
-              type="number"
-              step="0.01"
-              min="0.1"
-              defaultValue={fields.filamentDiameterMm ?? String(material.filamentDiameterMm ?? 1.75)}
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
-            />
-          </label>
+          {isFdm ? (
+            <>
+              <label className="block text-sm text-white/70">
+                Metragem total (m)
+                <input
+                  name="spoolLengthMeters"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  defaultValue={fields.spoolLengthMeters ?? String(material.spoolLengthMeters ?? 0)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+                />
+              </label>
+              <label className="block text-sm text-white/70">
+                Diâmetro do filamento (mm)
+                <input
+                  name="filamentDiameterMm"
+                  type="number"
+                  step="0.01"
+                  min="0.1"
+                  defaultValue={fields.filamentDiameterMm ?? String(material.filamentDiameterMm ?? 1.75)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <input type="hidden" name="spoolLengthMeters" value="0" />
+              <div className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-white/60">
+                Esse material usa custo por g/ml. Metragem e diâmetro só aparecem em filamento FDM.
+              </div>
+              <input type="hidden" name="filamentDiameterMm" value="1.75" />
+            </>
+          )}
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           <label className="block text-sm text-white/70">
-            Estoque disponível atual (g/ml)
+            Estoque disponível atual ({isResinLike ? "ml" : "g"})
             <input
               name="stockAmount"
               type="number"

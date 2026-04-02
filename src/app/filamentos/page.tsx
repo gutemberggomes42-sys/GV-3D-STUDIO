@@ -4,6 +4,7 @@ import { MaterialEditor } from "@/components/material-editor";
 import { MaterialForm } from "@/components/material-form";
 import { MetricCard } from "@/components/metric-card";
 import { requireRoles } from "@/lib/auth";
+import { technologyLabels } from "@/lib/constants";
 import { formatCurrency, formatMeters } from "@/lib/format";
 import { getMaterialDerivedMetrics } from "@/lib/pricing";
 import { getHydratedData } from "@/lib/view-data";
@@ -20,6 +21,8 @@ export default async function FilamentsPage() {
     0,
   );
   const totalStock = materials.reduce((sum, material) => sum + material.stockAmount, 0);
+  const resinCount = materials.filter((material) => material.unit === "ml").length;
+  const filamentCount = materials.length - resinCount;
   const totalMetersRemaining = materials.reduce((sum, material) => {
     const derived = getMaterialDerivedMetrics(material);
     return sum + (derived.stockMetersRemaining || 0);
@@ -35,14 +38,14 @@ export default async function FilamentsPage() {
     <AppShell
       user={user}
       pathname="/filamentos"
-      title="Controle de filamento"
-      subtitle="Acompanhe estoque, custo real por grama e por metro, reposição e consumo dos filamentos e resinas em uma área própria."
+      title="Controle de materiais"
+      subtitle="Acompanhe estoque, custo real por g/ml e por metro, reposição e consumo de filamentos e resinas em uma área própria."
     >
       <section className="grid gap-4 xl:grid-cols-4">
-        <MetricCard label="Materiais" value={String(materials.length)} caption="Filamentos e resinas cadastrados." accent="orange" />
+        <MetricCard label="Materiais" value={String(materials.length)} caption={`${filamentCount} filamentos e ${resinCount} resinas cadastrados.`} accent="orange" />
         <MetricCard label="Estoque baixo" value={String(lowStockCount)} caption="Abaixo do mínimo configurado." accent="rose" />
         <MetricCard label="Compra registrada" value={formatCurrency(totalInvestment)} caption="Soma dos valores pagos nos rolos e frascos." accent="mint" />
-        <MetricCard label="Metragem restante" value={formatMeters(totalMetersRemaining)} caption="Estimativa total restante nos materiais FDM." accent="blue" />
+        <MetricCard label="Metragem FDM restante" value={formatMeters(totalMetersRemaining)} caption="Estimativa restante apenas para materiais FDM." accent="blue" />
         <MetricCard label="Material consumido" value={consumedGramsTotal.toFixed(0)} caption="Baixas automáticas já registradas na produção." accent="orange" />
         <MetricCard label="Custo consumido" value={formatCurrency(consumedValueTotal)} caption="Valor do material já usado nos pedidos." accent="blue" />
       </section>
@@ -51,17 +54,17 @@ export default async function FilamentsPage() {
         <MaterialForm redirectTo="/filamentos" />
       ) : (
         <section className="rounded-[28px] border border-white/10 bg-white/5 p-6 text-sm text-white/65">
-          Como operador, você pode acompanhar o estoque e os custos do filamento. O cadastro, a edição e a exclusão ficam liberados para supervisor e administrador.
+          Como operador, você pode acompanhar o estoque e os custos dos materiais. O cadastro, a edição e a exclusão ficam liberados para supervisor e administrador.
         </section>
       )}
 
       <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Estoque de filamento</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Estoque de materiais</p>
             <h3 className="mt-2 text-2xl font-semibold">Materiais cadastrados</h3>
             <p className="mt-2 text-sm leading-6 text-white/65">
-              Cada material mostra estoque atual, custo real e quantos pedidos internos ja usam esse item.
+              Cada material mostra tecnologia, estoque atual, custo real e quantos pedidos internos ja usam esse item.
             </p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white/70">
@@ -106,7 +109,7 @@ export default async function FilamentsPage() {
                       <div>
                         <p className="text-lg font-semibold">{material.name}</p>
                         <p className="mt-1 text-sm text-white/60">
-                          {material.brand} · {material.color} · Lote {material.lot}
+                          {material.brand} · {material.color} · {technologyLabels[material.technology]} · Lote {material.lot}
                         </p>
                       </div>
                       <div className="text-right">
@@ -154,7 +157,7 @@ export default async function FilamentsPage() {
             )
           ) : (
             <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-5 text-sm text-white/60">
-              Nenhum filamento cadastrado ainda.
+              Nenhum material cadastrado ainda.
             </div>
           )}
         </div>
