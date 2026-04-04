@@ -50,6 +50,13 @@ function getMonthLabel(monthKey: string) {
   return formatMonthYear(new Date(`${monthKey}-01T12:00:00`));
 }
 
+function getShowcaseInquiryTotalValue(
+  inquiry: { quantity: number; estimatedTotal?: number; freightEstimate?: number },
+  itemPrice: number,
+) {
+  return (inquiry.estimatedTotal ?? itemPrice * inquiry.quantity) + (inquiry.freightEstimate ?? 0);
+}
+
 export default async function FinancePage() {
   const user = await requireRoles([UserRole.SUPERVISOR, UserRole.ADMIN]);
   const { orders, showcaseItems, showcaseInquiries, materials, machines, expenses, payables } =
@@ -81,7 +88,9 @@ export default async function FinancePage() {
       return {
         ...inquiry,
         item,
-        totalValue: Number((((item?.price ?? 0) * inquiry.quantity) || 0).toFixed(2)),
+        totalValue: Number(
+          getShowcaseInquiryTotalValue(inquiry, item?.price ?? 0).toFixed(2),
+        ),
         financialDate: inquiry.closedAt ?? inquiry.updatedAt,
         stage,
       };

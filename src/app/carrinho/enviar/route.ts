@@ -2,6 +2,13 @@ import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { ownerEmail, ownerWhatsAppNumber } from "@/lib/constants";
 import { ensureCustomerRecord, isGeneratedCustomerEmail } from "@/lib/customer-records";
+import {
+  estimateFreightCost,
+  getAvailableDeliveryModes,
+  getSuggestedCarrier,
+  normalizeStateCode,
+  sanitizePostalCode,
+} from "@/lib/shipping";
 import { createId, updateDb } from "@/lib/store";
 import type { ShowcaseCartEntry } from "@/lib/showcase-cart";
 
@@ -63,6 +70,12 @@ export async function POST(request: NextRequest) {
   const customerName = sanitizeField(String(formData.get("customerName") ?? ""));
   const customerPhone = sanitizePhone(String(formData.get("customerPhone") ?? ""));
   const notes = sanitizeField(String(formData.get("notes") ?? ""));
+  const deliveryMode = sanitizeField(String(formData.get("deliveryMode") ?? "PICKUP"));
+  const deliveryPostalCode = sanitizePostalCode(String(formData.get("deliveryPostalCode") ?? ""));
+  const deliveryAddress = sanitizeField(String(formData.get("deliveryAddress") ?? ""));
+  const deliveryNeighborhood = sanitizeField(String(formData.get("deliveryNeighborhood") ?? ""));
+  const deliveryCity = sanitizeField(String(formData.get("deliveryCity") ?? ""));
+  const deliveryState = normalizeStateCode(String(formData.get("deliveryState") ?? ""));
   const cartEntries = parseCartPayload(String(formData.get("cartJson") ?? "[]"));
 
   if (cartEntries.length === 0) {
@@ -155,6 +168,48 @@ export async function POST(request: NextRequest) {
         (sum, currentEntry) => sum + currentEntry.estimatedTotal,
         0,
       );
+      const totalMaterialGrams = normalizedEntries.reduce(
+        (sum, currentEntry) => sum + (currentEntry.item.estimatedMaterialGrams ?? 0) * currentEntry.entry.quantity,
+        0,
+      );
+      const totalPrintHours = normalizedEntries.reduce(
+        (sum, currentEntry) => sum + (currentEntry.item.estimatedPrintHours ?? 0) * currentEntry.entry.quantity,
+        0,
+      );
+
+      if (!["PICKUP", "LOCAL_DELIVERY", "SHIPPING"].includes(deliveryMode)) {
+        throw new Error("Escolha uma forma de entrega valida.");
+      }
+
+      if (
+        normalizedEntries.some(
+          (currentEntry) =>
+            !getAvailableDeliveryModes(currentEntry.item).includes(
+              deliveryMode as "PICKUP" | "LOCAL_DELIVERY" | "SHIPPING",
+            ),
+        )
+      ) {
+        throw new Error("Um dos produtos do carrinho não aceita essa forma de entrega.");
+      }
+
+      if (deliveryMode !== "PICKUP" && (!deliveryAddress || !deliveryCity)) {
+        throw new Error("Informe endereco e cidade para calcular a entrega do carrinho.");
+      }
+
+      if (deliveryMode === "SHIPPING" && (!deliveryPostalCode || !deliveryState)) {
+        throw new Error("Para envio, informe CEP e UF.");
+      }
+
+      const freight = estimateFreightCost({
+        deliveryMode: deliveryMode as "PICKUP" | "LOCAL_DELIVERY" | "SHIPPING",
+        quantity: normalizedEntries.reduce((sum, currentEntry) => sum + currentEntry.entry.quantity, 0),
+        estimatedMaterialGrams: totalMaterialGrams,
+        estimatedPrintHours: totalPrintHours,
+        postalCode: deliveryPostalCode,
+        city: deliveryCity,
+        state: deliveryState,
+      });
+      const grandTotalWithFreight = grandTotal + freight.amount;
 
       const messageLines = [
         "Olá! Quero pedir estes itens da vitrine.",
@@ -173,6 +228,14 @@ export async function POST(request: NextRequest) {
           "",
         ]),
         `Total estimado do carrinho: ${formatCurrency(grandTotal)}`,
+        `Forma de entrega: ${deliveryMode === "PICKUP" ? "Retirada" : deliveryMode === "LOCAL_DELIVERY" ? "Entrega local" : "Envio"}`,
+        `Frete estimado: ${formatCurrency(freight.amount)}`,
+        `Total com entrega: ${formatCurrency(grandTotalWithFreight)}`,
+        deliveryAddress ? `Endereco: ${deliveryAddress}` : null,
+        deliveryNeighborhood ? `Bairro: ${deliveryNeighborhood}` : null,
+        deliveryCity ? `Cidade: ${deliveryCity}` : null,
+        deliveryState ? `UF: ${deliveryState}` : null,
+        deliveryPostalCode ? `CEP: ${deliveryPostalCode}` : null,
         `Cliente: ${customerName}`,
         `Telefone: ${customerPhone}`,
         ...(notes ? [`Observacao geral: ${notes}`] : []),
@@ -181,6 +244,10 @@ export async function POST(request: NextRequest) {
       const whatsappUrl = `https://api.whatsapp.com/send?phone=${ownerWhatsAppNumber}&text=${encodeURIComponent(messageLines.join("\n"))}`;
 
       normalizedEntries.forEach((currentEntry) => {
+        const freightShare =
+          grandTotal > 0
+            ? Number(((freight.amount * currentEntry.estimatedTotal) / grandTotal).toFixed(2))
+            : Number((freight.amount / normalizedEntries.length).toFixed(2));
         currentEntry.item.whatsappClickCount += 1;
         currentEntry.item.updatedAt = now;
 
@@ -199,6 +266,14 @@ export async function POST(request: NextRequest) {
           whatsappNumber: ownerWhatsAppNumber,
           whatsappUrl,
           estimatedTotal: currentEntry.estimatedTotal,
+          deliveryMode: deliveryMode as "PICKUP" | "LOCAL_DELIVERY" | "SHIPPING",
+          freightEstimate: freightShare,
+          deliveryPostalCode: deliveryPostalCode || undefined,
+          deliveryAddress: deliveryAddress || undefined,
+          deliveryNeighborhood: deliveryNeighborhood || undefined,
+          deliveryCity: deliveryCity || undefined,
+          deliveryState: deliveryState || undefined,
+          shippingCarrier: getSuggestedCarrier(deliveryMode as "PICKUP" | "LOCAL_DELIVERY" | "SHIPPING"),
           selectedVariantLabel: currentEntry.selectedVariant?.label,
           desiredColor: currentEntry.entry.desiredColor,
           desiredSize: currentEntry.entry.desiredSize,

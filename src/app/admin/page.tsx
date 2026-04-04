@@ -7,6 +7,7 @@ import { MachineForm } from "@/components/machine-form";
 import { MaterialEditor } from "@/components/material-editor";
 import { MaterialForm } from "@/components/material-form";
 import { MetricCard } from "@/components/metric-card";
+import { ShowcaseDeliveryManager } from "@/components/showcase-delivery-manager";
 import { ShowcaseInquiryEditor } from "@/components/showcase-inquiry-editor";
 import { ShowcaseInquiryForm } from "@/components/showcase-inquiry-form";
 import { ShowcaseItemEditor } from "@/components/showcase-item-editor";
@@ -56,6 +57,7 @@ import {
   getShowcasePrimaryVideo,
   getShowcaseTagline,
 } from "@/lib/showcase";
+import { getSuggestedCarrier } from "@/lib/shipping";
 import { listBackupSnapshots } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -129,6 +131,13 @@ function matchesSearch(query: string, ...parts: Array<string | number | undefine
   );
 
   return haystack.includes(query);
+}
+
+function getShowcaseInquiryTotalValue(
+  inquiry: { quantity: number; estimatedTotal?: number; freightEstimate?: number },
+  fallbackItemPrice: number,
+) {
+  return (inquiry.estimatedTotal ?? fallbackItemPrice * inquiry.quantity) + (inquiry.freightEstimate ?? 0);
 }
 
 function formatShortDate(value: string) {
@@ -259,7 +268,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const showcaseRevenueValue = closedShowcaseOrders
     .filter((item) => (item.orderStage ?? "RECEIVED") === "COMPLETED")
     .reduce(
-      (sum, item) => sum + (showcaseItemPriceMap.get(item.itemId) ?? 0) * item.quantity,
+      (sum, item) =>
+        sum + getShowcaseInquiryTotalValue(item, showcaseItemPriceMap.get(item.itemId) ?? 0),
       0,
     );
   const showcasePendingRevenue = closedShowcaseOrders
@@ -268,7 +278,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       return stage !== "COMPLETED" && stage !== "CANCELED";
     })
     .reduce(
-      (sum, item) => sum + (showcaseItemPriceMap.get(item.itemId) ?? 0) * item.quantity,
+      (sum, item) =>
+        sum + getShowcaseInquiryTotalValue(item, showcaseItemPriceMap.get(item.itemId) ?? 0),
       0,
     );
   const showcaseActiveOrdersCount = closedShowcaseOrders.filter((item) => {
@@ -383,7 +394,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         )
         .reduce(
           (sum, inquiry) =>
-            sum + (showcaseItemPriceMap.get(inquiry.itemId) ?? 0) * inquiry.quantity,
+            sum +
+            getShowcaseInquiryTotalValue(inquiry, showcaseItemPriceMap.get(inquiry.itemId) ?? 0),
           0,
         );
       const latestShowcaseOrder = customerShowcaseOrders[0];
@@ -542,7 +554,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     .map((item) => {
       const relatedInquiries = showcaseInquiries.filter((inquiry) => inquiry.itemId === item.id);
       const relatedClosed = relatedInquiries.filter((inquiry) => inquiry.status === "CLOSED");
-      const estimatedRevenue = relatedClosed.reduce((sum, inquiry) => sum + item.price * inquiry.quantity, 0);
+      const estimatedRevenue = relatedClosed.reduce(
+        (sum, inquiry) => sum + getShowcaseInquiryTotalValue(inquiry, item.price),
+        0,
+      );
       const conversionRate = relatedInquiries.length
         ? (relatedClosed.length / relatedInquiries.length) * 100
         : 0;
@@ -577,7 +592,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       accumulator[categoryKey].leadCount += relatedInquiries.length;
       accumulator[categoryKey].closedCount += relatedClosed.length;
       accumulator[categoryKey].estimatedRevenue += relatedClosed.reduce(
-        (sum, inquiry) => sum + item.price * inquiry.quantity,
+        (sum, inquiry) => sum + getShowcaseInquiryTotalValue(inquiry, item.price),
         0,
       );
       accumulator[categoryKey].clickCount += item.whatsappClickCount;
@@ -2281,6 +2296,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                         <p className="mt-2 text-sm text-white/60">
                           Quantidade: {inquiry.quantity}
                         </p>
+                        <p className="mt-1 text-sm text-white/60">
+                          Valor com entrega: {formatCurrency(
+                            getShowcaseInquiryTotalValue(inquiry, showcaseItemPriceMap.get(inquiry.itemId) ?? 0),
+                          )}
+                        </p>
                         {inquiry.dueDate ? (
                           <p className="mt-1 text-sm text-white/55">
                             Prazo estimado: {formatDateTime(new Date(inquiry.dueDate))}
@@ -2304,6 +2324,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                           Abrir conversa
                         </a>
                       </div>
+                    </div>
+                    <div className="mt-5">
+                      <ShowcaseDeliveryManager inquiry={inquiry} />
                     </div>
                   </article>
                 ))
@@ -2397,7 +2420,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                           </p>
                           <p className="mt-2 font-semibold text-white">{inquiry.itemName}</p>
                           <p className="mt-1 text-sm text-white/60">
-                            {inquiry.customerName} · {formatCurrency((showcaseItemPriceMap.get(inquiry.itemId) ?? 0) * inquiry.quantity)}
+                            {inquiry.customerName} · {formatCurrency(
+                              getShowcaseInquiryTotalValue(inquiry, showcaseItemPriceMap.get(inquiry.itemId) ?? 0),
+                            )}
                           </p>
                           <div className="mt-3 flex flex-wrap gap-2">
                             <StatusPill {...showcaseOrderStageMeta[inquiry.orderStage ?? "RECEIVED"]} />
@@ -2426,6 +2451,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                               className="w-full border-white/10 bg-white/8 text-white hover:bg-white/14"
                             />
                           </form>
+                          <div className="mt-3 text-xs text-white/45">
+                            {inquiry.shippingCarrier ?? getSuggestedCarrier(inquiry.deliveryMode ?? "PICKUP")}
+                            {inquiry.trackingCode ? ` · ${inquiry.trackingCode}` : ""}
+                          </div>
                           {(leadHistoryById[inquiry.id] ?? []).length ? (
                             <p className="mt-3 text-xs text-white/45">
                               Última ação: {(leadHistoryById[inquiry.id] ?? [])[0]?.summary}
@@ -2554,7 +2583,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                             </p>
                             <p className="mt-2 text-sm text-white/65">
                               Quantidade: {entry.inquiry.quantity}
-                              {" · "}Total estimado: {formatCurrency((showcaseItems.find((item) => item.id === entry.inquiry.itemId)?.price ?? 0) * entry.inquiry.quantity)}
+                              {" · "}Total com entrega: {formatCurrency(
+                                getShowcaseInquiryTotalValue(
+                                  entry.inquiry,
+                                  showcaseItemPriceMap.get(entry.inquiry.itemId) ?? 0,
+                                ),
+                              )}
                             </p>
                             {entry.inquiry.dueDate ? (
                               <p className="mt-1 text-sm text-white/55">
@@ -2605,6 +2639,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                             />
                           </div>
                         </form>
+                        <div className="mt-4">
+                          <ShowcaseDeliveryManager inquiry={entry.inquiry} compact />
+                        </div>
                       </article>
                     ),
                   )

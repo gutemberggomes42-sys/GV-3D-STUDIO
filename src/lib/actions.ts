@@ -47,6 +47,13 @@ import {
   parseShowcaseVariantField,
 } from "@/lib/showcase";
 import {
+  estimateFreightCost,
+  getAvailableDeliveryModes,
+  getSuggestedCarrier,
+  normalizeStateCode,
+  sanitizePostalCode,
+} from "@/lib/shipping";
+import {
   createId,
   deleteBackupSnapshot,
   readDb,
@@ -3475,8 +3482,22 @@ export async function updateShowcaseInquiryOrderStageAction(formData: FormData) 
         previousMachine.updatedAt = now;
       }
     }
+    if (nextOrderStage === "READY_TO_SHIP" && inquiry.deliveryMode === "PICKUP") {
+      inquiry.shippingCarrier = getSuggestedCarrier("PICKUP");
+      inquiry.trackingCode = undefined;
+    }
+    if (nextOrderStage === "SHIPPED") {
+      inquiry.shippedAt = now;
+      if (inquiry.deliveryMode !== "PICKUP") {
+        inquiry.trackingCode ??= createId("trk").toUpperCase();
+      }
+      inquiry.shippingCarrier ??= getSuggestedCarrier(inquiry.deliveryMode ?? "SHIPPING");
+    }
     if (nextOrderStage === "COMPLETED") {
       inquiry.printingCompletedAt = now;
+      inquiry.deliveredAt = now;
+      inquiry.deliveryRecipient ??= inquiry.customerName;
+      inquiry.shippingCarrier ??= getSuggestedCarrier(inquiry.deliveryMode ?? "PICKUP");
       completionNotificationUrl = buildCompletionNotificationUrl({
         label: inquiry.itemName,
         customerName: inquiry.customerName,
@@ -3512,6 +3533,110 @@ export async function updateShowcaseInquiryOrderStageAction(formData: FormData) 
   if (completionNotificationUrl) {
     redirect(completionNotificationUrl);
   }
+}
+
+export async function updateShowcaseInquiryShippingAction(formData: FormData) {
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const inquiryId = String(formData.get("inquiryId") ?? "").trim();
+  const deliveryModeValue = String(formData.get("deliveryMode") ?? "").trim();
+
+  if (!inquiryId || !deliveryModeValue) {
+    throw new Error("Pedido do WhatsApp não encontrado.");
+  }
+
+  const parsedDeliveryMode = z
+    .enum(["PICKUP", "LOCAL_DELIVERY", "SHIPPING"])
+    .safeParse(deliveryModeValue);
+
+  if (!parsedDeliveryMode.success) {
+    throw new Error("Escolha uma forma de entrega válida.");
+  }
+
+  const deliveryMode = parsedDeliveryMode.data as ShowcaseDeliveryMode;
+  const deliveryPostalCode = sanitizePostalCode(String(formData.get("deliveryPostalCode") ?? ""));
+  const deliveryAddress = String(formData.get("deliveryAddress") ?? "").trim();
+  const deliveryNeighborhood = String(formData.get("deliveryNeighborhood") ?? "").trim();
+  const deliveryCity = String(formData.get("deliveryCity") ?? "").trim();
+  const deliveryState = normalizeStateCode(String(formData.get("deliveryState") ?? ""));
+  const shippingCarrierInput = String(formData.get("shippingCarrier") ?? "").trim();
+  const trackingCodeInput = String(formData.get("trackingCode") ?? "").trim().toUpperCase();
+  const deliveryRecipient = String(formData.get("deliveryRecipient") ?? "").trim();
+  const proofOfDeliveryNotes = String(formData.get("proofOfDeliveryNotes") ?? "").trim();
+
+  await updateDb((db) => {
+    const inquiry = db.showcaseInquiries.find((candidate) => candidate.id === inquiryId);
+
+    if (!inquiry || inquiry.status !== "CLOSED") {
+      throw new Error("Pedido do WhatsApp não encontrado.");
+    }
+
+    const item = db.showcaseItems.find((candidate) => candidate.id === inquiry.itemId);
+
+    if (!item) {
+      throw new Error("Item da vitrine não encontrado.");
+    }
+
+    const allowedModes = getAvailableDeliveryModes(item);
+
+    if (!allowedModes.includes(deliveryMode)) {
+      throw new Error("Essa forma de entrega não está liberada para o produto.");
+    }
+
+    if (deliveryMode !== "PICKUP" && (!deliveryAddress || !deliveryCity)) {
+      throw new Error("Informe pelo menos endereço e cidade para calcular a entrega.");
+    }
+
+    if (deliveryMode === "SHIPPING" && (!deliveryPostalCode || !deliveryState)) {
+      throw new Error("Para envio, informe CEP e UF.");
+    }
+
+    const now = new Date().toISOString();
+    const freight = estimateFreightCost({
+      deliveryMode,
+      quantity: inquiry.quantity,
+      estimatedMaterialGrams: (item.estimatedMaterialGrams ?? 0) * inquiry.quantity,
+      estimatedPrintHours: (item.estimatedPrintHours ?? 0) * inquiry.quantity,
+      postalCode: deliveryPostalCode,
+      city: deliveryCity,
+      state: deliveryState,
+    });
+
+    inquiry.deliveryMode = deliveryMode;
+    inquiry.freightEstimate = freight.amount;
+    inquiry.deliveryPostalCode = deliveryPostalCode || undefined;
+    inquiry.deliveryAddress = deliveryAddress || undefined;
+    inquiry.deliveryNeighborhood = deliveryNeighborhood || undefined;
+    inquiry.deliveryCity = deliveryCity || undefined;
+    inquiry.deliveryState = deliveryState || undefined;
+    inquiry.shippingCarrier = shippingCarrierInput || freight.carrier;
+    inquiry.trackingCode =
+      deliveryMode === "PICKUP"
+        ? undefined
+        : trackingCodeInput || (inquiry.orderStage === "SHIPPED" ? createId("trk").toUpperCase() : inquiry.trackingCode);
+    inquiry.deliveryRecipient = deliveryRecipient || inquiry.deliveryRecipient || inquiry.customerName;
+    inquiry.proofOfDeliveryNotes = proofOfDeliveryNotes || undefined;
+    inquiry.updatedAt = now;
+
+    if (inquiry.orderStage === "SHIPPED" && !inquiry.shippedAt) {
+      inquiry.shippedAt = now;
+    }
+
+    if (inquiry.orderStage === "COMPLETED") {
+      inquiry.deliveredAt ??= now;
+    }
+
+    pushAuditLog(db, {
+      actorId: user.id,
+      area: "shipping",
+      action: "update_showcase_delivery",
+      summary: `Entrega do pedido ${inquiry.orderNumber ?? inquiry.itemName} atualizada.`,
+      entityType: "showcase_inquiry",
+      entityId: inquiry.id,
+      details: `${deliveryMode} · ${freight.amount.toFixed(2)}`,
+    });
+  });
+
+  revalidateAll();
 }
 
 export async function assignShowcaseInquiryMachineAction(formData: FormData) {

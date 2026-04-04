@@ -1,9 +1,10 @@
 /* eslint-disable @next/next/no-img-element */
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Clock3, PackageCheck, Ruler, SwatchBook } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { BuyItemWhatsAppForm } from "@/components/buy-item-whatsapp-form";
 import { getCurrentUser } from "@/lib/auth";
+import type { ShowcaseDeliveryMode } from "@/lib/db-types";
 import { formatCurrency, formatHours } from "@/lib/format";
 import {
   getShowcaseAvailabilityLabel,
@@ -13,6 +14,7 @@ import {
   getShowcaseLeadTimeLabel,
   getShowcasePrimaryVideo,
 } from "@/lib/showcase";
+import { getAvailableDeliveryModes } from "@/lib/shipping";
 import { getHydratedData } from "@/lib/view-data";
 
 type BuyItemPageProps = {
@@ -53,6 +55,12 @@ export default async function BuyItemPage({
   const desiredSize = getRequestedValue(query.desiredSize);
   const desiredFinish = getRequestedValue(query.desiredFinish);
   const couponCode = getRequestedValue(query.couponCode);
+  const deliveryModeValue = getRequestedValue(query.deliveryMode);
+  const deliveryPostalCode = getRequestedValue(query.deliveryPostalCode);
+  const deliveryAddress = getRequestedValue(query.deliveryAddress);
+  const deliveryNeighborhood = getRequestedValue(query.deliveryNeighborhood);
+  const deliveryCity = getRequestedValue(query.deliveryCity);
+  const deliveryState = getRequestedValue(query.deliveryState);
   const message = typeof query.message === "string" ? query.message : null;
   const { showcaseItems } = await getHydratedData();
   const item = showcaseItems.find((candidate) => candidate.id === itemId && candidate.active);
@@ -72,6 +80,10 @@ export default async function BuyItemPage({
   const heroVideo = getShowcasePrimaryVideo(item);
   const selectedVariant = item.variants.find((variant) => variant.id === selectedVariantId && variant.active);
   const unitPrice = item.price + (selectedVariant?.priceAdjustment ?? 0);
+  const availableDeliveryModes = getAvailableDeliveryModes(item);
+  const selectedDeliveryMode = availableDeliveryModes.includes(deliveryModeValue as ShowcaseDeliveryMode)
+    ? (deliveryModeValue as ShowcaseDeliveryMode)
+    : undefined;
   const couponDiscount =
     couponCode && item.couponCode && couponCode.toLowerCase() === item.couponCode.toLowerCase()
       ? item.couponDiscountPercent ?? 0
@@ -85,12 +97,6 @@ export default async function BuyItemPage({
       title="Confirmar compra pelo WhatsApp"
       subtitle="Nao precisa cadastro. Informe somente nome e telefone para gerar a mensagem e abrir a conversa."
     >
-      {message ? (
-        <div className="rounded-[24px] border border-amber-400/20 bg-amber-500/10 px-5 py-4 text-sm text-amber-50">
-          {message}
-        </div>
-      ) : null}
-
       <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <article className="overflow-hidden rounded-[28px] border border-white/10 bg-white/5">
           {heroVideo ? (
@@ -230,93 +236,28 @@ export default async function BuyItemPage({
           </div>
         </article>
 
-        <form
-          action={`/comprar/${item.id}/enviar`}
-          method="post"
-          className="space-y-4 rounded-[28px] border border-white/10 bg-white/5 p-6"
-        >
-          <input type="hidden" name="quantity" value={String(quantity)} />
-          <input type="hidden" name="selectedVariantId" value={selectedVariantId} />
-          <input type="hidden" name="desiredColor" value={desiredColor} />
-          <input type="hidden" name="desiredSize" value={desiredSize} />
-          <input type="hidden" name="desiredFinish" value={desiredFinish} />
-          <input type="hidden" name="couponCode" value={couponCode} />
-
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-white/45">
-              Dados para contato
-            </p>
-            <h3 className="mt-2 text-2xl font-semibold">Preencha e envie para o WhatsApp</h3>
-            <p className="mt-2 text-sm leading-6 text-white/65">
-              Depois de preencher, o sistema registra o interesse no painel do admin e abre a mensagem pronta para voce enviar.
-            </p>
-          </div>
-
-          <div className="rounded-[24px] border border-white/10 bg-black/25 p-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-white/45">Resumo do pedido</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Produto</p>
-                <p className="mt-2 text-sm font-semibold text-white/86">{item.name}</p>
-              </div>
-              <div className="rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Prazo</p>
-                <p className="mt-2 text-sm font-semibold text-white/86">{getShowcaseLeadTimeLabel(item)}</p>
-              </div>
-              {selectedVariant ? (
-                <div className="rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3 sm:col-span-2">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Variacao</p>
-                  <p className="mt-2 text-sm font-semibold text-white/86">{selectedVariant.label}</p>
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          <label className="block text-sm text-white/70">
-            Nome
-            <input
-              name="customerName"
-              defaultValue=""
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-emerald-400/60"
-              placeholder="Seu nome"
-            />
-          </label>
-
-          <label className="block text-sm text-white/70">
-            Telefone / WhatsApp
-            <input
-              name="customerPhone"
-              defaultValue=""
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-emerald-400/60"
-              placeholder="(64) 99999-9999"
-            />
-          </label>
-
-          <label className="block text-sm text-white/70">
-            Observacao opcional
-            <textarea
-              name="notes"
-              rows={4}
-              defaultValue={requestedNotes}
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-emerald-400/60"
-              placeholder="Ex.: Quero outra cor, preciso para presente, retirar pessoalmente..."
-            />
-          </label>
-
-          <button
-            type="submit"
-            className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
-          >
-            Enviar para meu WhatsApp
-          </button>
-
-          <Link
-            href={`/produto/${item.id}`}
-            className="inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
-          >
-            Voltar para a pagina do produto
-          </Link>
-        </form>
+        <BuyItemWhatsAppForm
+          itemId={item.id}
+          itemName={item.name}
+          quantity={quantity}
+          unitSubtotal={totalPrice}
+          estimatedMaterialGrams={(item.estimatedMaterialGrams ?? 0) * quantity}
+          estimatedPrintHours={(item.estimatedPrintHours ?? 0) * quantity}
+          message={message}
+          requestedNotes={requestedNotes}
+          selectedVariantId={selectedVariantId}
+          desiredColor={desiredColor}
+          desiredSize={desiredSize}
+          desiredFinish={desiredFinish}
+          couponCode={couponCode}
+          availableDeliveryModes={availableDeliveryModes}
+          initialDeliveryMode={selectedDeliveryMode}
+          initialDeliveryPostalCode={deliveryPostalCode}
+          initialDeliveryAddress={deliveryAddress}
+          initialDeliveryNeighborhood={deliveryNeighborhood}
+          initialDeliveryCity={deliveryCity}
+          initialDeliveryState={deliveryState}
+        />
       </section>
     </AppShell>
   );

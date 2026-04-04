@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, MessageCircleMore, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
-import type { DbShowcaseItem } from "@/lib/db-types";
+import type { DbShowcaseItem, ShowcaseDeliveryMode } from "@/lib/db-types";
 import { formatCurrency } from "@/lib/format";
 import {
   clearShowcaseCart,
@@ -15,6 +15,7 @@ import {
   updateShowcaseCartEntryQuantity,
 } from "@/lib/showcase-cart";
 import { getShowcasePrimaryImage } from "@/lib/showcase";
+import { deliveryModeLabels, estimateFreightCost, getAvailableDeliveryModes } from "@/lib/shipping";
 
 type ShowcaseCartViewProps = {
   items: DbShowcaseItem[];
@@ -97,6 +98,12 @@ export function ShowcaseCartView({ items }: ShowcaseCartViewProps) {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [deliveryMode, setDeliveryMode] = useState<ShowcaseDeliveryMode>("PICKUP");
+  const [deliveryPostalCode, setDeliveryPostalCode] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryNeighborhood, setDeliveryNeighborhood] = useState("");
+  const [deliveryCity, setDeliveryCity] = useState("");
+  const [deliveryState, setDeliveryState] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -120,7 +127,56 @@ export function ShowcaseCartView({ items }: ShowcaseCartViewProps) {
     () => cartLines.reduce((total, line) => total + line.totalPrice, 0),
     [cartLines],
   );
+  const totalMaterialGrams = useMemo(
+    () =>
+      cartLines.reduce(
+        (total, line) => total + ((line.item?.estimatedMaterialGrams ?? 0) * line.entry.quantity),
+        0,
+      ),
+    [cartLines],
+  );
+  const totalPrintHours = useMemo(
+    () =>
+      cartLines.reduce(
+        (total, line) => total + ((line.item?.estimatedPrintHours ?? 0) * line.entry.quantity),
+        0,
+      ),
+    [cartLines],
+  );
+  const availableDeliveryModes = useMemo<ShowcaseDeliveryMode[]>(() => {
+    const activeItems = cartLines.map((line) => line.item).filter(Boolean) as DbShowcaseItem[];
+
+    if (!activeItems.length) {
+      return ["PICKUP"] as ShowcaseDeliveryMode[];
+    }
+
+    const sharedModes = (["PICKUP", "LOCAL_DELIVERY", "SHIPPING"] as ShowcaseDeliveryMode[]).filter((mode) =>
+      activeItems.every((item) => getAvailableDeliveryModes(item).includes(mode)),
+    );
+
+    return sharedModes.length ? sharedModes : ["PICKUP"];
+  }, [cartLines]);
+  const freight = useMemo(
+    () =>
+      estimateFreightCost({
+        deliveryMode,
+        quantity: cartEntries.reduce((total, entry) => total + entry.quantity, 0),
+        estimatedMaterialGrams: totalMaterialGrams,
+        estimatedPrintHours: totalPrintHours,
+        postalCode: deliveryPostalCode,
+        city: deliveryCity,
+        state: deliveryState,
+      }),
+    [cartEntries, deliveryCity, deliveryMode, deliveryPostalCode, deliveryState, totalMaterialGrams, totalPrintHours],
+  );
+  const totalWithFreight = subtotal + freight.amount;
   const hasInvalidItems = cartLines.some((line) => line.statusMessage);
+
+  useEffect(() => {
+    if (!availableDeliveryModes.includes(deliveryMode)) {
+      setDeliveryMode(availableDeliveryModes[0] ?? "PICKUP");
+    }
+  }, [availableDeliveryModes, deliveryMode]);
 
   function refreshCart() {
     setCartEntries(readShowcaseCart());
@@ -136,6 +192,12 @@ export function ShowcaseCartView({ items }: ShowcaseCartViewProps) {
       formData.set("customerName", customerName);
       formData.set("customerPhone", customerPhone);
       formData.set("notes", notes);
+      formData.set("deliveryMode", deliveryMode);
+      formData.set("deliveryPostalCode", deliveryPostalCode);
+      formData.set("deliveryAddress", deliveryAddress);
+      formData.set("deliveryNeighborhood", deliveryNeighborhood);
+      formData.set("deliveryCity", deliveryCity);
+      formData.set("deliveryState", deliveryState);
       formData.set("cartJson", JSON.stringify(cartEntries));
 
       const response = await fetch("/carrinho/enviar", {
@@ -326,9 +388,18 @@ export function ShowcaseCartView({ items }: ShowcaseCartViewProps) {
               <strong className="text-white">{cartEntries.length}</strong>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <span>Total estimado</span>
-              <strong className="text-2xl text-white">{formatCurrency(subtotal)}</strong>
+              <span>Subtotal</span>
+              <strong className="text-white">{formatCurrency(subtotal)}</strong>
             </div>
+            <div className="flex items-center justify-between gap-4">
+              <span>Frete estimado</span>
+              <strong className="text-white">{formatCurrency(freight.amount)}</strong>
+            </div>
+            <div className="flex items-center justify-between gap-4 border-t border-white/10 pt-3">
+              <span>Total com entrega</span>
+              <strong className="text-2xl text-white">{formatCurrency(totalWithFreight)}</strong>
+            </div>
+            <p className="text-xs uppercase tracking-[0.18em] text-white/45">{freight.label}</p>
           </div>
         </div>
 
@@ -350,6 +421,77 @@ export function ShowcaseCartView({ items }: ShowcaseCartViewProps) {
               className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
             />
           </label>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm text-white/70">
+              Forma de entrega
+              <select
+                value={deliveryMode}
+                onChange={(event) => setDeliveryMode(event.target.value as ShowcaseDeliveryMode)}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
+              >
+                {availableDeliveryModes.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {deliveryModeLabels[mode]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm text-white/70">
+              CEP
+              <input
+                value={deliveryPostalCode}
+                onChange={(event) => setDeliveryPostalCode(event.target.value)}
+                placeholder="75900-000"
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
+              />
+            </label>
+          </div>
+
+          {deliveryMode !== "PICKUP" ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-sm text-white/70 sm:col-span-2">
+                Endereço
+                <input
+                  value={deliveryAddress}
+                  onChange={(event) => setDeliveryAddress(event.target.value)}
+                  placeholder="Rua, número, complemento"
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
+                />
+              </label>
+
+              <label className="block text-sm text-white/70">
+                Bairro
+                <input
+                  value={deliveryNeighborhood}
+                  onChange={(event) => setDeliveryNeighborhood(event.target.value)}
+                  placeholder="Bairro"
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
+                />
+              </label>
+
+              <label className="block text-sm text-white/70">
+                Cidade
+                <input
+                  value={deliveryCity}
+                  onChange={(event) => setDeliveryCity(event.target.value)}
+                  placeholder="Cidade"
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60"
+                />
+              </label>
+
+              <label className="block text-sm text-white/70">
+                UF
+                <input
+                  value={deliveryState}
+                  onChange={(event) => setDeliveryState(event.target.value.toUpperCase().slice(0, 2))}
+                  placeholder="GO"
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 uppercase text-white outline-none focus:border-orange-400/60"
+                />
+              </label>
+            </div>
+          ) : null}
 
           <label className="block text-sm text-white/70">
             Observacao geral
