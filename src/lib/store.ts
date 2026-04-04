@@ -385,6 +385,7 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
             ? studioCollectionName
             : normalizedItem.category.trim(),
         tagline: normalizedItem.tagline?.trim() || undefined,
+        productionChecklist: normalizedItem.productionChecklist?.trim() || undefined,
         imageUrl: normalizedItem.imageUrl ?? undefined,
         materialLabel: normalizedItem.materialLabel?.trim() || undefined,
         materialId: normalizedItem.materialId ?? undefined,
@@ -472,6 +473,9 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
         leadTemperature: normalizedInquiry.leadTemperature ?? "WARM",
         followUpAt: normalizedInquiry.followUpAt ?? undefined,
         lastContactAt: normalizedInquiry.lastContactAt ?? undefined,
+        nextAction: normalizedInquiry.nextAction?.trim() || undefined,
+        lastOutcome: normalizedInquiry.lastOutcome?.trim() || undefined,
+        lostReason: normalizedInquiry.lostReason?.trim() || undefined,
         orderStage:
           normalizedInquiry.status === "CLOSED"
             ? normalizedInquiry.orderStage ?? "RECEIVED"
@@ -489,6 +493,9 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
     auditLogs: (data.auditLogs ?? initial.auditLogs).map((entry) => ({
       ...entry,
       actorId: entry.actorId ?? undefined,
+      entityType: entry.entityType ?? undefined,
+      entityId: entry.entityId ?? undefined,
+      details: entry.details ?? undefined,
     })),
   };
 }
@@ -678,6 +685,26 @@ export async function getBackupSnapshotContent(fileName: string) {
   } catch {
     return null;
   }
+}
+
+export async function restoreBackupSnapshot(fileName: string) {
+  const snapshot = await getBackupSnapshotContent(fileName);
+
+  if (!snapshot) {
+    return false;
+  }
+
+  let parsed: Partial<PrintFlowDb>;
+
+  try {
+    parsed = JSON.parse(snapshot.content) as Partial<PrintFlowDb>;
+  } catch {
+    throw new Error("O snapshot selecionado está corrompido e não pode ser restaurado.");
+  }
+
+  const normalized = normalizeDb(parsed);
+  await writeDb(normalized);
+  return true;
 }
 
 export async function deleteBackupSnapshot(fileName: string) {

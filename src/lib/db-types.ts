@@ -331,6 +331,7 @@ export type DbShowcaseItem = {
   tagline?: string;
   description: string;
   price: number;
+  productionChecklist?: string;
   materialLabel?: string;
   materialId?: string;
   colorOptions: string[];
@@ -390,6 +391,9 @@ export type DbShowcaseInquiry = {
   leadTemperature: ShowcaseLeadTemperature;
   followUpAt?: IsoDateString;
   lastContactAt?: IsoDateString;
+  nextAction?: string;
+  lastOutcome?: string;
+  lostReason?: string;
   orderStage?: ShowcaseOrderStage;
   assignedMachineId?: string;
   printingStartedAt?: IsoDateString;
@@ -410,6 +414,9 @@ export type DbAuditLog = {
   area: string;
   action: string;
   summary: string;
+  entityType?: string;
+  entityId?: string;
+  details?: string;
   createdAt: IsoDateString;
 };
 

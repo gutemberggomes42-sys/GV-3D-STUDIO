@@ -221,6 +221,12 @@ function ShowcaseItemEditorContent({
                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Entrega</p>
                 <p className="mt-2 text-sm font-semibold text-white/85">{getShowcaseDeliverySummary(item)}</p>
               </div>
+              <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 sm:col-span-2">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Checklist</p>
+                <p className="mt-2 text-sm font-semibold text-white/85">
+                  {item.productionChecklist ? "Checklist de produção configurado" : "Sem checklist definido"}
+                </p>
+              </div>
             </div>
 
             {(gallery.length || variantGallery.length) ? (
@@ -327,6 +333,16 @@ function ShowcaseItemEditorContent({
                   <input name="dimensionSummary" defaultValue={fields.dimensionSummary ?? item.dimensionSummary ?? ""} className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60" />
                 </label>
               </div>
+
+              <label className="block text-sm text-white/70">
+                Checklist de produção
+                <textarea
+                  name="productionChecklist"
+                  rows={4}
+                  defaultValue={fields.productionChecklist ?? item.productionChecklist ?? ""}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
+                />
+              </label>
             </section>
 
             <ShowcasePriceCalculator

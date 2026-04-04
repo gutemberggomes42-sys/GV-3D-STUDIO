@@ -30,6 +30,7 @@ export function ShowcaseInquiryEditor({
 }: ShowcaseInquiryEditorProps) {
   const [state, formAction] = useActionState(updateShowcaseInquiryAction, initialState);
   const [deleteState, deleteAction] = useActionState(deleteShowcaseInquiryAction, initialState);
+  const fields = state.fields ?? {};
   const contactDetails = [inquiry.customerEmail, inquiry.customerPhone]
     .filter((value) => Boolean(value))
     .join(" · ");
@@ -139,7 +140,7 @@ export function ShowcaseInquiryEditor({
             Nome do cliente
             <input
               name="customerName"
-              defaultValue={inquiry.customerName}
+              defaultValue={fields.customerName ?? inquiry.customerName}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
             />
           </label>
@@ -147,7 +148,7 @@ export function ShowcaseInquiryEditor({
             Telefone / WhatsApp
             <input
               name="customerPhone"
-              defaultValue={inquiry.customerPhone ?? ""}
+              defaultValue={fields.customerPhone ?? inquiry.customerPhone ?? ""}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
             />
           </label>
@@ -158,15 +159,15 @@ export function ShowcaseInquiryEditor({
             Item da vitrine
             <select
               name="itemId"
-            defaultValue={inquiry.itemId}
-            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
-          >
-            {items.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name} · {item.fulfillmentType === "STOCK" ? `estoque ${item.stockQuantity}` : "sob encomenda"}
-              </option>
-            ))}
-          </select>
+              defaultValue={fields.itemId ?? inquiry.itemId}
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
+            >
+              {items.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} · {item.fulfillmentType === "STOCK" ? `estoque ${item.stockQuantity}` : "sob encomenda"}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="block text-sm text-white/70">
             Quantidade
@@ -175,7 +176,7 @@ export function ShowcaseInquiryEditor({
               type="number"
               min="1"
               step="1"
-              defaultValue={inquiry.quantity}
+              defaultValue={fields.quantity ?? String(inquiry.quantity)}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
             />
           </label>
@@ -183,7 +184,7 @@ export function ShowcaseInquiryEditor({
             Status
             <select
               name="status"
-              defaultValue={inquiry.status}
+              defaultValue={fields.status ?? inquiry.status}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
             >
               <option value="PENDING">Aguardando retorno</option>
@@ -198,7 +199,7 @@ export function ShowcaseInquiryEditor({
           <input
             name="customerEmail"
             type="email"
-            defaultValue={inquiry.customerEmail}
+            defaultValue={fields.customerEmail ?? inquiry.customerEmail}
             className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
           />
         </label>
@@ -208,7 +209,7 @@ export function ShowcaseInquiryEditor({
           <textarea
             name="notes"
             rows={3}
-            defaultValue={inquiry.notes ?? ""}
+            defaultValue={fields.notes ?? inquiry.notes ?? ""}
             className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
           />
         </label>
@@ -218,7 +219,7 @@ export function ShowcaseInquiryEditor({
             Temperatura do lead
             <select
               name="leadTemperature"
-              defaultValue={inquiry.leadTemperature}
+              defaultValue={fields.leadTemperature ?? inquiry.leadTemperature}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
             >
               {(["COLD", "WARM", "HOT"] as const).map((temperature) => (
@@ -234,7 +235,7 @@ export function ShowcaseInquiryEditor({
             <input
               name="followUpAt"
               type="datetime-local"
-              defaultValue={inquiry.followUpAt?.slice(0, 16) ?? ""}
+              defaultValue={fields.followUpAt ?? inquiry.followUpAt?.slice(0, 16) ?? ""}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
             />
           </label>
@@ -244,7 +245,7 @@ export function ShowcaseInquiryEditor({
             <input
               name="lastContactAt"
               type="datetime-local"
-              defaultValue={inquiry.lastContactAt?.slice(0, 16) ?? ""}
+              defaultValue={fields.lastContactAt ?? inquiry.lastContactAt?.slice(0, 16) ?? ""}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
             />
           </label>
@@ -253,7 +254,36 @@ export function ShowcaseInquiryEditor({
             Etiquetas
             <input
               name="tags"
-              defaultValue={inquiry.tags.join(", ")}
+              defaultValue={fields.tags ?? inquiry.tags.join(", ")}
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
+            />
+          </label>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <label className="block text-sm text-white/70">
+            Próxima ação
+            <input
+              name="nextAction"
+              defaultValue={fields.nextAction ?? inquiry.nextAction ?? ""}
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
+            />
+          </label>
+
+          <label className="block text-sm text-white/70">
+            Último resultado
+            <input
+              name="lastOutcome"
+              defaultValue={fields.lastOutcome ?? inquiry.lastOutcome ?? ""}
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
+            />
+          </label>
+
+          <label className="block text-sm text-white/70">
+            Motivo da perda
+            <input
+              name="lostReason"
+              defaultValue={fields.lostReason ?? inquiry.lostReason ?? ""}
               className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
             />
           </label>

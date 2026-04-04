@@ -14,6 +14,7 @@ const initialState: ActionState = { ok: false };
 
 export function ShowcaseInquiryForm({ items }: ShowcaseInquiryFormProps) {
   const [state, formAction] = useActionState(createShowcaseInquiryAction, initialState);
+  const fields = state.fields ?? {};
 
   return (
     <form action={formAction} className="space-y-4 rounded-[28px] border border-white/10 bg-white/5 p-6">
@@ -30,6 +31,7 @@ export function ShowcaseInquiryForm({ items }: ShowcaseInquiryFormProps) {
           Nome do cliente
           <input
             name="customerName"
+            defaultValue={fields.customerName ?? ""}
             placeholder="Nome do cliente"
             className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
           />
@@ -38,6 +40,7 @@ export function ShowcaseInquiryForm({ items }: ShowcaseInquiryFormProps) {
           Telefone / WhatsApp
           <input
             name="customerPhone"
+            defaultValue={fields.customerPhone ?? ""}
             placeholder="(64) 99999-9999"
             className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
           />
@@ -50,7 +53,7 @@ export function ShowcaseInquiryForm({ items }: ShowcaseInquiryFormProps) {
           <select
             name="itemId"
             className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
-            defaultValue={items[0]?.id ?? ""}
+            defaultValue={fields.itemId ?? items[0]?.id ?? ""}
           >
             {items.map((item) => (
               <option key={item.id} value={item.id}>
@@ -66,7 +69,7 @@ export function ShowcaseInquiryForm({ items }: ShowcaseInquiryFormProps) {
             type="number"
             min="1"
             step="1"
-            defaultValue="1"
+            defaultValue={fields.quantity ?? "1"}
             className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
           />
         </label>
@@ -74,7 +77,7 @@ export function ShowcaseInquiryForm({ items }: ShowcaseInquiryFormProps) {
           Status
           <select
             name="status"
-            defaultValue="PENDING"
+            defaultValue={fields.status ?? "PENDING"}
             className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
           >
             <option value="PENDING">Aguardando retorno</option>
@@ -89,6 +92,7 @@ export function ShowcaseInquiryForm({ items }: ShowcaseInquiryFormProps) {
         <input
           name="customerEmail"
           type="email"
+          defaultValue={fields.customerEmail ?? ""}
           placeholder="cliente@email.com"
           className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
         />
@@ -99,6 +103,7 @@ export function ShowcaseInquiryForm({ items }: ShowcaseInquiryFormProps) {
         <textarea
           name="notes"
           rows={3}
+          defaultValue={fields.notes ?? ""}
           placeholder="Detalhes do pedido, cor combinada, prazo, observações..."
           className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
         />
@@ -109,7 +114,7 @@ export function ShowcaseInquiryForm({ items }: ShowcaseInquiryFormProps) {
           Temperatura do lead
           <select
             name="leadTemperature"
-            defaultValue="WARM"
+            defaultValue={fields.leadTemperature ?? "WARM"}
             className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
           >
             {(["COLD", "WARM", "HOT"] as const).map((temperature) => (
@@ -125,6 +130,7 @@ export function ShowcaseInquiryForm({ items }: ShowcaseInquiryFormProps) {
           <input
             name="followUpAt"
             type="datetime-local"
+            defaultValue={fields.followUpAt ?? ""}
             className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
           />
         </label>
@@ -134,6 +140,39 @@ export function ShowcaseInquiryForm({ items }: ShowcaseInquiryFormProps) {
           <input
             name="lastContactAt"
             type="datetime-local"
+            defaultValue={fields.lastContactAt ?? ""}
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+          />
+        </label>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <label className="block text-sm text-white/70">
+          Próxima ação
+          <input
+            name="nextAction"
+            defaultValue={fields.nextAction ?? ""}
+            placeholder="Enviar orçamento, cobrar resposta, confirmar retirada..."
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+          />
+        </label>
+
+        <label className="block text-sm text-white/70">
+          Último resultado
+          <input
+            name="lastOutcome"
+            defaultValue={fields.lastOutcome ?? ""}
+            placeholder="Pediu desconto, quer outra cor, vai responder amanhã..."
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+          />
+        </label>
+
+        <label className="block text-sm text-white/70">
+          Motivo da perda
+          <input
+            name="lostReason"
+            defaultValue={fields.lostReason ?? ""}
+            placeholder="Preço, prazo, desistiu, sem resposta..."
             className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
           />
         </label>
@@ -143,6 +182,7 @@ export function ShowcaseInquiryForm({ items }: ShowcaseInquiryFormProps) {
         Etiquetas do lead
         <input
           name="tags"
+          defaultValue={fields.tags ?? ""}
           placeholder="cliente recorrente, quer video, pediu desconto"
           className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
         />

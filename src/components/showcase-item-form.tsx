@@ -228,6 +228,17 @@ function ShowcaseItemFormContent({
             Ao vincular material e consumo estimado, o sistema já consegue calcular custo real e baixar o filamento automaticamente quando o pedido entrar em impressão.
           </div>
         </div>
+
+        <label className="block text-sm text-white/70">
+          Checklist de produção
+          <textarea
+            name="productionChecklist"
+            rows={4}
+            defaultValue={fields.productionChecklist ?? ""}
+            placeholder="Ex.: confirmar cor, limpar mesa, conferir suporte, lixar base, embalar com etiqueta..."
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+          />
+        </label>
       </section>
 
       <ShowcasePriceCalculator

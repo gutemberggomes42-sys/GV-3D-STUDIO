@@ -17,8 +17,12 @@ import { StatusPill } from "@/components/status-pill";
 import { StorefrontSettingsForm } from "@/components/storefront-settings-form";
 import { SubmitButton } from "@/components/submit-button";
 import {
+  advanceOrderStatusAction,
+  bulkUpdateShowcaseInquiryAction,
+  bulkUpdateShowcaseItemsAction,
   createBackupSnapshotAction,
   deleteBackupSnapshotAction,
+  restoreBackupSnapshotAction,
   updateMachineStatusAction,
   updateShowcaseInquiryOrderStageAction,
 } from "@/lib/actions";
@@ -68,6 +72,18 @@ type AdminSection =
 type AdminPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
+
+type AdminSearchType =
+  | "all"
+  | "orders"
+  | "showcase"
+  | "leads"
+  | "customers"
+  | "materials"
+  | "machines";
+
+type AdminSearchStatusFilter = "all" | "active" | "closed" | "attention";
+type AdminSearchPeriod = "all" | "today" | "7d" | "30d";
 
 const adminSections: Array<{
   key: AdminSection;
@@ -124,6 +140,49 @@ function formatShortDate(value: string) {
   }).format(new Date(value));
 }
 
+function isSearchType(value: string | undefined): value is AdminSearchType {
+  return ["all", "orders", "showcase", "leads", "customers", "materials", "machines"].includes(
+    value ?? "",
+  );
+}
+
+function isSearchStatusFilter(value: string | undefined): value is AdminSearchStatusFilter {
+  return ["all", "active", "closed", "attention"].includes(value ?? "");
+}
+
+function isSearchPeriod(value: string | undefined): value is AdminSearchPeriod {
+  return ["all", "today", "7d", "30d"].includes(value ?? "");
+}
+
+function isWithinSearchPeriod(
+  value: string | undefined,
+  period: AdminSearchPeriod,
+  now = Date.now(),
+) {
+  if (period === "all") {
+    return true;
+  }
+
+  if (!value) {
+    return false;
+  }
+
+  const time = new Date(value).getTime();
+
+  if (Number.isNaN(time)) {
+    return false;
+  }
+
+  if (period === "today") {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    return time >= todayStart.getTime();
+  }
+
+  const days = period === "7d" ? 7 : 30;
+  return time >= now - days * 24 * 60 * 60 * 1000;
+}
+
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const user = await requireRoles([UserRole.SUPERVISOR, UserRole.ADMIN]);
   const params = searchParams ? await searchParams : {};
@@ -131,8 +190,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const message = typeof params.message === "string" ? params.message : undefined;
   const error = typeof params.error === "string" ? params.error : undefined;
   const rawQuery = typeof params.q === "string" ? params.q : "";
+  const rawSearchType = typeof params.type === "string" ? params.type : undefined;
+  const rawStatusFilter = typeof params.statusFilter === "string" ? params.statusFilter : undefined;
+  const rawPeriod = typeof params.period === "string" ? params.period : undefined;
   const searchQuery = rawQuery.trim();
   const normalizedSearchQuery = normalizeSearchText(searchQuery);
+  const searchType = isSearchType(rawSearchType) ? rawSearchType : "all";
+  const searchStatusFilter = isSearchStatusFilter(rawStatusFilter) ? rawStatusFilter : "all";
+  const searchPeriod = isSearchPeriod(rawPeriod) ? rawPeriod : "all";
   const activeSection = isAdminSection(rawSection) ? rawSection : "summary";
   const {
     orders,
@@ -365,6 +430,203 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
     return rightWeight - leftWeight;
   });
+  const leadHistoryById = showcaseInquiries.reduce<Record<string, typeof auditLogs>>((accumulator, inquiry) => {
+    accumulator[inquiry.id] = auditLogs.filter(
+      (entry) => entry.entityType === "showcase_inquiry" && entry.entityId === inquiry.id,
+    );
+    return accumulator;
+  }, {});
+  const orderHistoryById = orders.reduce<Record<string, typeof auditLogs>>((accumulator, order) => {
+    accumulator[order.id] = auditLogs.filter(
+      (entry) => entry.entityType === "order" && entry.entityId === order.id,
+    );
+    return accumulator;
+  }, {});
+  const alertCenter = [
+    {
+      id: "followups",
+      label: "Follow-ups vencidos",
+      count: dueFollowUpLeads.length,
+      detail: "Leads que já deveriam ter recebido resposta.",
+      href: "/admin?section=leads",
+      tone: "amber",
+    },
+    {
+      id: "orders",
+      label: "Pedidos parados",
+      count: staleOrders.length,
+      detail: "Pedidos sem atualização há mais de 3 dias.",
+      href: "/admin?section=pedidos",
+      tone: "rose",
+    },
+    {
+      id: "materials",
+      label: "Materiais críticos",
+      count: materials.filter((material) => material.stockAmount <= material.minimumStock).length,
+      detail: "Filamentos e resinas no limite mínimo.",
+      href: "/admin?section=materiais",
+      tone: "sky",
+    },
+    {
+      id: "maintenance",
+      label: "Manutenção vencida",
+      count: maintenanceDueMachines.length,
+      detail: "Máquinas que já passaram da preventiva.",
+      href: "/admin?section=maquinas",
+      tone: "violet",
+    },
+    {
+      id: "payables",
+      label: "Contas vencidas",
+      count: payables.filter((payable) => payable.status !== "PAID" && new Date(payable.dueDate).getTime() < now).length,
+      detail: "Pagamentos pendentes que já venceram.",
+      href: "/financeiro",
+      tone: "slate",
+    },
+  ];
+  const messageTemplates = [
+    {
+      title: "Retorno inicial",
+      body:
+        "Olá! Vi seu interesse na peça e já separei os detalhes para você. Se quiser, eu confirmo cor, prazo e forma de entrega agora mesmo.",
+    },
+    {
+      title: "Cobrança / pagamento",
+      body:
+        "Seu pedido está pronto para avançar. Posso te enviar a chave Pix ou outra forma de pagamento para reservar a produção.",
+    },
+    {
+      title: "Retirada / envio",
+      body:
+        "Sua peça já está finalizada. Posso combinar retirada, entrega local ou envio pelos Correios ainda hoje.",
+    },
+  ];
+  const operatorSummary = users
+    .filter((candidate) => candidate.role === UserRole.OPERATOR || candidate.role === UserRole.SUPERVISOR)
+    .map((candidate) => {
+      const activeAssignedOrders = orders.filter(
+        (order) =>
+          order.assignedOperatorId === candidate.id &&
+          order.status !== OrderStatus.COMPLETED &&
+          order.status !== OrderStatus.CANCELED,
+      );
+      const printingOrders = activeAssignedOrders.filter((order) => order.status === OrderStatus.PRINTING);
+      const responsibleMachines = machines.filter(
+        (machine) => normalizeSearchText(machine.responsibleOperator ?? "") === normalizeSearchText(candidate.name),
+      );
+      const busyMachines = responsibleMachines.filter((machine) => machine.status === MachineStatus.BUSY);
+
+      return {
+        user: candidate,
+        activeAssignedOrders: activeAssignedOrders.length,
+        printingOrders: printingOrders.length,
+        responsibleMachines: responsibleMachines.length,
+        busyMachines: busyMachines.length,
+      };
+    });
+  const permissionMatrix = [
+    {
+      role: "Administrador",
+      items: ["Vê tudo", "Restaura snapshot", "Financeiro completo", "Configurações da loja"],
+    },
+    {
+      role: "Supervisor",
+      items: ["Produção e leads", "Materiais e máquinas", "Cria snapshots", "Sem restaurar backup"],
+    },
+    {
+      role: "Operador",
+      items: ["Movimenta produção", "Atualiza máquinas", "Sem financeiro", "Sem vitrine/configurações"],
+    },
+  ];
+  const showcaseConversionByItem = showcaseItems
+    .map((item) => {
+      const relatedInquiries = showcaseInquiries.filter((inquiry) => inquiry.itemId === item.id);
+      const relatedClosed = relatedInquiries.filter((inquiry) => inquiry.status === "CLOSED");
+      const estimatedRevenue = relatedClosed.reduce((sum, inquiry) => sum + item.price * inquiry.quantity, 0);
+      const conversionRate = relatedInquiries.length
+        ? (relatedClosed.length / relatedInquiries.length) * 100
+        : 0;
+
+      return {
+        item,
+        leadCount: relatedInquiries.length,
+        closedCount: relatedClosed.length,
+        conversionRate,
+        estimatedRevenue,
+      };
+    })
+    .sort((left, right) => right.closedCount - left.closedCount || right.estimatedRevenue - left.estimatedRevenue)
+    .slice(0, 6);
+  const showcaseConversionByCategory = Object.values(
+    showcaseItems.reduce<
+      Record<
+        string,
+        { category: string; leadCount: number; closedCount: number; estimatedRevenue: number; clickCount: number }
+      >
+    >((accumulator, item) => {
+      const categoryKey = item.category.trim();
+      accumulator[categoryKey] ??= {
+        category: categoryKey,
+        leadCount: 0,
+        closedCount: 0,
+        estimatedRevenue: 0,
+        clickCount: 0,
+      };
+      const relatedInquiries = showcaseInquiries.filter((inquiry) => inquiry.itemId === item.id);
+      const relatedClosed = relatedInquiries.filter((inquiry) => inquiry.status === "CLOSED");
+      accumulator[categoryKey].leadCount += relatedInquiries.length;
+      accumulator[categoryKey].closedCount += relatedClosed.length;
+      accumulator[categoryKey].estimatedRevenue += relatedClosed.reduce(
+        (sum, inquiry) => sum + item.price * inquiry.quantity,
+        0,
+      );
+      accumulator[categoryKey].clickCount += item.whatsappClickCount;
+      return accumulator;
+    }, {}),
+  )
+    .map((entry) => ({
+      ...entry,
+      conversionRate: entry.leadCount ? (entry.closedCount / entry.leadCount) * 100 : 0,
+    }))
+    .sort((left, right) => right.closedCount - left.closedCount || right.estimatedRevenue - left.estimatedRevenue)
+    .slice(0, 5);
+  const kanbanColumns: Array<{
+    id: string;
+    label: string;
+    statuses: OrderStatus[];
+    inquiryStages: Array<(typeof showcaseOrderStageOptions)[number]>;
+  }> = [
+    {
+      id: "intake",
+      label: "Entrada",
+      statuses: [OrderStatus.RECEIVED, OrderStatus.ANALYSIS],
+      inquiryStages: ["RECEIVED", "ANALYSIS"],
+    },
+    {
+      id: "approval",
+      label: "Aprovação e pagamento",
+      statuses: [OrderStatus.WAITING_APPROVAL, OrderStatus.WAITING_PAYMENT],
+      inquiryStages: ["WAITING_APPROVAL", "WAITING_PAYMENT"],
+    },
+    {
+      id: "production",
+      label: "Fila e impressão",
+      statuses: [OrderStatus.QUEUED, OrderStatus.PRINTING],
+      inquiryStages: ["QUEUED", "PRINTING"],
+    },
+    {
+      id: "finishing",
+      label: "Acabamento e envio",
+      statuses: [OrderStatus.POST_PROCESSING, OrderStatus.QUALITY, OrderStatus.READY_TO_SHIP, OrderStatus.SHIPPED],
+      inquiryStages: ["POST_PROCESSING", "QUALITY", "READY_TO_SHIP", "SHIPPED"],
+    },
+    {
+      id: "done",
+      label: "Finalizados e exceções",
+      statuses: [OrderStatus.COMPLETED, OrderStatus.FAILED_REWORK, OrderStatus.CANCELED],
+      inquiryStages: ["COMPLETED", "FAILED_REWORK", "CANCELED"],
+    },
+  ];
 
   const sectionCounts: Record<AdminSection, string> = {
     summary: "8 areas",
@@ -536,73 +798,157 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     ...monthlyPerformance.flatMap((entry) => [entry.revenue, entry.outgoing, entry.conversions * 100]),
   );
   const matchedOrders = normalizedSearchQuery
-    ? orders.filter((order) =>
-        matchesSearch(
-          normalizedSearchQuery,
-          order.orderNumber,
-          order.title,
-          order.customer?.name,
-          order.customer?.company,
-          order.materialName,
-        ),
-      )
+    ? orders.filter((order) => {
+        const statusMatch =
+          searchStatusFilter === "all"
+            ? true
+            : searchStatusFilter === "active"
+              ? order.status !== OrderStatus.COMPLETED && order.status !== OrderStatus.CANCELED
+              : searchStatusFilter === "closed"
+                ? order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELED
+                : staleOrders.some((staleOrder) => staleOrder.id === order.id);
+
+        return (
+          (searchType === "all" || searchType === "orders") &&
+          statusMatch &&
+          isWithinSearchPeriod(order.updatedAt, searchPeriod, now) &&
+          matchesSearch(
+            normalizedSearchQuery,
+            order.orderNumber,
+            order.title,
+            order.customer?.name,
+            order.customer?.company,
+            order.materialName,
+          )
+        );
+      })
     : [];
   const matchedShowcaseItems = normalizedSearchQuery
-    ? showcaseItems.filter((item) =>
-        matchesSearch(
-          normalizedSearchQuery,
-          item.name,
-          item.category,
-          item.description,
-          item.materialLabel,
-          item.tagline,
-        ),
-      )
+    ? showcaseItems.filter((item) => {
+        const statusMatch =
+          searchStatusFilter === "all"
+            ? true
+            : searchStatusFilter === "active"
+              ? item.active
+              : searchStatusFilter === "closed"
+                ? !item.active
+                : showcaseCriticalStockItems.some((criticalItem) => criticalItem.id === item.id);
+
+        return (
+          (searchType === "all" || searchType === "showcase") &&
+          statusMatch &&
+          isWithinSearchPeriod(item.updatedAt, searchPeriod, now) &&
+          matchesSearch(
+            normalizedSearchQuery,
+            item.name,
+            item.category,
+            item.description,
+            item.materialLabel,
+            item.tagline,
+          )
+        );
+      })
     : [];
   const matchedLeads = normalizedSearchQuery
-    ? showcaseInquiries.filter((inquiry) =>
-        matchesSearch(
-          normalizedSearchQuery,
-          inquiry.customerName,
-          inquiry.customerPhone,
-          inquiry.customerEmail,
-          inquiry.itemName,
-          inquiry.tags.join(" "),
-        ),
-      )
+    ? showcaseInquiries.filter((inquiry) => {
+        const statusMatch =
+          searchStatusFilter === "all"
+            ? true
+            : searchStatusFilter === "active"
+              ? inquiry.status === "PENDING"
+              : searchStatusFilter === "closed"
+                ? inquiry.status !== "PENDING"
+                : dueFollowUpLeads.some((lead) => lead.id === inquiry.id) || inquiry.leadTemperature === "HOT";
+
+        return (
+          (searchType === "all" || searchType === "leads") &&
+          statusMatch &&
+          isWithinSearchPeriod(inquiry.updatedAt, searchPeriod, now) &&
+          matchesSearch(
+            normalizedSearchQuery,
+            inquiry.customerName,
+            inquiry.customerPhone,
+            inquiry.customerEmail,
+            inquiry.itemName,
+            inquiry.tags.join(" "),
+          )
+        );
+      })
     : [];
   const matchedCustomers = normalizedSearchQuery
-    ? customers.filter(({ customer }) =>
-        matchesSearch(
-          normalizedSearchQuery,
-          customer.name,
-          customer.company,
-          customer.email,
-          customer.phone,
-        ),
-      )
+    ? customers.filter(({ customer, orderCount }) => {
+        const statusMatch =
+          searchStatusFilter === "all"
+            ? true
+            : searchStatusFilter === "active"
+              ? orderCount > 0
+              : searchStatusFilter === "closed"
+                ? orderCount === 0
+                : customer.phone == null && customer.email == null;
+
+        return (
+          (searchType === "all" || searchType === "customers") &&
+          statusMatch &&
+          isWithinSearchPeriod(customer.updatedAt, searchPeriod, now) &&
+          matchesSearch(
+            normalizedSearchQuery,
+            customer.name,
+            customer.company,
+            customer.email,
+            customer.phone,
+          )
+        );
+      })
     : [];
   const matchedMaterials = normalizedSearchQuery
-    ? materials.filter((material) =>
-        matchesSearch(
-          normalizedSearchQuery,
-          material.name,
-          material.brand,
-          material.color,
-          material.category,
-        ),
-      )
+    ? materials.filter((material) => {
+        const statusMatch =
+          searchStatusFilter === "all"
+            ? true
+            : searchStatusFilter === "active"
+              ? material.stockAmount > material.minimumStock
+              : searchStatusFilter === "closed"
+                ? material.stockAmount <= 0
+                : material.stockAmount <= material.minimumStock;
+
+        return (
+          (searchType === "all" || searchType === "materials") &&
+          statusMatch &&
+          isWithinSearchPeriod(material.updatedAt, searchPeriod, now) &&
+          matchesSearch(
+            normalizedSearchQuery,
+            material.name,
+            material.brand,
+            material.color,
+            material.category,
+          )
+        );
+      })
     : [];
   const matchedMachines = normalizedSearchQuery
-    ? machines.filter((machine) =>
-        matchesSearch(
-          normalizedSearchQuery,
-          machine.name,
-          machine.model,
-          machine.location,
-          machine.supportedMaterialNames,
-        ),
-      )
+    ? machines.filter((machine) => {
+        const statusMatch =
+          searchStatusFilter === "all"
+            ? true
+            : searchStatusFilter === "active"
+              ? machine.status !== MachineStatus.OFFLINE && machine.status !== MachineStatus.ERROR
+              : searchStatusFilter === "closed"
+                ? machine.status === MachineStatus.OFFLINE
+                : machine.status === MachineStatus.ERROR || machine.status === MachineStatus.MAINTENANCE;
+
+        return (
+          (searchType === "all" || searchType === "machines") &&
+          statusMatch &&
+          isWithinSearchPeriod(machine.updatedAt, searchPeriod, now) &&
+          matchesSearch(
+            normalizedSearchQuery,
+            machine.name,
+            machine.model,
+            machine.location,
+            machine.supportedMaterialNames,
+          )
+        );
+      })
     : [];
   const totalSearchResults =
     matchedOrders.length +
@@ -638,6 +984,42 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <MetricCard label="Máquinas ocupadas" value={String(summaryMachinesBusy)} caption="Impressoras em uso em pedidos internos e da vitrine." accent="rose" />
       </section>
 
+      <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Central de alertas</p>
+            <h3 className="mt-2 text-2xl font-semibold">O que precisa de ação agora</h3>
+            <p className="mt-2 text-sm leading-6 text-white/65">
+              Separei os pontos que mais travam vendas, produção e caixa para você resolver rápido.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white/70">
+            {alertCenter.reduce((sum, item) => sum + item.count, 0)} pendências críticas monitoradas
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-5">
+          {alertCenter.map((alert) => (
+            <Link
+              key={alert.id}
+              href={alert.href}
+              className={cn(
+                "rounded-[22px] border p-4 transition hover:-translate-y-0.5",
+                alert.tone === "amber" && "border-amber-400/25 bg-amber-500/10 hover:bg-amber-500/15",
+                alert.tone === "rose" && "border-rose-400/25 bg-rose-500/10 hover:bg-rose-500/15",
+                alert.tone === "sky" && "border-sky-400/25 bg-sky-500/10 hover:bg-sky-500/15",
+                alert.tone === "violet" && "border-violet-400/25 bg-violet-500/10 hover:bg-violet-500/15",
+                alert.tone === "slate" && "border-white/10 bg-slate-950/60 hover:bg-white/10",
+              )}
+            >
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/55">{alert.label}</p>
+              <p className="mt-3 text-3xl font-semibold text-white">{alert.count}</p>
+              <p className="mt-2 text-sm leading-6 text-white/65">{alert.detail}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -653,7 +1035,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </div>
           </div>
 
-          <form action="/admin" method="GET" className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+          <form action="/admin" method="GET" className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_200px_180px_160px_auto_auto]">
             {activeSection !== "summary" ? <input type="hidden" name="section" value={activeSection} /> : null}
             <input
               type="search"
@@ -662,6 +1044,39 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               placeholder="Buscar por nome, pedido, telefone, material, máquina..."
               className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-orange-400/60"
             />
+            <select
+              name="type"
+              defaultValue={searchType}
+              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/60"
+            >
+              <option value="all">Tudo</option>
+              <option value="orders">Pedidos</option>
+              <option value="showcase">Vitrine</option>
+              <option value="leads">Leads</option>
+              <option value="customers">Clientes</option>
+              <option value="materials">Materiais</option>
+              <option value="machines">Máquinas</option>
+            </select>
+            <select
+              name="statusFilter"
+              defaultValue={searchStatusFilter}
+              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/60"
+            >
+              <option value="all">Qualquer status</option>
+              <option value="active">Ativos / em aberto</option>
+              <option value="closed">Fechados / concluídos</option>
+              <option value="attention">Pedem atenção</option>
+            </select>
+            <select
+              name="period"
+              defaultValue={searchPeriod}
+              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/60"
+            >
+              <option value="all">Qualquer período</option>
+              <option value="today">Hoje</option>
+              <option value="7d">Últimos 7 dias</option>
+              <option value="30d">Últimos 30 dias</option>
+            </select>
             <button
               type="submit"
               className="rounded-2xl border border-orange-400/30 bg-orange-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
@@ -677,6 +1092,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </form>
 
           <div className="mt-4 flex flex-wrap gap-2 text-xs text-white/55">
+            <span className="rounded-full border border-orange-400/20 bg-orange-500/10 px-3 py-1 text-orange-100">
+              Filtro atual: {searchType === "all" ? "tudo" : searchType} · {searchStatusFilter === "all" ? "qualquer status" : searchStatusFilter} · {searchPeriod === "all" ? "qualquer período" : searchPeriod}
+            </span>
             {["leads quentes", "pedido gv", "resina", "cliente", "bambu", "faturamento"].map((hint) => (
               <span key={hint} className="rounded-full border border-white/10 bg-black/25 px-3 py-1">
                 {hint}
@@ -1174,6 +1592,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                         <p className="mt-1 text-xs uppercase tracking-[0.18em] text-white/45">
                           {entry.area} · {entry.action}
                         </p>
+                        {entry.details ? (
+                          <p className="mt-2 text-sm text-white/60">{entry.details}</p>
+                        ) : null}
                       </div>
                       <p className="text-sm text-white/55">
                         {formatDateTime(new Date(entry.createdAt))}
@@ -1186,6 +1607,146 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   Ainda não há ações registradas no histórico.
                 </div>
               )}
+            </div>
+          </section>
+        </section>
+      ) : null}
+
+      {activeSection === "summary" ? (
+        <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+          <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-white/45">Conversão da vitrine</p>
+                <h3 className="mt-2 text-2xl font-semibold">Produtos e categorias que mais fecham</h3>
+              </div>
+              <Link href="/admin?section=vitrine" className="text-sm text-orange-200 transition hover:text-orange-100">
+                Abrir vitrine
+              </Link>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              {showcaseConversionByItem.length ? (
+                showcaseConversionByItem.map((entry) => (
+                  <div key={entry.item.id} className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <p className="font-semibold text-white">{entry.item.name}</p>
+                        <p className="mt-1 text-sm text-white/60">
+                          {entry.leadCount} leads · {entry.closedCount} fechados · {entry.conversionRate.toFixed(1)}% conversão
+                        </p>
+                      </div>
+                      <p className="text-sm font-semibold text-emerald-100">{formatCurrency(entry.estimatedRevenue)}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-4 text-sm text-white/60">
+                  Ainda não há dados suficientes para medir conversão da vitrine.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Categorias com melhor resposta</p>
+            <h3 className="mt-2 text-2xl font-semibold">O que mais converte por grupo</h3>
+            <div className="mt-6 space-y-3">
+              {showcaseConversionByCategory.length ? (
+                showcaseConversionByCategory.map((entry) => (
+                  <div key={entry.category} className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-semibold text-white">{entry.category}</p>
+                        <p className="mt-1 text-sm text-white/60">
+                          {entry.closedCount} fechados · {entry.clickCount} cliques · {entry.conversionRate.toFixed(1)}% conversão
+                        </p>
+                      </div>
+                      <p className="text-sm font-semibold text-cyan-100">{formatCurrency(entry.estimatedRevenue)}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-4 text-sm text-white/60">
+                  Cadastre mais interações para o painel descobrir as categorias mais fortes.
+                </div>
+              )}
+            </div>
+          </section>
+        </section>
+      ) : null}
+
+      {activeSection === "summary" ? (
+        <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+          <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Equipe operacional</p>
+            <h3 className="mt-2 text-2xl font-semibold">Quem está com carga agora</h3>
+            <div className="mt-6 space-y-3">
+              {operatorSummary.length ? (
+                operatorSummary.map((entry) => (
+                  <div key={entry.user.id} className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <p className="font-semibold text-white">{entry.user.name}</p>
+                        <p className="mt-1 text-sm text-white/60">{entry.user.role === UserRole.SUPERVISOR ? "Supervisor" : "Operador"}</p>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-4">
+                        <div className="rounded-2xl border border-white/10 bg-black/25 px-3 py-2 text-center">
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Ativos</p>
+                          <p className="mt-1 font-semibold text-white">{entry.activeAssignedOrders}</p>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-black/25 px-3 py-2 text-center">
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Imprimindo</p>
+                          <p className="mt-1 font-semibold text-white">{entry.printingOrders}</p>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-black/25 px-3 py-2 text-center">
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Máquinas</p>
+                          <p className="mt-1 font-semibold text-white">{entry.responsibleMachines}</p>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-black/25 px-3 py-2 text-center">
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Ocupadas</p>
+                          <p className="mt-1 font-semibold text-white">{entry.busyMachines}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-4 text-sm text-white/60">
+                  Ainda não há operadores ou supervisores cadastrados.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Permissões e modelos rápidos</p>
+            <h3 className="mt-2 text-2xl font-semibold">Quem pode fazer o quê</h3>
+            <div className="mt-6 space-y-4">
+              {permissionMatrix.map((entry) => (
+                <div key={entry.role} className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                  <p className="font-semibold text-white">{entry.role}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {entry.items.map((item) => (
+                      <span key={item} className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/75">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
+                <p className="font-semibold text-white">Modelos prontos de mensagem</p>
+                <div className="mt-4 space-y-3">
+                  {messageTemplates.map((template) => (
+                    <div key={template.title} className="rounded-2xl border border-white/10 bg-black/25 p-3">
+                      <p className="text-sm font-semibold text-white">{template.title}</p>
+                      <p className="mt-2 text-sm leading-6 text-white/65">{template.body}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </section>
         </section>
@@ -1226,6 +1787,17 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     >
                       Baixar backup
                     </a>
+                    {user.role === UserRole.ADMIN ? (
+                      <form action={restoreBackupSnapshotAction}>
+                        <input type="hidden" name="fileName" value={snapshot.fileName} />
+                        <SubmitButton
+                          label="Restaurar snapshot"
+                          pendingLabel="Restaurando..."
+                          confirmMessage="Restaurar este snapshot agora? O estado atual será substituído."
+                          className="border-amber-400/25 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20"
+                        />
+                      </form>
+                    ) : null}
                     <form action={deleteBackupSnapshotAction}>
                       <input type="hidden" name="fileName" value={snapshot.fileName} />
                       <SubmitButton
@@ -1266,6 +1838,31 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <p className="mt-2 text-sm text-white/60">
               Deixei a lista mais compacta. O formulário completo de atualização só aparece quando você abre o produto.
             </p>
+            <form
+              id="bulk-showcase-items-form"
+              action={bulkUpdateShowcaseItemsAction}
+              className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_auto]"
+            >
+              <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white/60">
+                Marque vários anúncios para destacar, ativar ou ocultar de uma vez.
+              </div>
+              <select
+                name="operation"
+                defaultValue="feature"
+                className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/60"
+              >
+                <option value="feature">Destacar selecionados</option>
+                <option value="unfeature">Remover destaque</option>
+                <option value="activate">Ativar produtos</option>
+                <option value="deactivate">Ocultar produtos</option>
+              </select>
+              <SubmitButton
+                label="Aplicar em lote"
+                pendingLabel="Aplicando..."
+                confirmMessage="Aplicar esta ação aos produtos selecionados?"
+                className="border-orange-400/30 bg-orange-500 text-slate-950 hover:bg-orange-400"
+              />
+            </form>
             <div className="mt-6 space-y-4">
               {showcaseItems.length ? (
                 showcaseItems.map((item) => {
@@ -1282,6 +1879,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       <summary className="list-none cursor-pointer p-4 transition hover:bg-white/5 [&::-webkit-details-marker]:hidden">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                           <div className="flex items-center gap-4">
+                            <input
+                              type="checkbox"
+                              name="itemIds"
+                              value={item.id}
+                              form="bulk-showcase-items-form"
+                              className="h-5 w-5 rounded border-white/20 bg-black/30"
+                            />
                             <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[22px] border border-white/10 bg-slate-950/70">
                               {primaryImage ? (
                                 <div
@@ -1344,6 +1948,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                             <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
                               <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Abrir edição</p>
                               <p className="mt-2 text-sm font-semibold text-orange-200">Clique para atualizar</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Checklist</p>
+                              <p className="mt-2 text-sm font-semibold text-white">
+                                {item.productionChecklist ? "Configurado" : "Sem checklist"}
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -1487,6 +2097,37 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </Link>
             </div>
 
+            <form
+              id="bulk-showcase-inquiries-form"
+              action={bulkUpdateShowcaseInquiryAction}
+              className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_240px_auto]"
+            >
+              <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white/60">
+                Selecione vários leads para mover status, temperatura ou agenda de follow-up de uma vez.
+              </div>
+              <select
+                name="operation"
+                defaultValue="set_hot"
+                className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/60"
+              >
+                <option value="set_hot">Marcar como quente</option>
+                <option value="set_warm">Marcar como morno</option>
+                <option value="set_cold">Marcar como frio</option>
+                <option value="set_pending">Voltar para pendente</option>
+                <option value="set_closed">Marcar como fechado</option>
+                <option value="set_not_closed">Marcar como não fechado</option>
+                <option value="followup_today">Follow-up hoje</option>
+                <option value="followup_tomorrow">Follow-up amanhã</option>
+                <option value="clear_followup">Limpar follow-up</option>
+              </select>
+              <SubmitButton
+                label="Aplicar em lote"
+                pendingLabel="Aplicando..."
+                confirmMessage="Aplicar esta ação aos leads selecionados?"
+                className="border-orange-400/30 bg-orange-500 text-slate-950 hover:bg-orange-400"
+              />
+            </form>
+
             <div className="mt-6 space-y-4">
               {crmQueue.length ? (
                 crmQueue.map((inquiry) => (
@@ -1499,6 +2140,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
+                            <input
+                              type="checkbox"
+                              name="inquiryIds"
+                              value={inquiry.id}
+                              form="bulk-showcase-inquiries-form"
+                              className="mr-1 h-5 w-5 rounded border-white/20 bg-black/30"
+                            />
                             <p className="text-lg font-semibold text-white">{inquiry.customerName}</p>
                             <StatusPill {...showcaseInquiryStatusMeta[inquiry.status]} />
                             <StatusPill {...showcaseLeadTemperatureMeta[inquiry.leadTemperature]} />
@@ -1509,8 +2157,27 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                           <p className="mt-2 text-xs uppercase tracking-[0.18em] text-white/40">
                             Follow-up {inquiry.followUpAt ? formatDateTime(new Date(inquiry.followUpAt)) : "sem data"} · origem {inquiry.source === "MANUAL" ? "manual" : "catálogo"}
                           </p>
+                          {(inquiry.nextAction || inquiry.lastOutcome || inquiry.lostReason) ? (
+                            <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/60">
+                              {inquiry.nextAction ? (
+                                <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-emerald-100">
+                                  Próxima ação: {inquiry.nextAction}
+                                </span>
+                              ) : null}
+                              {inquiry.lastOutcome ? (
+                                <span className="rounded-full border border-sky-400/20 bg-sky-500/10 px-3 py-1 text-sky-100">
+                                  Último resultado: {inquiry.lastOutcome}
+                                </span>
+                              ) : null}
+                              {inquiry.lostReason ? (
+                                <span className="rounded-full border border-rose-400/20 bg-rose-500/10 px-3 py-1 text-rose-100">
+                                  Perda: {inquiry.lostReason}
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
                         </div>
-                        <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[320px]">
+                        <div className="grid gap-3 sm:grid-cols-4 lg:min-w-[430px]">
                           <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
                             <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Quantidade</p>
                             <p className="mt-2 text-base font-semibold text-white">{inquiry.quantity}</p>
@@ -1518,6 +2185,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                           <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
                             <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Etiquetas</p>
                             <p className="mt-2 text-base font-semibold text-white">{inquiry.tags.length}</p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Histórico</p>
+                            <p className="mt-2 text-base font-semibold text-white">{leadHistoryById[inquiry.id]?.length ?? 0}</p>
                           </div>
                           <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
                             <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Abrir edição</p>
@@ -1529,6 +2200,32 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
                     <div className="border-t border-white/10 p-4 pt-5">
                       <ShowcaseInquiryEditor inquiry={inquiry} items={showcaseItems} />
+                      <div className="mt-4 rounded-[22px] border border-white/10 bg-black/20 p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-white/45">Histórico do lead</p>
+                        <div className="mt-3 space-y-3">
+                          {(leadHistoryById[inquiry.id] ?? []).length ? (
+                            (leadHistoryById[inquiry.id] ?? []).slice(0, 5).map((entry) => (
+                              <div key={entry.id} className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
+                                <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                  <div>
+                                    <p className="font-medium text-white">{entry.summary}</p>
+                                    {entry.details ? (
+                                      <p className="mt-1 text-sm text-white/60">{entry.details}</p>
+                                    ) : null}
+                                  </div>
+                                  <p className="text-xs uppercase tracking-[0.18em] text-white/40">
+                                    {formatDateTime(new Date(entry.createdAt))}
+                                  </p>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/40 p-3 text-sm text-white/55">
+                              Ainda não há histórico detalhado deste lead.
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </details>
                 ))
@@ -1618,6 +2315,137 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </div>
           </section>
 
+          <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-white/45">Kanban de pedidos</p>
+                <h3 className="mt-2 text-2xl font-semibold">Mova pedidos sem sair do admin</h3>
+                <p className="mt-2 text-sm text-white/65">
+                  Separei os pedidos internos e da vitrine em colunas operacionais com troca rápida de etapa.
+                </p>
+              </div>
+              <Link href="/producao" className="text-sm text-orange-200 transition hover:text-orange-100">
+                Abrir produção completa
+              </Link>
+            </div>
+
+            <div className="mt-6 grid gap-4 xl:grid-cols-5">
+              {kanbanColumns.map((column) => {
+                const internalCards = orders.filter((order) => column.statuses.includes(order.status));
+                const showcaseCards = closedShowcaseOrders.filter((inquiry) =>
+                  column.inquiryStages.includes((inquiry.orderStage ?? "RECEIVED") as (typeof column.inquiryStages)[number]),
+                );
+
+                return (
+                  <div key={column.id} className="rounded-[24px] border border-white/10 bg-slate-950/50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-white">{column.label}</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-white/45">
+                          {internalCards.length + showcaseCards.length} itens
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                      {internalCards.map((order) => (
+                        <article key={order.id} className="rounded-[20px] border border-white/10 bg-black/25 p-4">
+                          <p className="text-xs uppercase tracking-[0.18em] text-white/40">{order.orderNumber}</p>
+                          <p className="mt-2 font-semibold text-white">{order.title}</p>
+                          <p className="mt-1 text-sm text-white/60">
+                            {order.customer?.company ?? order.customer?.name ?? "Sem cliente"} · {formatCurrency(order.totalPrice)}
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <StatusPill {...orderStatusMeta[order.status]} />
+                            {order.assignedOperator ? (
+                              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
+                                {order.assignedOperator.name}
+                              </span>
+                            ) : null}
+                          </div>
+                          <form action={advanceOrderStatusAction} className="mt-4 space-y-3">
+                            <input type="hidden" name="orderId" value={order.id} />
+                            <select
+                              name="nextStatus"
+                              defaultValue={order.status}
+                              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/60"
+                            >
+                              {Object.values(OrderStatus).map((status) => (
+                                <option key={status} value={status}>
+                                  {orderStatusMeta[status].label}
+                                </option>
+                              ))}
+                            </select>
+                            <SubmitButton
+                              label="Atualizar etapa"
+                              pendingLabel="Movendo..."
+                              className="w-full border-white/10 bg-white/8 text-white hover:bg-white/14"
+                            />
+                          </form>
+                          {(orderHistoryById[order.id] ?? []).length ? (
+                            <p className="mt-3 text-xs text-white/45">
+                              Última ação: {(orderHistoryById[order.id] ?? [])[0]?.summary}
+                            </p>
+                          ) : null}
+                        </article>
+                      ))}
+
+                      {showcaseCards.map((inquiry) => (
+                        <article key={inquiry.id} className="rounded-[20px] border border-emerald-400/15 bg-black/25 p-4">
+                          <p className="text-xs uppercase tracking-[0.18em] text-white/40">
+                            {inquiry.orderNumber ?? "Pedido da vitrine"}
+                          </p>
+                          <p className="mt-2 font-semibold text-white">{inquiry.itemName}</p>
+                          <p className="mt-1 text-sm text-white/60">
+                            {inquiry.customerName} · {formatCurrency((showcaseItemPriceMap.get(inquiry.itemId) ?? 0) * inquiry.quantity)}
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <StatusPill {...showcaseOrderStageMeta[inquiry.orderStage ?? "RECEIVED"]} />
+                            {inquiry.nextAction ? (
+                              <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-100">
+                                {inquiry.nextAction}
+                              </span>
+                            ) : null}
+                          </div>
+                          <form action={updateShowcaseInquiryOrderStageAction} className="mt-4 space-y-3">
+                            <input type="hidden" name="inquiryId" value={inquiry.id} />
+                            <select
+                              name="orderStage"
+                              defaultValue={inquiry.orderStage ?? "RECEIVED"}
+                              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/60"
+                            >
+                              {showcaseOrderStageOptions.map((stage) => (
+                                <option key={stage} value={stage}>
+                                  {showcaseOrderStageMeta[stage].label}
+                                </option>
+                              ))}
+                            </select>
+                            <SubmitButton
+                              label="Atualizar etapa"
+                              pendingLabel="Movendo..."
+                              className="w-full border-white/10 bg-white/8 text-white hover:bg-white/14"
+                            />
+                          </form>
+                          {(leadHistoryById[inquiry.id] ?? []).length ? (
+                            <p className="mt-3 text-xs text-white/45">
+                              Última ação: {(leadHistoryById[inquiry.id] ?? [])[0]?.summary}
+                            </p>
+                          ) : null}
+                        </article>
+                      ))}
+
+                      {!internalCards.length && !showcaseCards.length ? (
+                        <div className="rounded-[20px] border border-dashed border-white/15 bg-slate-950/40 p-4 text-sm text-white/50">
+                          Nada nesta coluna agora.
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
           <section className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
             <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-white/45">Funil operacional</p>
@@ -1685,6 +2513,31 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                             <p className="text-sm text-white/60">Criado em {formatDateTime(new Date(entry.order.createdAt))}</p>
                           </div>
                         </div>
+
+                        <form action={advanceOrderStatusAction} className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto]">
+                          <input type="hidden" name="orderId" value={entry.order.id} />
+                          <label className="block text-sm text-white/70">
+                            Status do pedido
+                            <select
+                              name="nextStatus"
+                              defaultValue={entry.order.status}
+                              className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
+                            >
+                              {Object.values(OrderStatus).map((status) => (
+                                <option key={status} value={status}>
+                                  {orderStatusMeta[status].label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <div className="flex items-end">
+                            <SubmitButton
+                              label="Atualizar status"
+                              pendingLabel="Salvando..."
+                              className="w-full bg-orange-500 text-slate-950 hover:bg-orange-400 lg:w-auto"
+                            />
+                          </div>
+                        </form>
                       </article>
                     ) : (
                       <article key={entry.inquiry.id} className="rounded-[24px] border border-emerald-400/15 bg-slate-950/60 p-5">

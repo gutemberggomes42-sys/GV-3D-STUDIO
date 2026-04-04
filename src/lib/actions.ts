@@ -46,7 +46,13 @@ import {
   parseShowcaseListField,
   parseShowcaseVariantField,
 } from "@/lib/showcase";
-import { createId, deleteBackupSnapshot, readDb, updateDb, writeDb } from "@/lib/store";
+import {
+  createId,
+  deleteBackupSnapshot,
+  readDb,
+  restoreBackupSnapshot,
+  updateDb,
+} from "@/lib/store";
 import { saveUploadedFile } from "@/lib/upload-storage";
 
 export type ActionState = {
@@ -241,6 +247,7 @@ const showcaseItemSchema = z
     price: z.coerce.number().positive("Informe o valor do item."),
     estimatedPrintHours: z.coerce.number().positive("Informe o tempo de impressão cadastrado."),
     estimatedMaterialGrams: z.coerce.number().nonnegative("Informe o consumo estimado de material."),
+    productionChecklist: z.string().trim().optional(),
     fulfillmentType: z.enum(["STOCK", "MADE_TO_ORDER"]),
     stockQuantity: z.coerce.number().int().nonnegative("Informe o estoque disponível."),
     leadTimeDays: z.coerce.number().int().nonnegative("Informe o prazo estimado."),
@@ -365,6 +372,9 @@ const showcaseInquirySchema = z
     leadTemperature: showcaseLeadTemperatureSchema.default("WARM"),
     followUpAt: z.string().trim().optional(),
     lastContactAt: z.string().trim().optional(),
+    nextAction: z.string().trim().optional(),
+    lastOutcome: z.string().trim().optional(),
+    lostReason: z.string().trim().optional(),
     notes: z.string().trim().optional(),
   })
   .superRefine((data, ctx) => {
@@ -389,6 +399,14 @@ const showcaseInquirySchema = z
           path: [field],
         });
       }
+    }
+
+    if (data.status === "NOT_CLOSED" && !data.lostReason?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Ao marcar como não fechado, informe o motivo da perda.",
+        path: ["lostReason"],
+      });
     }
   });
 const allowedImageFormats = ["png", "jpg", "jpeg", "webp", "gif"] as const;
@@ -499,6 +517,7 @@ function parseShowcaseItemFormData(formData: FormData) {
     price: formData.get("price"),
     estimatedPrintHours: formData.get("estimatedPrintHours"),
     estimatedMaterialGrams: formData.get("estimatedMaterialGrams") || 0,
+    productionChecklist: formData.get("productionChecklist")?.toString(),
     fulfillmentType: formData.get("fulfillmentType"),
     stockQuantity: formData.get("stockQuantity"),
     leadTimeDays: formData.get("leadTimeDays") || 0,
@@ -540,6 +559,7 @@ function getShowcaseItemFormFields(formData: FormData) {
     price: String(formData.get("price") ?? ""),
     estimatedPrintHours: String(formData.get("estimatedPrintHours") ?? ""),
     estimatedMaterialGrams: String(formData.get("estimatedMaterialGrams") ?? ""),
+    productionChecklist: String(formData.get("productionChecklist") ?? ""),
     fulfillmentType: String(formData.get("fulfillmentType") ?? "STOCK"),
     stockQuantity: String(formData.get("stockQuantity") ?? ""),
     restockQuantity: String(formData.get("restockQuantity") ?? "0"),
@@ -681,8 +701,31 @@ function parseShowcaseInquiryFormData(formData: FormData) {
     leadTemperature: formData.get("leadTemperature") || "WARM",
     followUpAt: formData.get("followUpAt")?.toString(),
     lastContactAt: formData.get("lastContactAt")?.toString(),
+    nextAction: formData.get("nextAction")?.toString(),
+    lastOutcome: formData.get("lastOutcome")?.toString(),
+    lostReason: formData.get("lostReason")?.toString(),
     notes: formData.get("notes")?.toString(),
   });
+}
+
+function getShowcaseInquiryFormFields(formData: FormData) {
+  return {
+    inquiryId: String(formData.get("inquiryId") ?? ""),
+    itemId: String(formData.get("itemId") ?? ""),
+    quantity: String(formData.get("quantity") ?? "1"),
+    customerName: String(formData.get("customerName") ?? ""),
+    customerEmail: String(formData.get("customerEmail") ?? ""),
+    customerPhone: String(formData.get("customerPhone") ?? ""),
+    status: String(formData.get("status") ?? "PENDING"),
+    tags: String(formData.get("tags") ?? ""),
+    leadTemperature: String(formData.get("leadTemperature") ?? "WARM"),
+    followUpAt: String(formData.get("followUpAt") ?? ""),
+    lastContactAt: String(formData.get("lastContactAt") ?? ""),
+    nextAction: String(formData.get("nextAction") ?? ""),
+    lastOutcome: String(formData.get("lastOutcome") ?? ""),
+    lostReason: String(formData.get("lostReason") ?? ""),
+    notes: String(formData.get("notes") ?? ""),
+  };
 }
 
 function parsePayableFormData(formData: FormData) {
@@ -722,6 +765,14 @@ function buildAdminSettingsSectionUrl(message: string) {
   return `/admin?section=configuracoes&message=${encodeURIComponent(message)}`;
 }
 
+function buildAdminLeadsSectionUrl(message: string) {
+  return `/admin?section=leads&message=${encodeURIComponent(message)}`;
+}
+
+function buildAdminOrdersSectionUrl(message: string) {
+  return `/admin?section=pedidos&message=${encodeURIComponent(message)}`;
+}
+
 function buildAdminSummaryUrl(
   value: string,
   type: "message" | "error" = "message",
@@ -757,6 +808,9 @@ function pushAuditLog(
     area,
     action,
     summary,
+    entityType,
+    entityId,
+    details,
   }: Omit<DbAuditLog, "id" | "createdAt">,
 ) {
   const entry: DbAuditLog = {
@@ -765,6 +819,9 @@ function pushAuditLog(
     area,
     action,
     summary: summary.trim(),
+    entityType: entityType?.trim() || undefined,
+    entityId: entityId?.trim() || undefined,
+    details: details?.trim() || undefined,
     createdAt: new Date().toISOString(),
   };
 
@@ -850,6 +907,7 @@ function buildShowcaseItemPayload(data: z.infer<typeof showcaseItemSchema>): DbS
     tagline: data.tagline?.trim() || undefined,
     description: data.description,
     price: data.price,
+    productionChecklist: data.productionChecklist?.trim() || undefined,
     materialLabel: data.materialLabel?.trim() || undefined,
     materialId: data.materialId?.trim() || undefined,
     colorOptions: data.colorOptions,
@@ -2350,11 +2408,18 @@ export async function deleteBackupSnapshotAction(formData: FormData) {
 }
 
 export async function createBackupSnapshotAction() {
-  await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
 
   try {
-    const db = await readDb();
-    await writeDb(db);
+    await updateDb((db) => {
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "backup",
+        action: "create_snapshot",
+        summary: "Snapshot manual criado pelo admin.",
+        entityType: "backup",
+      });
+    });
     revalidateAll();
     redirect(buildAdminSummaryUrl("Snapshot manual criado com sucesso."));
   } catch (error) {
@@ -2364,6 +2429,46 @@ export async function createBackupSnapshotAction() {
         error instanceof Error
           ? error.message
           : "Não foi possível criar o snapshot manual do sistema.",
+        "error",
+      ),
+    );
+  }
+}
+
+export async function restoreBackupSnapshotAction(formData: FormData) {
+  const user = await requireRoles([UserRole.ADMIN]);
+  const fileName = String(formData.get("fileName") ?? "").trim();
+
+  if (!fileName) {
+    redirect(buildAdminSummaryUrl("Snapshot do sistema não encontrado.", "error"));
+  }
+
+  try {
+    const restored = await restoreBackupSnapshot(fileName);
+
+    if (!restored) {
+      redirect(buildAdminSummaryUrl("Snapshot do sistema não encontrado.", "error"));
+    }
+
+    await updateDb((db) => {
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "backup",
+        action: "restore_snapshot",
+        summary: `Snapshot restaurado: ${fileName}.`,
+        entityType: "backup",
+        entityId: fileName,
+      });
+    });
+    revalidateAll();
+    redirect(buildAdminSummaryUrl("Snapshot restaurado com sucesso."));
+  } catch (error) {
+    rethrowNextRedirect(error);
+    redirect(
+      buildAdminSummaryUrl(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível restaurar o snapshot do sistema.",
         "error",
       ),
     );
@@ -2405,6 +2510,9 @@ export async function createShowcaseItemAction(
         area: "showcase",
         action: "create_item",
         summary: `Produto da vitrine cadastrado: ${item.name}.`,
+        entityType: "showcase_item",
+        entityId: item.id,
+        details: item.productionChecklist ? "Checklist de produção configurado." : undefined,
       });
     });
 
@@ -2467,44 +2575,48 @@ export async function updateShowcaseItemAction(
       item.category = parsed.data.category;
       item.tagline = parsed.data.tagline?.trim() || undefined;
       item.description = parsed.data.description;
-        item.price = parsed.data.price;
-        item.materialLabel = materialSelection.materialLabel;
-        item.materialId = materialSelection.materialId;
-        item.colorOptions = parsed.data.colorOptions;
-        item.sizeOptions = parsed.data.sizeOptions;
-        item.finishOptions = parsed.data.finishOptions;
-        item.badges = parsed.data.badges;
-        item.deliveryModes = parsed.data.deliveryModes as ShowcaseDeliveryMode[];
-        item.dimensionSummary = parsed.data.dimensionSummary?.trim() || undefined;
-        item.shippingSummary = parsed.data.shippingSummary?.trim() || undefined;
-        item.promotionLabel = parsed.data.promotionLabel?.trim() || undefined;
-        item.compareAtPrice = parsed.data.compareAtPrice;
-        item.couponCode = parsed.data.couponCode?.trim() || undefined;
-        item.couponDiscountPercent = parsed.data.couponDiscountPercent;
-        item.seoTitle = parsed.data.seoTitle?.trim() || undefined;
-        item.seoDescription = parsed.data.seoDescription?.trim() || undefined;
-        item.seoKeywords = parsed.data.seoKeywords;
-        item.leadTimeDays =
-          parsed.data.fulfillmentType === "MADE_TO_ORDER" ? parsed.data.leadTimeDays : 0;
-        item.estimatedPrintHours = parsed.data.estimatedPrintHours;
-        item.estimatedMaterialGrams = parsed.data.estimatedMaterialGrams;
-        item.fulfillmentType = parsed.data.fulfillmentType;
+      item.price = parsed.data.price;
+      item.productionChecklist = parsed.data.productionChecklist?.trim() || undefined;
+      item.materialLabel = materialSelection.materialLabel;
+      item.materialId = materialSelection.materialId;
+      item.colorOptions = parsed.data.colorOptions;
+      item.sizeOptions = parsed.data.sizeOptions;
+      item.finishOptions = parsed.data.finishOptions;
+      item.badges = parsed.data.badges;
+      item.deliveryModes = parsed.data.deliveryModes as ShowcaseDeliveryMode[];
+      item.dimensionSummary = parsed.data.dimensionSummary?.trim() || undefined;
+      item.shippingSummary = parsed.data.shippingSummary?.trim() || undefined;
+      item.promotionLabel = parsed.data.promotionLabel?.trim() || undefined;
+      item.compareAtPrice = parsed.data.compareAtPrice;
+      item.couponCode = parsed.data.couponCode?.trim() || undefined;
+      item.couponDiscountPercent = parsed.data.couponDiscountPercent;
+      item.seoTitle = parsed.data.seoTitle?.trim() || undefined;
+      item.seoDescription = parsed.data.seoDescription?.trim() || undefined;
+      item.seoKeywords = parsed.data.seoKeywords;
+      item.leadTimeDays =
+        parsed.data.fulfillmentType === "MADE_TO_ORDER" ? parsed.data.leadTimeDays : 0;
+      item.estimatedPrintHours = parsed.data.estimatedPrintHours;
+      item.estimatedMaterialGrams = parsed.data.estimatedMaterialGrams;
+      item.fulfillmentType = parsed.data.fulfillmentType;
       item.stockQuantity =
         parsed.data.fulfillmentType === "STOCK"
           ? parsed.data.stockQuantity + restockQuantity
           : 0;
-        item.imageUrl = uploadedImageUrl ?? (parsed.data.imageUrl?.trim() || undefined);
-        item.videoUrl = uploadedVideoUrl ?? (parsed.data.videoUrl?.trim() || undefined);
-        item.galleryImageUrls = galleryImageUrls;
-        item.variants = parsed.data.variants;
-        item.featured = parsed.data.featured;
-        item.active = parsed.data.active;
-        item.updatedAt = new Date().toISOString();
+      item.imageUrl = uploadedImageUrl ?? (parsed.data.imageUrl?.trim() || undefined);
+      item.videoUrl = uploadedVideoUrl ?? (parsed.data.videoUrl?.trim() || undefined);
+      item.galleryImageUrls = galleryImageUrls;
+      item.variants = parsed.data.variants;
+      item.featured = parsed.data.featured;
+      item.active = parsed.data.active;
+      item.updatedAt = new Date().toISOString();
       pushAuditLog(db, {
         actorId: user.id,
         area: "showcase",
         action: "update_item",
         summary: `Produto da vitrine atualizado: ${item.name}.`,
+        entityType: "showcase_item",
+        entityId: item.id,
+        details: parsed.data.productionChecklist?.trim() ? "Checklist de produção configurado." : undefined,
       });
     });
 
@@ -2555,6 +2667,8 @@ export async function deleteShowcaseItemAction(
         area: "showcase",
         action: "delete_item",
         summary: `Produto da vitrine excluído: ${item.name}.`,
+        entityType: "showcase_item",
+        entityId: item.id,
       });
     });
 
@@ -2567,6 +2681,61 @@ export async function deleteShowcaseItemAction(
       error: error instanceof Error ? error.message : "Não foi possível excluir o item da vitrine.",
     };
   }
+}
+
+export async function bulkUpdateShowcaseItemsAction(formData: FormData) {
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const itemIds = formData
+    .getAll("itemIds")
+    .map((entry) => entry.toString().trim())
+    .filter(Boolean);
+  const operation = String(formData.get("operation") ?? "").trim();
+
+  if (!itemIds.length) {
+    redirect(buildAdminShowcaseSectionUrl("Selecione ao menos um produto da vitrine."));
+  }
+
+  if (!["feature", "unfeature", "activate", "deactivate"].includes(operation)) {
+    redirect(buildAdminShowcaseSectionUrl("Escolha uma ação em lote válida."));
+  }
+
+  await updateDb((db) => {
+    const selectedItems = db.showcaseItems.filter((item) => itemIds.includes(item.id));
+
+    if (!selectedItems.length) {
+      throw new Error("Nenhum produto selecionado foi encontrado.");
+    }
+
+    const now = new Date().toISOString();
+
+    for (const item of selectedItems) {
+      if (operation === "feature") {
+        item.featured = true;
+      }
+      if (operation === "unfeature") {
+        item.featured = false;
+      }
+      if (operation === "activate") {
+        item.active = true;
+      }
+      if (operation === "deactivate") {
+        item.active = false;
+      }
+      item.updatedAt = now;
+    }
+
+    pushAuditLog(db, {
+      actorId: user.id,
+      area: "showcase",
+      action: "bulk_update_items",
+      summary: `${selectedItems.length} produtos atualizados em lote.`,
+      entityType: "showcase_item",
+      details: `Ação aplicada: ${operation}.`,
+    });
+  });
+
+  revalidateAll();
+  redirect(buildAdminShowcaseSectionUrl("Ação em lote aplicada aos produtos selecionados."));
 }
 
 export async function updateStorefrontSettingsAction(
@@ -2774,12 +2943,14 @@ export async function createShowcaseInquiryAction(
   formData: FormData,
 ): Promise<ActionState> {
   const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const fields = getShowcaseInquiryFormFields(formData);
   const parsed = parseShowcaseInquiryFormData(formData);
 
   if (!parsed.success) {
     return {
       ok: false,
       error: parsed.error.issues[0]?.message ?? "Não foi possível lançar o pedido manual.",
+      fields,
     };
   }
 
@@ -2836,6 +3007,9 @@ export async function createShowcaseInquiryAction(
         leadTemperature: parsed.data.leadTemperature as ShowcaseLeadTemperature,
         followUpAt: normalizeOptionalIsoDate(parsed.data.followUpAt),
         lastContactAt: normalizeOptionalIsoDate(parsed.data.lastContactAt),
+        nextAction: parsed.data.nextAction?.trim() || undefined,
+        lastOutcome: parsed.data.lastOutcome?.trim() || undefined,
+        lostReason: parsed.data.lostReason?.trim() || undefined,
         orderStage: status === "CLOSED" ? "RECEIVED" : undefined,
         plannedPrintMinutes: getPlannedMinutesFromHours(item.estimatedPrintHours * parsed.data.quantity),
         dueDate:
@@ -2854,6 +3028,9 @@ export async function createShowcaseInquiryAction(
         area: "crm",
         action: "create_lead",
         summary: `Lead manual criado para ${customerName} em ${item.name}.`,
+        entityType: "showcase_inquiry",
+        entityId: db.showcaseInquiries[0]?.id,
+        details: parsed.data.nextAction?.trim() || parsed.data.notes?.trim() || undefined,
       });
     });
 
@@ -2866,6 +3043,7 @@ export async function createShowcaseInquiryAction(
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Não foi possível lançar o pedido manual.",
+      fields,
     };
   }
 }
@@ -2876,12 +3054,14 @@ export async function updateShowcaseInquiryAction(
 ): Promise<ActionState> {
   const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
   const inquiryId = String(formData.get("inquiryId") ?? "");
+  const fields = getShowcaseInquiryFormFields(formData);
   const parsed = parseShowcaseInquiryFormData(formData);
 
   if (!inquiryId) {
     return {
       ok: false,
       error: "Pedido do WhatsApp não encontrado para edição.",
+      fields,
     };
   }
 
@@ -2889,6 +3069,7 @@ export async function updateShowcaseInquiryAction(
     return {
       ok: false,
       error: parsed.error.issues[0]?.message ?? "Não foi possível atualizar o pedido do WhatsApp.",
+      fields,
     };
   }
 
@@ -2940,6 +3121,9 @@ export async function updateShowcaseInquiryAction(
       inquiry.leadTemperature = parsed.data.leadTemperature as ShowcaseLeadTemperature;
       inquiry.followUpAt = normalizeOptionalIsoDate(parsed.data.followUpAt);
       inquiry.lastContactAt = normalizeOptionalIsoDate(parsed.data.lastContactAt);
+      inquiry.nextAction = parsed.data.nextAction?.trim() || undefined;
+      inquiry.lastOutcome = parsed.data.lastOutcome?.trim() || undefined;
+      inquiry.lostReason = parsed.data.lostReason?.trim() || undefined;
       inquiry.orderStage = nextOrderStage;
       inquiry.plannedPrintMinutes = getPlannedMinutesFromHours(
         nextItem.estimatedPrintHours * parsed.data.quantity,
@@ -2969,6 +3153,13 @@ export async function updateShowcaseInquiryAction(
         area: "crm",
         action: "update_lead",
         summary: `Lead de ${customerName} atualizado para ${nextStatus}.`,
+        entityType: "showcase_inquiry",
+        entityId: inquiry.id,
+        details:
+          parsed.data.lastOutcome?.trim() ||
+          parsed.data.nextAction?.trim() ||
+          parsed.data.notes?.trim() ||
+          undefined,
       });
     });
 
@@ -2981,6 +3172,7 @@ export async function updateShowcaseInquiryAction(
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Não foi possível atualizar o pedido do WhatsApp.",
+      fields,
     };
   }
 }
@@ -3023,6 +3215,8 @@ export async function deleteShowcaseInquiryAction(
         area: "crm",
         action: "delete_lead",
         summary: `Lead de ${inquiry.customerName} excluído.`,
+        entityType: "showcase_inquiry",
+        entityId: inquiry.id,
       });
     });
 
@@ -3081,6 +3275,9 @@ export async function updateShowcaseInquiryStatusAction(formData: FormData) {
     inquiry.orderStage = nextOrderStage;
     inquiry.assignedMachineId = nextStatus === "CLOSED" ? inquiry.assignedMachineId : undefined;
     inquiry.closedAt = nextStatus === "CLOSED" ? now : undefined;
+    if (nextStatus === "NOT_CLOSED" && !inquiry.lostReason) {
+      inquiry.lostReason = "Marcado como não fechado no painel.";
+    }
     inquiry.lastContactAt = now;
     if (nextStatus === "CLOSED") {
       applyShowcaseOperationalMetadata(db, inquiry, item, now);
@@ -3094,6 +3291,9 @@ export async function updateShowcaseInquiryStatusAction(formData: FormData) {
       area: "crm",
       action: "update_lead_status",
       summary: `Lead de ${inquiry.customerName} marcado como ${nextStatus}.`,
+      entityType: "showcase_inquiry",
+      entityId: inquiry.id,
+      details: inquiry.lostReason ?? inquiry.nextAction ?? undefined,
     });
   });
 
@@ -3102,6 +3302,125 @@ export async function updateShowcaseInquiryStatusAction(formData: FormData) {
   if (nextStatus === "CLOSED") {
     redirect("/admin?section=pedidos");
   }
+}
+
+export async function bulkUpdateShowcaseInquiryAction(formData: FormData) {
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const inquiryIds = formData
+    .getAll("inquiryIds")
+    .map((entry) => entry.toString().trim())
+    .filter(Boolean);
+  const operation = String(formData.get("operation") ?? "").trim();
+
+  if (!inquiryIds.length) {
+    redirect(buildAdminLeadsSectionUrl("Selecione ao menos um lead."));
+  }
+
+  const validOperations = new Set([
+    "set_pending",
+    "set_closed",
+    "set_not_closed",
+    "set_hot",
+    "set_warm",
+    "set_cold",
+    "followup_today",
+    "followup_tomorrow",
+    "clear_followup",
+  ]);
+
+  if (!validOperations.has(operation)) {
+    redirect(buildAdminLeadsSectionUrl("Escolha uma ação em lote válida."));
+  }
+
+  await updateDb((db) => {
+    const now = new Date().toISOString();
+    const selectedLeads = db.showcaseInquiries.filter((inquiry) => inquiryIds.includes(inquiry.id));
+
+    if (!selectedLeads.length) {
+      throw new Error("Nenhum lead selecionado foi encontrado.");
+    }
+
+    for (const inquiry of selectedLeads) {
+      const item = db.showcaseItems.find((candidate) => candidate.id === inquiry.itemId);
+      const previousReserved = hasReservedShowcaseStock(inquiry.status, inquiry.orderStage);
+
+      if (operation === "set_pending" || operation === "set_closed" || operation === "set_not_closed") {
+        const nextStatus =
+          operation === "set_pending"
+            ? "PENDING"
+            : operation === "set_closed"
+              ? "CLOSED"
+              : "NOT_CLOSED";
+        const nextOrderStage = nextStatus === "CLOSED" ? inquiry.orderStage ?? "RECEIVED" : undefined;
+        const nextReserved = hasReservedShowcaseStock(nextStatus, nextOrderStage);
+
+        if (item && previousReserved && !nextReserved) {
+          releaseShowcaseStock(item, inquiry.quantity, now);
+        }
+
+        if (item && !previousReserved && nextReserved) {
+          reserveShowcaseStock(item, inquiry.quantity, now);
+        }
+
+        inquiry.status = nextStatus;
+        inquiry.orderStage = nextOrderStage;
+        inquiry.closedAt = nextStatus === "CLOSED" ? now : undefined;
+        inquiry.assignedMachineId = nextStatus === "CLOSED" ? inquiry.assignedMachineId : undefined;
+        if (nextStatus === "NOT_CLOSED" && !inquiry.lostReason) {
+          inquiry.lostReason = "Marcado como não fechado em lote.";
+        }
+
+        if (nextStatus === "CLOSED") {
+          applyShowcaseOperationalMetadata(db, inquiry, item, now);
+        } else {
+          inquiry.orderNumber = undefined;
+          inquiry.dueDate = undefined;
+        }
+      }
+
+      if (operation === "set_hot" || operation === "set_warm" || operation === "set_cold") {
+        inquiry.leadTemperature =
+          operation === "set_hot" ? "HOT" : operation === "set_warm" ? "WARM" : "COLD";
+      }
+
+      if (operation === "followup_today") {
+        const followUp = new Date();
+        followUp.setHours(followUp.getHours() + 2);
+        inquiry.followUpAt = followUp.toISOString();
+      }
+
+      if (operation === "followup_tomorrow") {
+        const followUp = new Date();
+        followUp.setDate(followUp.getDate() + 1);
+        followUp.setHours(9, 0, 0, 0);
+        inquiry.followUpAt = followUp.toISOString();
+      }
+
+      if (operation === "clear_followup") {
+        inquiry.followUpAt = undefined;
+      }
+
+      inquiry.lastContactAt = now;
+      inquiry.updatedAt = now;
+    }
+
+    pushAuditLog(db, {
+      actorId: user.id,
+      area: "crm",
+      action: "bulk_update_leads",
+      summary: `${selectedLeads.length} leads atualizados em lote.`,
+      entityType: "showcase_inquiry",
+      details: `Ação aplicada: ${operation}.`,
+    });
+  });
+
+  revalidateAll();
+
+  if (operation === "set_closed") {
+    redirect(buildAdminOrdersSectionUrl("Leads fechados movidos para pedidos."));
+  }
+
+  redirect(buildAdminLeadsSectionUrl("Ação em lote aplicada aos leads selecionados."));
 }
 
 export async function updateShowcaseInquiryOrderStageAction(formData: FormData) {
@@ -3182,6 +3501,9 @@ export async function updateShowcaseInquiryOrderStageAction(formData: FormData) 
       area: "showcase_order",
       action: "update_stage",
       summary: `Pedido de ${inquiry.customerName} movido para ${nextOrderStage}.`,
+      entityType: "showcase_inquiry",
+      entityId: inquiry.id,
+      details: inquiry.orderNumber ?? inquiry.itemName,
     });
   });
 
@@ -3248,6 +3570,9 @@ export async function assignShowcaseInquiryMachineAction(formData: FormData) {
       area: "machines",
       action: "assign_showcase",
       summary: `Pedido ${inquiry.itemName} vinculado à máquina ${machine.name}.`,
+      entityType: "showcase_inquiry",
+      entityId: inquiry.id,
+      details: machine.name,
     });
   });
 
@@ -3390,6 +3715,9 @@ export async function advanceOrderStatusAction(formData: FormData) {
       area: "orders",
       action: "update_status",
       summary: `Pedido ${order.orderNumber} movido para ${nextStatus}.`,
+      entityType: "order",
+      entityId: order.id,
+      details: order.title,
     });
   });
 
