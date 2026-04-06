@@ -33,6 +33,7 @@ import { formatCurrency } from "@/lib/format";
 import { addShowcaseCartEntry } from "@/lib/showcase-cart";
 import {
   getShowcaseAvailabilityLabel,
+  getActiveStorefrontCampaigns,
   getShowcaseCategoryLabel,
   getShowcaseCategoryOptions,
   getShowcaseColorHex,
@@ -256,6 +257,31 @@ function getItemRangeLabel(item: DbShowcaseItem) {
 function getVariantSummary(item: DbShowcaseItem) {
   const activeVariants = item.variants.filter((variant) => variant.active);
   return activeVariants.length ? `${activeVariants.length} variacoes` : null;
+}
+
+function isDirectVideoUrl(url: string) {
+  return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(url);
+}
+
+function getCampaignDateLabel(startsAt?: string, endsAt?: string) {
+  if (!startsAt && !endsAt) {
+    return "Campanha ativa";
+  }
+
+  const formatter = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  });
+
+  if (startsAt && endsAt) {
+    return `${formatter.format(new Date(startsAt))} a ${formatter.format(new Date(endsAt))}`;
+  }
+
+  if (startsAt) {
+    return `A partir de ${formatter.format(new Date(startsAt))}`;
+  }
+
+  return `Ate ${formatter.format(new Date(endsAt as string))}`;
 }
 
 type ShelfProps = {
@@ -549,6 +575,13 @@ export function ShowcaseCatalogExplorer({
     .filter((testimonial) => testimonial.featured)
     .sort((left, right) => left.sortOrder - right.sortOrder)
     .slice(0, 3);
+  const activeCampaigns = useMemo(
+    () => getActiveStorefrontCampaigns(settings.campaignBanners).slice(0, 3),
+    [settings.campaignBanners],
+  );
+  const instagramGallery = settings.instagramGallery.slice(0, 6);
+  const instagramReels = settings.instagramReels.slice(0, 3);
+  const instagramBackstage = settings.instagramBehindScenes.slice(0, 6);
   const totalViews = items.reduce((sum, item) => sum + item.viewCount, 0);
   const totalClicks = items.reduce((sum, item) => sum + item.whatsappClickCount, 0);
   const whatsappCatalogUrl = `https://wa.me/${ownerWhatsAppNumber}`;
@@ -560,6 +593,52 @@ export function ShowcaseCatalogExplorer({
       {settings.announcementText ? (
         <section className="rounded-[22px] border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-50 sm:rounded-[24px] sm:px-5 sm:py-4">
           {settings.announcementText}
+        </section>
+      ) : null}
+
+      {activeCampaigns.length ? (
+        <section className="grid gap-4 xl:grid-cols-3">
+          {activeCampaigns.map((campaign, index) => (
+            <article
+              key={campaign.id}
+              className="relative overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(145deg,rgba(12,18,28,0.96),rgba(9,13,23,0.98))] p-5 sm:rounded-[28px] sm:p-6"
+            >
+              <div
+                aria-hidden
+                className={`absolute inset-0 ${
+                  index % 3 === 0
+                    ? "bg-[radial-gradient(circle_at_top_left,rgba(255,122,24,0.28),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(236,72,153,0.18),transparent_28%)]"
+                    : index % 3 === 1
+                      ? "bg-[radial-gradient(circle_at_top_left,rgba(89,185,255,0.22),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.18),transparent_28%)]"
+                      : "bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.22),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(251,191,36,0.18),transparent_30%)]"
+                }`}
+              />
+              <div className="relative z-10">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82">
+                    <Sparkles className="h-3.5 w-3.5 text-orange-200" />
+                    {campaign.badge || "Campanha"}
+                  </span>
+                  <span className="text-[11px] uppercase tracking-[0.18em] text-white/42">
+                    {getCampaignDateLabel(campaign.startsAt, campaign.endsAt)}
+                  </span>
+                </div>
+                <h3 className="mt-4 text-2xl font-semibold leading-tight text-white">
+                  {campaign.title}
+                </h3>
+                <p className="mt-3 text-sm leading-7 text-white/68">{campaign.subtitle}</p>
+                {campaign.ctaLabel ? (
+                  <a
+                    href={campaign.ctaHref || "#catalogo-grid"}
+                    className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+                  >
+                    {campaign.ctaLabel}
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                ) : null}
+              </div>
+            </article>
+          ))}
         </section>
       ) : null}
 
@@ -838,11 +917,12 @@ export function ShowcaseCatalogExplorer({
 
       <section className="relative overflow-hidden rounded-[26px] border border-white/10 bg-[linear-gradient(145deg,rgba(8,12,18,0.98),rgba(4,8,14,0.98))] p-5 sm:rounded-[30px] sm:p-8">
         <ShowcaseSectionWatermark align="right" intensity="strong" />
-        <div className="relative z-10 grid gap-6 xl:grid-cols-[1fr_0.92fr]">
+        <div className="relative z-10 grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-white/45">{settings.portfolioTitle}</p>
-            <h3 className="mt-3 text-3xl font-semibold">Acompanhe mais da loja e veja o estilo de cada peca</h3>
+            <h3 className="mt-3 text-3xl font-semibold">{settings.instagramSectionTitle}</h3>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-white/68 sm:text-base">{settings.portfolioBody}</p>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/60">{settings.instagramSectionBody}</p>
 
             <div className="mt-6 grid gap-3 sm:flex sm:flex-wrap">
               <a href={whatsappCatalogUrl} target="_blank" rel="noreferrer" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 sm:w-auto">
@@ -850,37 +930,172 @@ export function ShowcaseCatalogExplorer({
                 Falar no WhatsApp
               </a>
               {settings.instagramUrl ? (
-                <a href={settings.instagramUrl} target="_blank" rel="noreferrer" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-5 py-3 text-sm font-semibold text-white/92 transition hover:bg-white/12 sm:w-auto">
+                <a href={settings.instagramUrl} target="_blank" rel="noreferrer" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,rgba(56,189,248,0.9),rgba(168,85,247,0.95))] px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(89,185,255,0.2)] transition hover:brightness-110 sm:w-auto">
                   <Camera className="h-4 w-4" />
-                  {settings.instagramHandle || "Ver Instagram"}
+                  {settings.instagramButtonLabel}
                 </a>
               ) : null}
               <Link href="/depoimentos" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-black/25 px-5 py-3 text-sm font-semibold text-white/85 transition hover:bg-white/10 sm:w-auto">
                 Ver depoimentos
               </Link>
             </div>
+
+            <div className="mt-6 grid gap-3">
+              <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Instagram</p>
+                <p className="mt-3 text-2xl font-semibold">{settings.instagramHandle || "Conecte seu perfil"}</p>
+                <p className="mt-2 text-sm leading-6 text-white/63">
+                  Feed, reels e bastidores reais ajudam o cliente a confiar mais na qualidade da loja.
+                </p>
+              </div>
+              {instagramBackstage.length ? (
+                <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/45">Bastidores da produção</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {instagramBackstage.map((entry) => (
+                      <span
+                        key={entry}
+                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/80"
+                      >
+                        <Sparkles className="h-3.5 w-3.5 text-cyan-200" />
+                        {entry}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-            <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
-              <p className="text-xs uppercase tracking-[0.22em] text-white/45">Produtos</p>
-              <p className="mt-3 text-3xl font-semibold">{items.length}</p>
-              <p className="mt-2 text-sm leading-6 text-white/63">Itens ativos na vitrine com informacoes reais.</p>
+          <div className="grid gap-4">
+            <div className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
+              <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[28px] sm:p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.22em] text-white/45">Feed / galeria</p>
+                    <h4 className="mt-2 text-xl font-semibold text-white">Pecas prontas e detalhes reais</h4>
+                  </div>
+                  <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-xs uppercase tracking-[0.18em] text-white/65">
+                    {instagramGallery.length || 0} posts
+                  </span>
+                </div>
+
+                {instagramGallery.length ? (
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    {instagramGallery.slice(0, 4).map((entry) => {
+                      const content = (
+                        <div className="group overflow-hidden rounded-[22px] border border-white/10 bg-black/20">
+                          <div className="relative h-32 sm:h-40">
+                            <img
+                              src={entry.imageUrl}
+                              alt={entry.title}
+                              className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/10 to-transparent" />
+                            <div className="absolute bottom-0 left-0 right-0 p-3">
+                              <p className="text-sm font-semibold text-white" style={clampText(2)}>
+                                {entry.title}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+
+                      return entry.linkUrl ? (
+                        <a key={entry.id} href={entry.linkUrl} target="_blank" rel="noreferrer">
+                          {content}
+                        </a>
+                      ) : (
+                        <div key={entry.id}>{content}</div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="mt-5 rounded-[22px] border border-dashed border-white/10 bg-black/20 p-5 text-sm leading-7 text-white/55">
+                    Assim que voce adicionar imagens da galeria do Instagram nas configuracoes, elas aparecem aqui para reforcar a prova visual da loja.
+                  </div>
+                )}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/45">Produtos</p>
+                  <p className="mt-3 text-3xl font-semibold">{items.length}</p>
+                  <p className="mt-2 text-sm leading-6 text-white/63">Itens ativos com fotos, prazo e material real.</p>
+                </div>
+                <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/45">Cliques no WhatsApp</p>
+                  <p className="mt-3 text-3xl font-semibold">{totalClicks}</p>
+                  <p className="mt-2 text-sm leading-6 text-white/63">Conversas iniciadas direto pela loja.</p>
+                </div>
+              </div>
             </div>
-            <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
-              <p className="text-xs uppercase tracking-[0.22em] text-white/45">Visualizacoes</p>
-              <p className="mt-3 text-3xl font-semibold">{totalViews}</p>
-              <p className="mt-2 text-sm leading-6 text-white/63">Interesse acumulado na pagina dos produtos.</p>
-            </div>
-            <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
-              <p className="text-xs uppercase tracking-[0.22em] text-white/45">Cliques no WhatsApp</p>
-              <p className="mt-3 text-3xl font-semibold">{totalClicks}</p>
-              <p className="mt-2 text-sm leading-6 text-white/63">Conversas iniciadas direto pela loja.</p>
-            </div>
-            <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
-              <p className="text-xs uppercase tracking-[0.22em] text-white/45">Instagram</p>
-              <p className="mt-3 text-2xl font-semibold">{settings.instagramHandle || "Conecte seu perfil"}</p>
-              <p className="mt-2 text-sm leading-6 text-white/63">Mais um ponto de prova visual para quem gostou da vitrine.</p>
+
+            <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[28px] sm:p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/45">Reels de peças prontas</p>
+                  <h4 className="mt-2 text-xl font-semibold text-white">Videos curtos para mostrar textura, acabamento e processo</h4>
+                </div>
+                <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-xs uppercase tracking-[0.18em] text-white/65">
+                  {instagramReels.length || 0} reels
+                </span>
+              </div>
+
+              {instagramReels.length ? (
+                <div className="mt-5 grid gap-4 lg:grid-cols-3">
+                  {instagramReels.map((reel) => (
+                    <a
+                      key={reel.id}
+                      href={reel.reelUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="group overflow-hidden rounded-[22px] border border-white/10 bg-black/25 transition hover:border-cyan-300/30 hover:bg-black/35"
+                    >
+                      <div className="relative h-44 overflow-hidden">
+                        {reel.thumbnailUrl ? (
+                          <img
+                            src={reel.thumbnailUrl}
+                            alt={reel.title}
+                            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+                          />
+                        ) : isDirectVideoUrl(reel.reelUrl) ? (
+                          <video
+                            src={reel.reelUrl}
+                            className="h-full w-full object-cover"
+                            muted
+                            loop
+                            autoPlay
+                            playsInline
+                            preload="metadata"
+                          />
+                        ) : (
+                          <div className="h-full bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.28),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(168,85,247,0.24),_transparent_34%),linear-gradient(145deg,_rgba(15,23,42,0.95),_rgba(8,12,18,0.98))]" />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/10 to-transparent" />
+                        <div className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-full border border-white/12 bg-black/35 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82">
+                          <Play className="h-3.5 w-3.5 fill-current text-cyan-200" />
+                          Reel
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <p className="text-base font-semibold text-white" style={clampText(2)}>
+                          {reel.title}
+                        </p>
+                        {reel.caption ? (
+                          <p className="mt-2 text-sm leading-6 text-white/62" style={clampText(3)}>
+                            {reel.caption}
+                          </p>
+                        ) : null}
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-5 rounded-[22px] border border-dashed border-white/10 bg-black/20 p-5 text-sm leading-7 text-white/55">
+                  Cadastre links de reels nas configuracoes para mostrar pecas prontas, detalhes de acabamento e bastidores em video.
+                </div>
+              )}
             </div>
           </div>
         </div>

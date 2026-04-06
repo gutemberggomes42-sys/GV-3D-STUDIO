@@ -367,6 +367,47 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
       announcementText: normalizedAnnouncementText,
       seoTitle: normalizedSeoTitle,
       shareImageUrl: normalizedShareImageUrl,
+      campaignBanners:
+        sourceStorefrontSettings.campaignBanners?.map((campaign, index) => ({
+          id: campaign.id ?? `campaign-${index + 1}`,
+          badge: campaign.badge?.trim() || undefined,
+          title: campaign.title?.trim() || `Campanha ${index + 1}`,
+          subtitle: campaign.subtitle?.trim() || "",
+          startsAt: campaign.startsAt ?? undefined,
+          endsAt: campaign.endsAt ?? undefined,
+          ctaLabel: campaign.ctaLabel?.trim() || undefined,
+          ctaHref: campaign.ctaHref?.trim() || undefined,
+        })).filter((campaign) => campaign.title && campaign.subtitle) ??
+        initial.storefrontSettings.campaignBanners,
+      instagramButtonLabel:
+        sourceStorefrontSettings.instagramButtonLabel?.trim() ||
+        initial.storefrontSettings.instagramButtonLabel,
+      instagramSectionTitle:
+        sourceStorefrontSettings.instagramSectionTitle?.trim() ||
+        initial.storefrontSettings.instagramSectionTitle,
+      instagramSectionBody:
+        sourceStorefrontSettings.instagramSectionBody?.trim() ||
+        initial.storefrontSettings.instagramSectionBody,
+      instagramGallery:
+        sourceStorefrontSettings.instagramGallery?.map((entry, index) => ({
+          id: entry.id ?? `gallery-${index + 1}`,
+          title: entry.title?.trim() || `Galeria ${index + 1}`,
+          imageUrl: entry.imageUrl?.trim() || "",
+          linkUrl: entry.linkUrl?.trim() || undefined,
+        })).filter((entry) => entry.imageUrl) ??
+        initial.storefrontSettings.instagramGallery,
+      instagramReels:
+        sourceStorefrontSettings.instagramReels?.map((entry, index) => ({
+          id: entry.id ?? `reel-${index + 1}`,
+          title: entry.title?.trim() || `Reel ${index + 1}`,
+          reelUrl: entry.reelUrl?.trim() || "",
+          thumbnailUrl: entry.thumbnailUrl?.trim() || undefined,
+          caption: entry.caption?.trim() || undefined,
+        })).filter((entry) => entry.reelUrl) ??
+        initial.storefrontSettings.instagramReels,
+      instagramBehindScenes:
+        sourceStorefrontSettings.instagramBehindScenes?.map((entry) => entry.trim()).filter(Boolean) ??
+        initial.storefrontSettings.instagramBehindScenes,
       heroHighlights:
         sourceStorefrontSettings.heroHighlights?.map((entry) => entry.trim()).filter(Boolean) ??
         initial.storefrontSettings.heroHighlights,

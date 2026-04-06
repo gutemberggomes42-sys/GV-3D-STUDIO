@@ -1,4 +1,7 @@
 import type {
+  DbStorefrontCampaignBanner,
+  DbStorefrontGalleryCard,
+  DbStorefrontReelCard,
   DbShowcaseItem,
   DbShowcaseVariant,
   ShowcaseDeliveryMode,
@@ -59,6 +62,29 @@ function uniqueList(values: Array<string | undefined | null>) {
   );
 }
 
+function lineEntries(value: FormDataEntryValue | FormDataEntryValue[] | null | undefined) {
+  const rawValues = Array.isArray(value) ? value : value ? [value] : [];
+
+  return rawValues.flatMap((entry) =>
+    entry
+      .toString()
+      .split(/\r?\n/)
+      .map((chunk) => chunk.trim())
+      .filter(Boolean),
+  );
+}
+
+function normalizeOptionalDate(value: string | undefined) {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+}
+
 function normalizeColorLabel(value: string) {
   return value
     .normalize("NFD")
@@ -88,6 +114,104 @@ export function parseShowcaseListField(value: FormDataEntryValue | FormDataEntry
         .map((chunk) => chunk.trim()),
     ),
   );
+}
+
+export function parseStorefrontCampaignField(
+  value: FormDataEntryValue | FormDataEntryValue[] | null | undefined,
+) {
+  return lineEntries(value).flatMap((line, index): DbStorefrontCampaignBanner[] => {
+    const [badge, title, subtitle, startsAt, endsAt, ctaLabel, ctaHref] = line
+      .split("|")
+      .map((entry) => entry.trim());
+
+    if (!title || !subtitle) {
+      return [];
+    }
+
+    return [
+      {
+        id: `campaign-${index + 1}-${normalizeShowcaseSearchText(title).replace(/\s+/g, "-") || "banner"}`,
+        badge: badge || undefined,
+        title,
+        subtitle,
+        startsAt: normalizeOptionalDate(startsAt),
+        endsAt: normalizeOptionalDate(endsAt),
+        ctaLabel: ctaLabel || undefined,
+        ctaHref: ctaHref || undefined,
+      },
+    ];
+  });
+}
+
+export function serializeStorefrontCampaigns(campaigns: DbStorefrontCampaignBanner[] | undefined) {
+  return (campaigns ?? [])
+    .map((campaign) =>
+      [
+        campaign.badge ?? "",
+        campaign.title,
+        campaign.subtitle,
+        campaign.startsAt ? campaign.startsAt.slice(0, 10) : "",
+        campaign.endsAt ? campaign.endsAt.slice(0, 10) : "",
+        campaign.ctaLabel ?? "",
+        campaign.ctaHref ?? "",
+      ].join(" | "),
+    )
+    .join("\n");
+}
+
+export function parseStorefrontGalleryField(
+  value: FormDataEntryValue | FormDataEntryValue[] | null | undefined,
+) {
+  return lineEntries(value).flatMap((line, index): DbStorefrontGalleryCard[] => {
+    const [title, imageUrl, linkUrl] = line.split("|").map((entry) => entry.trim());
+
+    if (!title || !imageUrl) {
+      return [];
+    }
+
+    return [
+      {
+        id: `gallery-${index + 1}-${normalizeShowcaseSearchText(title).replace(/\s+/g, "-") || "item"}`,
+        title,
+        imageUrl,
+        linkUrl: linkUrl || undefined,
+      },
+    ];
+  });
+}
+
+export function serializeStorefrontGallery(cards: DbStorefrontGalleryCard[] | undefined) {
+  return (cards ?? [])
+    .map((card) => [card.title, card.imageUrl, card.linkUrl ?? ""].join(" | "))
+    .join("\n");
+}
+
+export function parseStorefrontReelsField(
+  value: FormDataEntryValue | FormDataEntryValue[] | null | undefined,
+) {
+  return lineEntries(value).flatMap((line, index): DbStorefrontReelCard[] => {
+    const [title, reelUrl, thumbnailUrl, caption] = line.split("|").map((entry) => entry.trim());
+
+    if (!title || !reelUrl) {
+      return [];
+    }
+
+    return [
+      {
+        id: `reel-${index + 1}-${normalizeShowcaseSearchText(title).replace(/\s+/g, "-") || "video"}`,
+        title,
+        reelUrl,
+        thumbnailUrl: thumbnailUrl || undefined,
+        caption: caption || undefined,
+      },
+    ];
+  });
+}
+
+export function serializeStorefrontReels(reels: DbStorefrontReelCard[] | undefined) {
+  return (reels ?? [])
+    .map((reel) => [reel.title, reel.reelUrl, reel.thumbnailUrl ?? "", reel.caption ?? ""].join(" | "))
+    .join("\n");
 }
 
 export function serializeShowcaseList(values: string[] | undefined) {
@@ -278,4 +402,29 @@ export function getShowcaseHighestPrice(item: Pick<DbShowcaseItem, "price" | "va
     .map((variant) => item.price + (variant.priceAdjustment ?? 0));
 
   return variantPrices.length ? Math.max(item.price, ...variantPrices) : item.price;
+}
+
+export function getActiveStorefrontCampaigns(
+  campaigns: DbStorefrontCampaignBanner[] | undefined,
+  now = new Date(),
+) {
+  const nowTime = now.getTime();
+
+  return (campaigns ?? []).filter((campaign) => {
+    const startsAt = campaign.startsAt ? new Date(campaign.startsAt).getTime() : undefined;
+    const endsAt = campaign.endsAt ? new Date(campaign.endsAt).getTime() : undefined;
+
+    if (startsAt != null && !Number.isNaN(startsAt) && startsAt > nowTime) {
+      return false;
+    }
+
+    if (endsAt != null && !Number.isNaN(endsAt)) {
+      const inclusiveEnd = endsAt + 24 * 60 * 60 * 1000 - 1;
+      if (inclusiveEnd < nowTime) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 }

@@ -4,6 +4,11 @@ import { useActionState } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { type ActionState, updateStorefrontSettingsAction } from "@/lib/actions";
 import type { DbStorefrontSettings } from "@/lib/db-types";
+import {
+  serializeStorefrontCampaigns,
+  serializeStorefrontGallery,
+  serializeStorefrontReels,
+} from "@/lib/showcase";
 
 const initialState: ActionState = { ok: false };
 
@@ -210,6 +215,34 @@ export function StorefrontSettingsForm({ settings }: StorefrontSettingsFormProps
               className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
             />
           </label>
+          <label className="block text-sm text-white/70">
+            Texto do botão do Instagram
+            <input
+              name="instagramButtonLabel"
+              defaultValue={fields.instagramButtonLabel ?? settings.instagramButtonLabel}
+              placeholder="Seguir no Instagram"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+            />
+          </label>
+          <label className="block text-sm text-white/70 md:col-span-2">
+            Título da seção Instagram
+            <input
+              name="instagramSectionTitle"
+              defaultValue={fields.instagramSectionTitle ?? settings.instagramSectionTitle}
+              placeholder="Feed, reels e bastidores"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+            />
+          </label>
+          <label className="block text-sm text-white/70 md:col-span-2">
+            Texto da seção Instagram
+            <textarea
+              name="instagramSectionBody"
+              rows={4}
+              defaultValue={fields.instagramSectionBody ?? settings.instagramSectionBody}
+              placeholder="Mostre o estilo da loja, as peças prontas e os bastidores reais da produção."
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+            />
+          </label>
         </div>
 
         <div className="space-y-4 rounded-[24px] border border-white/10 bg-black/20 p-5">
@@ -240,6 +273,77 @@ export function StorefrontSettingsForm({ settings }: StorefrontSettingsFormProps
             />
           </label>
         </div>
+      </section>
+
+      <section className="space-y-4 rounded-[24px] border border-white/10 bg-black/20 p-5">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-white/45">Campanhas promocionais</p>
+          <h4 className="mt-2 text-lg font-semibold text-white/92">Banners por data</h4>
+          <p className="mt-2 text-sm leading-6 text-white/60">
+            Uma linha por campanha: <span className="text-white/80">selo | título | subtítulo | início AAAA-MM-DD | fim AAAA-MM-DD | botão | link</span>.
+          </p>
+        </div>
+        <label className="block text-sm text-white/70">
+          Campanhas ativas por período
+          <textarea
+            name="campaignBanners"
+            rows={6}
+            defaultValue={fields.campaignBanners ?? serializeStorefrontCampaigns(settings.campaignBanners)}
+            placeholder={
+              "Dia das Maes | Presentes feitos para emocionar | Escolha pecas autorais para surpreender com carinho. | 2026-04-20 | 2026-05-12 | Ver presentes | /#shelf-destaques\nDia dos Namorados | Pecas com mais personalidade | Monte um presente criativo com toque geek e acabamento premium. | 2026-05-28 | 2026-06-12 | Ver colecao | /#catalogo-grid"
+            }
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 font-mono text-sm outline-none focus:border-orange-400/60"
+          />
+        </label>
+      </section>
+
+      <section className="space-y-4 rounded-[24px] border border-white/10 bg-black/20 p-5">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-white/45">Instagram integrado</p>
+          <h4 className="mt-2 text-lg font-semibold text-white/92">Feed, reels e bastidores</h4>
+          <p className="mt-2 text-sm leading-6 text-white/60">
+            Preencha com conteúdo real da loja para reforçar prova social e bastidores da produção.
+          </p>
+        </div>
+
+        <label className="block text-sm text-white/70">
+          Galeria / feed
+          <textarea
+            name="instagramGallery"
+            rows={5}
+            defaultValue={fields.instagramGallery ?? serializeStorefrontGallery(settings.instagramGallery)}
+            placeholder={
+              "Peca pronta no ambiente | /uploads/feed-1.jpg | https://instagram.com/p/seu-post\nDetalhe do acabamento | /uploads/feed-2.jpg | https://instagram.com/p/outro-post"
+            }
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 font-mono text-sm outline-none focus:border-orange-400/60"
+          />
+          <span className="mt-2 block text-xs text-white/45">Formato: título | imagem | link opcional.</span>
+        </label>
+
+        <label className="block text-sm text-white/70">
+          Reels de peças prontas
+          <textarea
+            name="instagramReels"
+            rows={5}
+            defaultValue={fields.instagramReels ?? serializeStorefrontReels(settings.instagramReels)}
+            placeholder={
+              "Reel da peca pronta | https://instagram.com/reel/seu-reel | /uploads/thumb-reel.jpg | Acabamento e textura em close\nBastidor acelerado | https://instagram.com/reel/outro-reel | /uploads/thumb-reel-2.jpg | Impressao saindo da mesa"
+            }
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 font-mono text-sm outline-none focus:border-orange-400/60"
+          />
+          <span className="mt-2 block text-xs text-white/45">Formato: título | link do reel | thumbnail opcional | legenda opcional.</span>
+        </label>
+
+        <label className="block text-sm text-white/70">
+          Bastidores da produção
+          <textarea
+            name="instagramBehindScenes"
+            rows={4}
+            defaultValue={fields.instagramBehindScenes ?? (settings.instagramBehindScenes ?? []).join("\n")}
+            placeholder={"Modelagem e ajuste antes da impressão\nControle de qualidade das peças\nEmbalagem final antes da entrega"}
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+          />
+        </label>
       </section>
 
       <section className="space-y-4 rounded-[24px] border border-white/10 bg-black/20 p-5">

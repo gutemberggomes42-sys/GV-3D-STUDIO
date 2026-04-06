@@ -38,8 +38,16 @@ export function createInitialData(): PrintFlowDb {
       shippingTitle: "Entrega e retirada",
       shippingBody:
         "Consulte retirada, entrega local e envio para outras regioes conforme o produto e o prazo.",
+      campaignBanners: [],
       instagramUrl: "",
       instagramHandle: "",
+      instagramButtonLabel: "Ver Instagram",
+      instagramSectionTitle: "Instagram da loja",
+      instagramSectionBody:
+        "Conecte o Instagram da GV 3D Studio para mostrar feed, reels de pecas prontas e bastidores reais da producao.",
+      instagramGallery: [],
+      instagramReels: [],
+      instagramBehindScenes: [],
       portfolioTitle: "Portfolio da loja",
       portfolioBody:
         "Mostre aqui o Instagram, fotos reais de pecas prontas e trabalhos especiais para passar mais confianca.",

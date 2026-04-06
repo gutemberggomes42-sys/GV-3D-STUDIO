@@ -298,8 +298,15 @@ export type DbStorefrontSettings = {
   careText: string;
   shippingTitle: string;
   shippingBody: string;
+  campaignBanners: DbStorefrontCampaignBanner[];
   instagramUrl?: string;
   instagramHandle?: string;
+  instagramButtonLabel: string;
+  instagramSectionTitle: string;
+  instagramSectionBody: string;
+  instagramGallery: DbStorefrontGalleryCard[];
+  instagramReels: DbStorefrontReelCard[];
+  instagramBehindScenes: string[];
   portfolioTitle: string;
   portfolioBody: string;
   seoTitle: string;
@@ -307,6 +314,32 @@ export type DbStorefrontSettings = {
   seoKeywords: string[];
   shareImageUrl?: string;
   updatedAt: IsoDateString;
+};
+
+export type DbStorefrontCampaignBanner = {
+  id: string;
+  badge?: string;
+  title: string;
+  subtitle: string;
+  startsAt?: IsoDateString;
+  endsAt?: IsoDateString;
+  ctaLabel?: string;
+  ctaHref?: string;
+};
+
+export type DbStorefrontGalleryCard = {
+  id: string;
+  title: string;
+  imageUrl: string;
+  linkUrl?: string;
+};
+
+export type DbStorefrontReelCard = {
+  id: string;
+  title: string;
+  reelUrl: string;
+  thumbnailUrl?: string;
+  caption?: string;
 };
 
 export type DbShowcaseTestimonial = {
