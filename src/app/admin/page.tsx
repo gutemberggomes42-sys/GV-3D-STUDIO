@@ -102,6 +102,47 @@ const adminSections: Array<{
   { key: "maquinas", label: "Máquinas", description: "Impressoras, status e manutenção" },
 ];
 
+const adminContextLinks: Record<
+  Exclude<AdminSection, "summary">,
+  Array<{ label: string; href: string }>
+> = {
+  vitrine: [
+    { label: "Leads da vitrine", href: "/admin?section=leads" },
+    { label: "Configurações da loja", href: "/admin?section=configuracoes" },
+    { label: "Abrir catálogo público", href: "/" },
+  ],
+  configuracoes: [
+    { label: "Produtos da vitrine", href: "/admin?section=vitrine" },
+    { label: "Abrir catálogo público", href: "/" },
+    { label: "Voltar ao resumo", href: "/admin" },
+  ],
+  leads: [
+    { label: "Pedidos recentes", href: "/admin?section=pedidos" },
+    { label: "Clientes cadastrados", href: "/admin?section=clientes" },
+    { label: "Voltar ao resumo", href: "/admin" },
+  ],
+  pedidos: [
+    { label: "Abrir produção", href: "/producao" },
+    { label: "Abrir financeiro", href: "/financeiro" },
+    { label: "Clientes cadastrados", href: "/admin?section=clientes" },
+  ],
+  clientes: [
+    { label: "Leads do WhatsApp", href: "/admin?section=leads" },
+    { label: "Pedidos recentes", href: "/admin?section=pedidos" },
+    { label: "Abrir financeiro", href: "/financeiro" },
+  ],
+  materiais: [
+    { label: "Controle de materiais", href: "/filamentos" },
+    { label: "Máquinas / IoT", href: "/admin?section=maquinas" },
+    { label: "Voltar ao resumo", href: "/admin" },
+  ],
+  maquinas: [
+    { label: "Abrir máquinas / IoT", href: "/maquinas" },
+    { label: "Controle de materiais", href: "/admin?section=materiais" },
+    { label: "Abrir produção", href: "/producao" },
+  ],
+};
+
 function isAdminSection(value: string | undefined): value is AdminSection {
   return adminSections.some((section) => section.key === value);
 }
@@ -208,6 +249,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const searchStatusFilter = isSearchStatusFilter(rawStatusFilter) ? rawStatusFilter : "all";
   const searchPeriod = isSearchPeriod(rawPeriod) ? rawPeriod : "all";
   const activeSection = isAdminSection(rawSection) ? rawSection : "summary";
+  const isSummaryView = activeSection === "summary";
+  const selectedSection =
+    adminSections.find((section) => section.key === activeSection) ?? adminSections[0];
+  const activeContextLinks = isSummaryView ? [] : adminContextLinks[activeSection];
   const {
     orders,
     materials,
@@ -978,7 +1023,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       user={user}
       pathname="/admin"
       title="Painel administrativo"
-      subtitle="Separei o administrativo em áreas com botões próprios para você abrir só o que precisa, sem deixar tudo misturado no mesmo lugar."
+      subtitle={
+        isSummaryView
+          ? "O resumo concentra alertas, métricas e atalhos. As outras abas agora ficam mais focadas, sem tanta informação fora de contexto."
+          : `${selectedSection.label}: ${selectedSection.description}. Deixei esta área mais enxuta para você mexer no que veio resolver agora.`
+      }
     >
       {error ? (
         <div className="rounded-[24px] border border-rose-400/25 bg-rose-500/10 px-5 py-4 text-sm text-rose-100">
@@ -992,14 +1041,133 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </div>
       ) : null}
 
-      <section className="grid gap-4 xl:grid-cols-4">
-        <MetricCard label="Receita da operação" value={formatCurrency(summaryRevenue)} caption="Pedidos pagos e pedidos da vitrine já finalizados." accent="orange" />
-        <MetricCard label="Pedidos ativos" value={String(summaryActiveOrders)} caption="Pedidos internos e da vitrine ainda não encerrados." accent="mint" />
-        <MetricCard label="Leads pendentes" value={String(leadsPendingCount)} caption="Clientes aguardando retorno no WhatsApp." accent="blue" />
-        <MetricCard label="Máquinas ocupadas" value={String(summaryMachinesBusy)} caption="Impressoras em uso em pedidos internos e da vitrine." accent="rose" />
-      </section>
+      {isSummaryView ? (
+        <section className="grid gap-4 xl:grid-cols-4">
+          <MetricCard label="Receita da operação" value={formatCurrency(summaryRevenue)} caption="Pedidos pagos e pedidos da vitrine já finalizados." accent="orange" />
+          <MetricCard label="Pedidos ativos" value={String(summaryActiveOrders)} caption="Pedidos internos e da vitrine ainda não encerrados." accent="mint" />
+          <MetricCard label="Leads pendentes" value={String(leadsPendingCount)} caption="Clientes aguardando retorno no WhatsApp." accent="blue" />
+          <MetricCard label="Máquinas ocupadas" value={String(summaryMachinesBusy)} caption="Impressoras em uso em pedidos internos e da vitrine." accent="rose" />
+        </section>
+      ) : (
+        <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="max-w-3xl">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="rounded-full border border-orange-400/25 bg-orange-500/10 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-orange-100">
+                  {selectedSection.label}
+                </span>
+                <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/70">
+                  {sectionCounts[selectedSection.key]} registros nesta área
+                </span>
+              </div>
+              <h2 className="mt-4 text-3xl font-semibold text-white">
+                {selectedSection.label} com foco no que importa
+              </h2>
+              <p className="mt-3 text-sm leading-7 text-white/70">
+                Mantive esta tela mais limpa para você não atravessar métricas, alertas e blocos de outras rotinas antes de editar o que precisa aqui.
+              </p>
+            </div>
 
-      <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/admin"
+                className="rounded-2xl border border-orange-400/30 bg-orange-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
+              >
+                Voltar ao resumo
+              </Link>
+              <Link
+                href={getSectionHref(activeSection)}
+                className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white/75 transition hover:bg-white/10 hover:text-white"
+              >
+                Recarregar área
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.9fr)]">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {activeContextLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="rounded-[22px] border border-white/10 bg-slate-950/60 px-4 py-4 text-sm text-white/75 transition hover:bg-white/10 hover:text-white"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+
+            <details className="rounded-[22px] border border-white/10 bg-slate-950/55">
+              <summary className="cursor-pointer list-none px-4 py-4 text-sm font-semibold text-white [&::-webkit-details-marker]:hidden">
+                Ferramentas rápidas desta tela
+              </summary>
+              <div className="border-t border-white/10 px-4 py-4">
+                <form action="/admin" method="GET" className="grid gap-3">
+                  <input type="hidden" name="section" value={activeSection} />
+                  <input
+                    type="search"
+                    name="q"
+                    defaultValue={searchQuery}
+                    placeholder="Buscar algo nesta rotina"
+                    className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-orange-400/60"
+                  />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <select
+                      name="type"
+                      defaultValue={searchType}
+                      className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/60"
+                    >
+                      <option value="all">Tudo</option>
+                      <option value="orders">Pedidos</option>
+                      <option value="showcase">Vitrine</option>
+                      <option value="leads">Leads</option>
+                      <option value="customers">Clientes</option>
+                      <option value="materials">Materiais</option>
+                      <option value="machines">Máquinas</option>
+                    </select>
+                    <select
+                      name="statusFilter"
+                      defaultValue={searchStatusFilter}
+                      className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/60"
+                    >
+                      <option value="all">Qualquer status</option>
+                      <option value="active">Ativos / em aberto</option>
+                      <option value="closed">Fechados / concluídos</option>
+                      <option value="attention">Pedem atenção</option>
+                    </select>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+                    <select
+                      name="period"
+                      defaultValue={searchPeriod}
+                      className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/60"
+                    >
+                      <option value="all">Qualquer período</option>
+                      <option value="today">Hoje</option>
+                      <option value="7d">Últimos 7 dias</option>
+                      <option value="30d">Últimos 30 dias</option>
+                    </select>
+                    <button
+                      type="submit"
+                      className="rounded-2xl border border-orange-400/30 bg-orange-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
+                    >
+                      Buscar
+                    </button>
+                    <Link
+                      href={getSectionHref(activeSection)}
+                      className="rounded-2xl border border-white/10 bg-black/25 px-5 py-3 text-center text-sm text-white/75 transition hover:bg-white/10 hover:text-white"
+                    >
+                      Limpar
+                    </Link>
+                  </div>
+                </form>
+              </div>
+            </details>
+          </div>
+        </section>
+      )}
+
+      <section className={cn("rounded-[28px] border border-white/10 bg-white/5 p-6", !isSummaryView && "hidden")}>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-white/45">Central de alertas</p>
@@ -1035,7 +1203,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <section className={cn("grid gap-6 xl:grid-cols-[1.1fr_0.9fr]", !isSummaryView && "hidden")}>
         <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -1246,10 +1414,16 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Botões por área</p>
-            <h3 className="mt-2 text-2xl font-semibold">Abra só a parte que você quer mexer</h3>
+            <p className="text-xs uppercase tracking-[0.24em] text-white/45">
+              {isSummaryView ? "Botões por área" : "Troca rápida de área"}
+            </p>
+            <h3 className="mt-2 text-2xl font-semibold">
+              {isSummaryView ? "Abra só a parte que você quer mexer" : "Mude de área sem voltar para uma tela poluída"}
+            </h3>
             <p className="mt-2 text-sm text-white/65">
-              Cada botão leva para uma área separada dentro do admin, sem juntar vitrine, leads, materiais e máquinas no mesmo bloco.
+              {isSummaryView
+                ? "Cada botão leva para uma área separada dentro do admin, sem juntar vitrine, leads, materiais e máquinas no mesmo bloco."
+                : "Mantive os atalhos principais aqui embaixo, mas com navegação mais leve para você trocar de rotina sem perder o foco."}
             </p>
           </div>
 
@@ -1266,7 +1440,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </div>
         </div>
 
-        <div className="mt-6 flex gap-3 overflow-x-auto pb-2 md:grid md:overflow-visible md:pb-0 md:grid-cols-2 xl:grid-cols-4">
+        <div
+          className={cn(
+            "mt-6 flex gap-3 overflow-x-auto pb-2",
+            isSummaryView
+              ? "md:grid md:overflow-visible md:pb-0 md:grid-cols-2 xl:grid-cols-4"
+              : "flex-wrap overflow-visible pb-0",
+          )}
+        >
           {adminSections.map((section) => {
             const active = activeSection === section.key;
 
@@ -1275,28 +1456,39 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 key={section.key}
                 href={getSectionHref(section.key)}
                 className={cn(
-                  "min-w-[220px] shrink-0 rounded-[24px] border px-5 py-4 transition md:min-w-0",
+                  isSummaryView
+                    ? "min-w-[220px] shrink-0 rounded-[24px] border px-5 py-4 transition md:min-w-0"
+                    : "rounded-full border px-4 py-3 text-sm transition",
                   active
                     ? "border-orange-400/45 bg-orange-500/15 shadow-[0_22px_80px_rgba(255,122,24,0.16)]"
                     : "border-white/10 bg-slate-950/50 hover:border-white/20 hover:bg-white/10",
                 )}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-lg font-semibold text-white">{section.label}</p>
-                    <p className="mt-2 text-sm leading-6 text-white/65">{section.description}</p>
+                {isSummaryView ? (
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-semibold text-white">{section.label}</p>
+                      <p className="mt-2 text-sm leading-6 text-white/65">{section.description}</p>
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/70">
+                      {sectionCounts[section.key]}
+                    </span>
                   </div>
-                  <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/70">
-                    {sectionCounts[section.key]}
-                  </span>
-                </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <span className="font-semibold text-white">{section.label}</span>
+                    <span className="rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-[11px] text-white/70">
+                      {sectionCounts[section.key]}
+                    </span>
+                  </div>
+                )}
               </Link>
             );
           })}
         </div>
       </section>
 
-      {showcaseCriticalStockItems.length ? (
+      {showcaseCriticalStockItems.length && (isSummaryView || activeSection === "vitrine") ? (
         <section className="mx-auto max-w-4xl rounded-[30px] border border-amber-400/30 bg-[linear-gradient(135deg,rgba(245,158,11,0.18),rgba(127,29,29,0.14))] p-6 text-center shadow-[0_24px_90px_rgba(245,158,11,0.14)]">
           <p className="text-xs uppercase tracking-[0.28em] text-amber-100/70">
             Alerta de estoque
