@@ -542,8 +542,6 @@ export function ShowcaseCatalogExplorer({
     inquiryCounts,
   ).slice(0, 4);
   const bestSellerItems = sortItems(items, "POPULAR", inquiryCounts).slice(0, 4);
-  const mostClickedItems = sortItems(items, "MOST_CLICKED", inquiryCounts).slice(0, 4);
-  const newestItems = sortItems(items, "NEWEST", inquiryCounts).slice(0, 4);
   const wishlistItems = sortItems(
     items.filter((item) => wishlistIds.includes(item.id)),
     "FEATURED",
@@ -582,8 +580,6 @@ export function ShowcaseCatalogExplorer({
   const instagramGallery = settings.instagramGallery.slice(0, 6);
   const instagramReels = settings.instagramReels.slice(0, 3);
   const instagramBackstage = settings.instagramBehindScenes.slice(0, 6);
-  const totalViews = items.reduce((sum, item) => sum + item.viewCount, 0);
-  const totalClicks = items.reduce((sum, item) => sum + item.whatsappClickCount, 0);
   const whatsappCatalogUrl = `https://wa.me/${ownerWhatsAppNumber}`;
   const resultsLabel =
     filteredItems.length === 1 ? "1 produto encontrado" : `${filteredItems.length} produtos encontrados`;
@@ -745,45 +741,43 @@ export function ShowcaseCatalogExplorer({
         </div>
       </section>
 
-      <section className="grid gap-3 sm:gap-4 lg:grid-cols-3">
-        <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[28px] sm:p-5">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/75">
-            <HeartHandshake className="h-3.5 w-3.5 text-cyan-200" />
-            {settings.aboutTitle}
+      <section className="grid gap-3 lg:grid-cols-3">
+        {[
+          {
+            title: settings.aboutTitle,
+            body: settings.aboutBody,
+            icon: <HeartHandshake className="h-4 w-4 text-cyan-200" />,
+          },
+          {
+            title: settings.customOrderTitle,
+            body: settings.customOrderBody,
+            icon: <PackageCheck className="h-4 w-4 text-emerald-200" />,
+          },
+          {
+            title: settings.shippingTitle,
+            body: settings.shippingBody,
+            icon: <Truck className="h-4 w-4 text-orange-200" />,
+          },
+        ].map((entry) => (
+          <div key={entry.title} className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px]">
+            <div className="flex items-center gap-2 text-sm font-semibold text-white">
+              {entry.icon}
+              <span>{entry.title}</span>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-white/68" style={clampText(3)}>
+              {entry.body}
+            </p>
           </div>
-          <p className="mt-4 text-base leading-7 text-white/72">{settings.aboutBody}</p>
-        </div>
-        <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[28px] sm:p-5">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/75">
-            <PackageCheck className="h-3.5 w-3.5 text-emerald-200" />
-            {settings.customOrderTitle}
-          </div>
-          <p className="mt-4 text-base leading-7 text-white/72">{settings.customOrderBody}</p>
-        </div>
-        <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[28px] sm:p-5">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/75">
-            <Truck className="h-3.5 w-3.5 text-orange-200" />
-            {settings.shippingTitle}
-          </div>
-          <p className="mt-4 text-base leading-7 text-white/72">{settings.shippingBody}</p>
-        </div>
+        ))}
       </section>
 
       {wishlistItems.length ? (
         <ShowcaseShelf anchorId="favoritos" title="Seus favoritos" subtitle="Os itens que voce marcou para olhar com calma depois." icon={<Heart className="h-3.5 w-3.5 text-rose-200" />} items={wishlistItems} inquiryCounts={inquiryCounts} />
       ) : null}
 
-      <ShowcaseShelf anchorId="shelf-destaques" title="Destaques da loja" subtitle="Pecas escolhidas para causar uma primeira impressao mais forte logo de cara." icon={<Star className="h-3.5 w-3.5 text-orange-200" />} items={sortItems(items, "FEATURED", inquiryCounts).slice(0, 4)} inquiryCounts={inquiryCounts} />
+      <ShowcaseShelf anchorId="shelf-destaques" title="Destaques da loja" subtitle="Uma curadoria curta com as pecas mais fortes da GV 3D Studio." icon={<Star className="h-3.5 w-3.5 text-orange-200" />} items={sortItems(items, "FEATURED", inquiryCounts).slice(0, 4)} inquiryCounts={inquiryCounts} />
 
-      <ShowcaseShelf anchorId="shelf-populares" title="Mais pedidos" subtitle="Os produtos que mais despertaram interesse e provaram que convertem melhor." icon={<Sparkles className="h-3.5 w-3.5 text-fuchsia-200" />} items={bestSellerItems} inquiryCounts={inquiryCounts} />
-
-      <ShowcaseShelf anchorId="shelf-whatsapp" title="Mais clicados no WhatsApp" subtitle="Os itens que mais chamaram atencao e levaram o cliente para a conversa." icon={<MessageCircleMore className="h-3.5 w-3.5 text-emerald-200" />} items={mostClickedItems} inquiryCounts={inquiryCounts} />
-
-      <ShowcaseShelf anchorId="shelf-pronta-entrega" title="Pronta entrega" subtitle="Ideal para quem quer decidir rapido e receber orientacao com estoque real." icon={<PackageCheck className="h-3.5 w-3.5 text-emerald-200" />} items={readyItems} inquiryCounts={inquiryCounts} />
-
-      <ShowcaseShelf anchorId="shelf-encomenda" title="Sob encomenda" subtitle="Pecas com mais liberdade para cor, tamanho e acabamento conforme a sua ideia." icon={<Truck className="h-3.5 w-3.5 text-cyan-200" />} items={customItems} inquiryCounts={inquiryCounts} />
-
-      <ShowcaseShelf title="Novidades" subtitle="Itens novos para manter a vitrine viva e dar sempre um motivo para voltar." icon={<Sparkles className="h-3.5 w-3.5 text-white" />} items={newestItems} inquiryCounts={inquiryCounts} />
+      <ShowcaseShelf anchorId="shelf-populares" title="Mais pedidos" subtitle="Os itens que mais chamaram a atencao de quem visitou a loja." icon={<Sparkles className="h-3.5 w-3.5 text-fuchsia-200" />} items={bestSellerItems} inquiryCounts={inquiryCounts} />
 
       <section className="relative overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[30px] sm:p-6">
         <ShowcaseSectionWatermark align="center" intensity="strong" />
@@ -921,8 +915,9 @@ export function ShowcaseCatalogExplorer({
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-white/45">{settings.portfolioTitle}</p>
             <h3 className="mt-3 text-3xl font-semibold">{settings.instagramSectionTitle}</h3>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/68 sm:text-base">{settings.portfolioBody}</p>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/60">{settings.instagramSectionBody}</p>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/68 sm:text-base">
+              {settings.instagramSectionBody || settings.portfolioBody}
+            </p>
 
             <div className="mt-6 grid gap-3 sm:flex sm:flex-wrap">
               <a href={whatsappCatalogUrl} target="_blank" rel="noreferrer" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 sm:w-auto">
@@ -940,30 +935,21 @@ export function ShowcaseCatalogExplorer({
               </Link>
             </div>
 
-            <div className="mt-6 grid gap-3">
-              <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
-                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Instagram</p>
-                <p className="mt-3 text-2xl font-semibold">{settings.instagramHandle || "Conecte seu perfil"}</p>
-                <p className="mt-2 text-sm leading-6 text-white/63">
-                  Feed, reels e bastidores reais ajudam o cliente a confiar mais na qualidade da loja.
-                </p>
-              </div>
-              {instagramBackstage.length ? (
-                <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
-                  <p className="text-xs uppercase tracking-[0.22em] text-white/45">Bastidores da produção</p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {instagramBackstage.map((entry) => (
-                      <span
-                        key={entry}
-                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/80"
-                      >
-                        <Sparkles className="h-3.5 w-3.5 text-cyan-200" />
-                        {entry}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {settings.instagramHandle ? (
+                <span className="rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm font-medium text-white/85">
+                  {settings.instagramHandle}
+                </span>
               ) : null}
+              {instagramBackstage.slice(0, 4).map((entry) => (
+                <span
+                  key={entry}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/80"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-cyan-200" />
+                  {entry}
+                </span>
+              ))}
             </div>
           </div>
 
@@ -1017,17 +1003,25 @@ export function ShowcaseCatalogExplorer({
                 )}
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
-                  <p className="text-xs uppercase tracking-[0.22em] text-white/45">Produtos</p>
-                  <p className="mt-3 text-3xl font-semibold">{items.length}</p>
-                  <p className="mt-2 text-sm leading-6 text-white/63">Itens ativos com fotos, prazo e material real.</p>
-                </div>
-                <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[26px] sm:p-5">
-                  <p className="text-xs uppercase tracking-[0.22em] text-white/45">Cliques no WhatsApp</p>
-                  <p className="mt-3 text-3xl font-semibold">{totalClicks}</p>
-                  <p className="mt-2 text-sm leading-6 text-white/63">Conversas iniciadas direto pela loja.</p>
-                </div>
+              <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:rounded-[28px] sm:p-5">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Bastidores da producao</p>
+                {instagramBackstage.length ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {instagramBackstage.map((entry) => (
+                      <span
+                        key={entry}
+                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-white/80"
+                      >
+                        <Sparkles className="h-3.5 w-3.5 text-cyan-200" />
+                        {entry}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-4 text-sm leading-6 text-white/60">
+                    Adicione bastidores nas configurações para mostrar processo, acabamento e rotina da produção.
+                  </p>
+                )}
               </div>
             </div>
 
