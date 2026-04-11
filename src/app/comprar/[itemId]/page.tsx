@@ -5,7 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { BuyItemWhatsAppForm } from "@/components/buy-item-whatsapp-form";
 import { getCurrentUser } from "@/lib/auth";
 import type { ShowcaseDeliveryMode } from "@/lib/db-types";
-import { formatCurrency, formatHours } from "@/lib/format";
+import { formatHours } from "@/lib/format";
 import {
   getShowcaseAvailabilityLabel,
   getShowcaseColorSummary,
@@ -79,23 +79,17 @@ export default async function BuyItemPage({
   const heroImage = getShowcaseGallery(item)[0];
   const heroVideo = getShowcasePrimaryVideo(item);
   const selectedVariant = item.variants.find((variant) => variant.id === selectedVariantId && variant.active);
-  const unitPrice = item.price + (selectedVariant?.priceAdjustment ?? 0);
   const availableDeliveryModes = getAvailableDeliveryModes(item);
   const selectedDeliveryMode = availableDeliveryModes.includes(deliveryModeValue as ShowcaseDeliveryMode)
     ? (deliveryModeValue as ShowcaseDeliveryMode)
     : undefined;
-  const couponDiscount =
-    couponCode && item.couponCode && couponCode.toLowerCase() === item.couponCode.toLowerCase()
-      ? item.couponDiscountPercent ?? 0
-      : 0;
-  const totalPrice = unitPrice * quantity * (1 - couponDiscount / 100);
 
   return (
     <AppShell
       user={user}
       pathname="/"
-      title="Confirmar compra pelo WhatsApp"
-      subtitle="Nao precisa cadastro. Informe somente nome e telefone para gerar a mensagem e abrir a conversa."
+      title="Escolher peça pelo WhatsApp"
+      subtitle="Veja o preview do modelo, confirme os detalhes e siga para a conversa sem precisar criar conta."
     >
       <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <article className="overflow-hidden rounded-[28px] border border-white/10 bg-white/5">
@@ -142,10 +136,6 @@ export default async function BuyItemPage({
 
             <div className="mt-6 grid gap-3 md:grid-cols-3">
               <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Valor</p>
-                <p className="mt-2 text-2xl font-semibold">{formatCurrency(unitPrice)}</p>
-              </div>
-              <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4">
                 <p className="text-xs uppercase tracking-[0.18em] text-white/45">Quantidade</p>
                 <p className="mt-2 text-2xl font-semibold">{quantity}</p>
               </div>
@@ -157,14 +147,9 @@ export default async function BuyItemPage({
                   {managesStock ? item.stockQuantity : "Sob encomenda"}
                 </p>
               </div>
-              <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4 md:col-span-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Total estimado</p>
-                <p className="mt-2 text-3xl font-semibold">{formatCurrency(totalPrice)}</p>
-                {couponDiscount ? (
-                  <p className="mt-2 text-sm text-emerald-100">
-                    Cupom aplicado: {couponCode} · {couponDiscount}% off
-                  </p>
-                ) : null}
+              <div className="rounded-[22px] border border-white/10 bg-slate-950/60 p-4 md:col-span-1">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/45">Forma</p>
+                <p className="mt-2 text-2xl font-semibold">Preview</p>
               </div>
             </div>
 
@@ -240,7 +225,6 @@ export default async function BuyItemPage({
           itemId={item.id}
           itemName={item.name}
           quantity={quantity}
-          unitSubtotal={totalPrice}
           estimatedMaterialGrams={(item.estimatedMaterialGrams ?? 0) * quantity}
           estimatedPrintHours={(item.estimatedPrintHours ?? 0) * quantity}
           message={message}

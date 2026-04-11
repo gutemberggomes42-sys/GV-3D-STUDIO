@@ -3,14 +3,12 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { ShowcaseDeliveryMode } from "@/lib/db-types";
-import { formatCurrency } from "@/lib/format";
 import { deliveryModeLabels, estimateFreightCost } from "@/lib/shipping";
 
 type BuyItemWhatsAppFormProps = {
   itemId: string;
   itemName: string;
   quantity: number;
-  unitSubtotal: number;
   estimatedMaterialGrams: number;
   estimatedPrintHours: number;
   message?: string | null;
@@ -33,7 +31,6 @@ export function BuyItemWhatsAppForm({
   itemId,
   itemName,
   quantity,
-  unitSubtotal,
   estimatedMaterialGrams,
   estimatedPrintHours,
   message,
@@ -73,8 +70,6 @@ export function BuyItemWhatsAppForm({
       }),
     [deliveryCity, deliveryMode, deliveryPostalCode, deliveryState, estimatedMaterialGrams, estimatedPrintHours, quantity],
   );
-  const totalWithFreight = unitSubtotal + freight.amount;
-
   return (
     <form
       action={`/comprar/${itemId}/enviar`}
@@ -92,32 +87,24 @@ export function BuyItemWhatsAppForm({
         <p className="text-xs uppercase tracking-[0.24em] text-white/45">Dados para contato</p>
         <h3 className="mt-2 text-2xl font-semibold">Preencha e envie para o WhatsApp</h3>
         <p className="mt-2 text-sm leading-6 text-white/65">
-          O sistema calcula a entrega, salva o pedido no admin e abre a conversa pronta para você confirmar.
+          O sistema salva sua escolha no admin e abre a conversa pronta para você confirmar os detalhes com a loja.
         </p>
       </div>
 
       <div className="rounded-[24px] border border-white/10 bg-black/25 p-4">
-        <p className="text-xs uppercase tracking-[0.18em] text-white/45">Resumo do pedido</p>
+        <p className="text-xs uppercase tracking-[0.18em] text-white/45">Resumo da escolha</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Produto</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Peça</p>
             <p className="mt-2 text-sm font-semibold text-white/86">{itemName}</p>
           </div>
           <div className="rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Forma de entrega</p>
-            <p className="mt-2 text-sm font-semibold text-white/86">{deliveryModeLabels[deliveryMode]}</p>
-          </div>
-          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Subtotal da peça</p>
-            <p className="mt-2 text-lg font-semibold text-white/86">{formatCurrency(unitSubtotal)}</p>
-          </div>
-          <div className="rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Frete estimado</p>
-            <p className="mt-2 text-lg font-semibold text-white/86">{formatCurrency(freight.amount)}</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Quantidade</p>
+            <p className="mt-2 text-sm font-semibold text-white/86">{quantity}</p>
           </div>
           <div className="rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3 sm:col-span-2">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Total com entrega</p>
-            <p className="mt-2 text-3xl font-semibold text-white">{formatCurrency(totalWithFreight)}</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Forma de entrega</p>
+            <p className="mt-2 text-sm font-semibold text-white/86">{deliveryModeLabels[deliveryMode]}</p>
             <p className="mt-2 text-xs uppercase tracking-[0.18em] text-white/45">{freight.label}</p>
           </div>
         </div>

@@ -58,13 +58,6 @@ function parseCartPayload(value: string) {
   }
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
-}
-
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const customerName = sanitizeField(String(formData.get("customerName") ?? ""));
@@ -209,17 +202,14 @@ export async function POST(request: NextRequest) {
         city: deliveryCity,
         state: deliveryState,
       });
-      const grandTotalWithFreight = grandTotal + freight.amount;
-
       const messageLines = [
-        "Olá! Quero pedir estes itens da vitrine.",
+        "Olá! Quero escolher estes itens da biblioteca.",
         "",
         "Itens do carrinho:",
         ...normalizedEntries.flatMap((currentEntry) => [
           `${currentEntry.index + 1}. ${currentEntry.item.name}`,
           `Quantidade: ${currentEntry.entry.quantity}`,
           `Disponibilidade: ${currentEntry.item.fulfillmentType === "MADE_TO_ORDER" ? "Sob encomenda" : "Pronta entrega"}`,
-          `Valor estimado: ${formatCurrency(currentEntry.estimatedTotal)}`,
           currentEntry.selectedVariant ? `Variacao: ${currentEntry.selectedVariant.label}` : null,
           currentEntry.entry.desiredColor ? `Cor desejada: ${currentEntry.entry.desiredColor}` : null,
           currentEntry.entry.desiredSize ? `Tamanho desejado: ${currentEntry.entry.desiredSize}` : null,
@@ -227,10 +217,8 @@ export async function POST(request: NextRequest) {
           currentEntry.couponDiscount ? `Cupom aplicado: ${currentEntry.entry.couponCode}` : null,
           "",
         ]),
-        `Total estimado do carrinho: ${formatCurrency(grandTotal)}`,
         `Forma de entrega: ${deliveryMode === "PICKUP" ? "Retirada" : deliveryMode === "LOCAL_DELIVERY" ? "Entrega local" : "Envio"}`,
-        `Frete estimado: ${formatCurrency(freight.amount)}`,
-        `Total com entrega: ${formatCurrency(grandTotalWithFreight)}`,
+        `Frete: ${freight.label}`,
         deliveryAddress ? `Endereco: ${deliveryAddress}` : null,
         deliveryNeighborhood ? `Bairro: ${deliveryNeighborhood}` : null,
         deliveryCity ? `Cidade: ${deliveryCity}` : null,

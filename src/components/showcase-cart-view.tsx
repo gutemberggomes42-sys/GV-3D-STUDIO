@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, MessageCircleMore, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import type { DbShowcaseItem, ShowcaseDeliveryMode } from "@/lib/db-types";
-import { formatCurrency } from "@/lib/format";
 import {
   clearShowcaseCart,
   readShowcaseCart,
@@ -24,8 +23,6 @@ type ShowcaseCartViewProps = {
 type CartLine = {
   entry: ShowcaseCartEntry;
   item?: DbShowcaseItem;
-  unitPrice: number;
-  totalPrice: number;
   availableQuantity: number;
   statusMessage?: string;
 };
@@ -55,8 +52,6 @@ function buildCartLines(entries: ShowcaseCartEntry[], items: DbShowcaseItem[]): 
       return {
         entry,
         item: undefined,
-        unitPrice: 0,
-        totalPrice: 0,
         availableQuantity: 0,
         statusMessage: "Esse item nao esta mais ativo na vitrine.",
       };
@@ -65,7 +60,6 @@ function buildCartLines(entries: ShowcaseCartEntry[], items: DbShowcaseItem[]): 
     const selectedVariant = item.variants.find(
       (variant) => variant.id === entry.selectedVariantId && variant.active,
     );
-    const unitPrice = item.price + (selectedVariant?.priceAdjustment ?? 0);
     const couponDiscount =
       entry.couponCode &&
       item.couponCode &&
@@ -73,7 +67,6 @@ function buildCartLines(entries: ShowcaseCartEntry[], items: DbShowcaseItem[]): 
         ? item.couponDiscountPercent ?? 0
         : 0;
     const availableQuantity = getAvailableQuantity(item, entry.selectedVariantId);
-    const totalPrice = unitPrice * entry.quantity * (1 - couponDiscount / 100);
 
     let statusMessage: string | undefined;
     if (item.fulfillmentType === "STOCK" && availableQuantity <= 0) {
@@ -85,10 +78,12 @@ function buildCartLines(entries: ShowcaseCartEntry[], items: DbShowcaseItem[]): 
     return {
       entry,
       item,
-      unitPrice,
-      totalPrice,
       availableQuantity,
-      statusMessage,
+      statusMessage:
+        statusMessage ??
+        (couponDiscount
+          ? `Cupom ${entry.couponCode} será considerado no atendimento.`
+          : undefined),
     };
   });
 }
@@ -123,10 +118,6 @@ export function ShowcaseCartView({ items }: ShowcaseCartViewProps) {
   }, []);
 
   const cartLines = useMemo(() => buildCartLines(cartEntries, items), [cartEntries, items]);
-  const subtotal = useMemo(
-    () => cartLines.reduce((total, line) => total + line.totalPrice, 0),
-    [cartLines],
-  );
   const totalMaterialGrams = useMemo(
     () =>
       cartLines.reduce(
@@ -169,7 +160,6 @@ export function ShowcaseCartView({ items }: ShowcaseCartViewProps) {
       }),
     [cartEntries, deliveryCity, deliveryMode, deliveryPostalCode, deliveryState, totalMaterialGrams, totalPrintHours],
   );
-  const totalWithFreight = subtotal + freight.amount;
   const hasInvalidItems = cartLines.some((line) => line.statusMessage);
 
   useEffect(() => {
@@ -311,7 +301,7 @@ export function ShowcaseCartView({ items }: ShowcaseCartViewProps) {
                   ) : null}
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-[160px_minmax(0,1fr)] lg:grid-cols-[160px_minmax(0,1fr)_180px]">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <p className="text-xs uppercase tracking-[0.18em] text-white/45">Quantidade</p>
                     <div className="mt-2 inline-flex items-center rounded-2xl border border-white/10 bg-black/25">
@@ -352,13 +342,13 @@ export function ShowcaseCartView({ items }: ShowcaseCartViewProps) {
                   </div>
 
                   <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-white/45">Valor unitario</p>
-                    <p className="mt-3 text-xl font-semibold">{formatCurrency(line.unitPrice)}</p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-white/45">Total estimado</p>
-                    <p className="mt-3 text-2xl font-semibold">{formatCurrency(line.totalPrice)}</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-white/45">Status da escolha</p>
+                    <p className="mt-3 text-base font-semibold text-white/88">
+                      {line.item?.fulfillmentType === "STOCK" ? "Biblioteca pronta para pedido" : "Biblioteca sob encomenda"}
+                    </p>
+                    <p className="mt-2 text-sm text-white/60">
+                      Os valores serão confirmados no atendimento.
+                    </p>
                   </div>
                 </div>
 
@@ -381,25 +371,19 @@ export function ShowcaseCartView({ items }: ShowcaseCartViewProps) {
         </p>
 
         <div className="mt-6 rounded-[22px] border border-white/10 bg-slate-950/50 p-4 sm:rounded-[26px] sm:p-5">
-          <p className="text-xs uppercase tracking-[0.18em] text-white/45">Resumo</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-white/45">Resumo da biblioteca</p>
           <div className="mt-4 space-y-3 text-sm text-white/72">
             <div className="flex items-center justify-between gap-4">
               <span>Itens no carrinho</span>
               <strong className="text-white">{cartEntries.length}</strong>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <span>Subtotal</span>
-              <strong className="text-white">{formatCurrency(subtotal)}</strong>
+              <span>Forma de entrega</span>
+              <strong className="text-white">{deliveryModeLabels[deliveryMode]}</strong>
             </div>
-            <div className="flex items-center justify-between gap-4">
-              <span>Frete estimado</span>
-              <strong className="text-white">{formatCurrency(freight.amount)}</strong>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white/68">
+              Valores e frete serão confirmados no atendimento. {freight.label}
             </div>
-            <div className="flex items-center justify-between gap-4 border-t border-white/10 pt-3">
-              <span>Total com entrega</span>
-              <strong className="text-2xl text-white">{formatCurrency(totalWithFreight)}</strong>
-            </div>
-            <p className="text-xs uppercase tracking-[0.18em] text-white/45">{freight.label}</p>
           </div>
         </div>
 

@@ -22,7 +22,7 @@ import { ShowcaseViewTracker } from "@/components/showcase-view-tracker";
 import { ShowcaseWishlistButton } from "@/components/showcase-wishlist-button";
 import { getCurrentUser } from "@/lib/auth";
 import type { DbShowcaseItem, DbShowcaseTestimonial } from "@/lib/db-types";
-import { formatCurrency, formatHours } from "@/lib/format";
+import { formatHours } from "@/lib/format";
 import {
   getShowcaseAvailabilityLabel,
   getShowcaseCategoryLabel,
@@ -31,7 +31,6 @@ import {
   getShowcaseDeliverySummary,
   getShowcaseGallery,
   getShowcaseLeadTimeLabel,
-  getShowcaseLowestPrice,
   getShowcasePrimaryVideo,
 } from "@/lib/showcase";
 import { getHydratedData } from "@/lib/view-data";
@@ -138,20 +137,17 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
     .slice(0, 3);
   const visibleColors = item.colorOptions.slice(0, 5);
   const extraColors = Math.max(item.colorOptions.length - visibleColors.length, 0);
-  const buyLabel =
-    item.fulfillmentType === "STOCK" ? "Comprar pelo WhatsApp" : "Encomendar pelo WhatsApp";
   const idealUseCases = getIdealUseCases(item);
   const productPromises = getProductPromises(item);
   const matchingTestimonials = getMatchingTestimonials(item, showcaseTestimonials);
   const variantOptions = item.variants.filter((variant) => variant.active);
-  const lowestPrice = getShowcaseLowestPrice(item);
 
   return (
     <AppShell
       user={user}
       pathname="/"
       title={item.name}
-      subtitle="Fotos, video, detalhes reais e um caminho de compra simples para o cliente gostar e seguir rapido para o WhatsApp."
+      subtitle="Abra o preview da peça, veja os detalhes principais e escolha se quer seguir pelo WhatsApp ou guardar no carrinho."
     >
       <ShowcaseViewTracker itemId={item.id} />
 
@@ -210,26 +206,24 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
             <p className="mt-4 text-base leading-7 text-white/80 sm:text-lg sm:leading-8">{item.tagline}</p>
           ) : null}
 
-          <div className="mt-6 flex flex-col gap-4 rounded-[24px] border border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:items-end sm:justify-between sm:rounded-[28px] sm:p-5">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Valor da peca</p>
-              {item.compareAtPrice ? (
-                <p className="mt-2 text-sm text-white/45 line-through">
-                  {formatCurrency(item.compareAtPrice)}
-                </p>
+          <div className="mt-6 rounded-[24px] border border-white/10 bg-white/[0.03] p-4 sm:rounded-[28px] sm:p-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/45">Preview da peça</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/82">
+                {getShowcaseAvailabilityLabel(item)}
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/82">
+                {getShowcaseLeadTimeLabel(item)}
+              </span>
+              {item.materialLabel ? (
+                <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/82">
+                  {item.materialLabel}
+                </span>
               ) : null}
-              <p className="mt-1 text-3xl font-semibold sm:text-4xl">{formatCurrency(item.price)}</p>
-              {lowestPrice !== item.price ? (
-                <p className="mt-2 text-sm text-white/60">
-                  Variacoes a partir de {formatCurrency(lowestPrice)}
-                </p>
-              ) : null}
-            </div>
-            <div className="text-left sm:text-right">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Compra</p>
-              <p className="mt-2 text-sm font-semibold text-white/82">Fluxo simples pelo WhatsApp</p>
               {item.promotionLabel ? (
-                <p className="mt-2 text-sm text-orange-100">{item.promotionLabel}</p>
+                <span className="rounded-full border border-orange-300/30 bg-orange-500/10 px-4 py-2 text-sm font-medium text-orange-100">
+                  {item.promotionLabel}
+                </span>
               ) : null}
             </div>
           </div>
@@ -336,25 +330,10 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
             </div>
           </div>
 
-          {item.couponCode || item.shippingSummary ? (
-            <div className="mt-6 grid gap-4 xl:grid-cols-2">
-              {item.couponCode ? (
-                <div className="rounded-[24px] border border-emerald-400/15 bg-emerald-500/[0.06] p-4 sm:rounded-[28px] sm:p-5">
-                  <p className="text-xs uppercase tracking-[0.2em] text-emerald-100/70">Cupom disponivel</p>
-                  <p className="mt-3 text-2xl font-semibold text-emerald-50">{item.couponCode}</p>
-                  <p className="mt-2 text-sm text-emerald-100/75">
-                    {item.couponDiscountPercent
-                      ? `${item.couponDiscountPercent}% de desconto na conversa pelo WhatsApp.`
-                      : "Mencione esse cupom ao falar com a loja."}
-                  </p>
-                </div>
-              ) : null}
-              {item.shippingSummary ? (
-                <div className="rounded-[24px] border border-white/10 bg-black/20 p-4 sm:rounded-[28px] sm:p-5">
-                  <p className="text-xs uppercase tracking-[0.2em] text-white/45">Resumo de envio</p>
-                  <p className="mt-3 text-sm leading-7 text-white/74">{item.shippingSummary}</p>
-                </div>
-              ) : null}
+          {item.shippingSummary ? (
+            <div className="mt-6 rounded-[24px] border border-white/10 bg-black/20 p-4 sm:rounded-[28px] sm:p-5">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Resumo de envio</p>
+              <p className="mt-3 text-sm leading-7 text-white/74">{item.shippingSummary}</p>
             </div>
           ) : null}
 
@@ -378,12 +357,12 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
           </div>
 
           <div id="buy-panel" className="mt-8 scroll-mt-24 rounded-[24px] border border-emerald-400/15 bg-emerald-500/[0.06] p-4 sm:rounded-[28px] sm:p-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-emerald-100/70">Compra sem atrito</p>
-            <h4 className="mt-3 text-xl font-semibold sm:text-2xl">Escolha a quantidade, adicione ao carrinho ou siga para o WhatsApp</h4>
+            <p className="text-xs uppercase tracking-[0.2em] text-emerald-100/70">Escolher esta peça</p>
+            <h4 className="mt-3 text-xl font-semibold sm:text-2xl">Defina os detalhes e decida se quer seguir pelo WhatsApp ou guardar no carrinho</h4>
             <p className="mt-3 text-sm leading-6 text-white/68">
-              Voce pode reunir varios itens no carrinho ou seguir direto para a tela de contato com nome, telefone e observacao opcional.
+              A biblioteca mostra o preview do modelo. Os valores ficam para o atendimento, enquanto aqui você só escolhe a peça e a forma de continuar.
             </p>
-            <ShowcaseProductPurchasePanel item={item} buyLabel={buyLabel} />
+            <ShowcaseProductPurchasePanel item={item} />
           </div>
         </article>
       </section>
@@ -396,7 +375,7 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
           </div>
           <p className="mt-4 text-xl font-semibold">Conversa humana e direta</p>
           <p className="mt-3 text-sm leading-6 text-white/68">
-            O cliente nao precisa criar conta para comprar. Ele ve a peca, escolhe a quantidade e chama no WhatsApp.
+            O cliente nao precisa criar conta. Ele abre o preview, escolhe a peça e segue para o WhatsApp quando quiser.
           </p>
         </div>
         <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
@@ -404,9 +383,9 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-200" />
             Confianca
           </div>
-          <p className="mt-4 text-xl font-semibold">Prazo, estoque e material visiveis</p>
+          <p className="mt-4 text-xl font-semibold">Preview com detalhes reais</p>
           <p className="mt-3 text-sm leading-6 text-white/68">
-            Isso ajuda o cliente a confiar mais rapido, porque a decisao nao depende de informacoes escondidas.
+            Materiais, prazo, medidas e acabamento ajudam a escolher com mais segurança antes do contato.
           </p>
         </div>
         <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
@@ -424,16 +403,16 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
           <p className="text-xs uppercase tracking-[0.2em] text-white/45">Passo 1</p>
-          <p className="mt-3 text-xl font-semibold">Escolha a quantidade</p>
+          <p className="mt-3 text-xl font-semibold">Abra o preview da peça</p>
           <p className="mt-3 text-sm leading-6 text-white/68">
-            A peca ja mostra valor, prazo e disponibilidade para facilitar a decisao desde o primeiro clique.
+            Veja fotos, vídeo e detalhes do modelo para confirmar se é a peça certa para você.
           </p>
         </div>
         <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
           <p className="text-xs uppercase tracking-[0.2em] text-white/45">Passo 2</p>
-          <p className="mt-3 text-xl font-semibold">Informe nome, telefone e observacao</p>
+          <p className="mt-3 text-xl font-semibold">Escolha guardar no carrinho ou falar no WhatsApp</p>
           <p className="mt-3 text-sm leading-6 text-white/68">
-            Na tela seguinte o cliente preenche so o essencial e, se quiser, deixa um detalhe importante sobre o pedido.
+            Você decide se quer separar várias peças no carrinho ou seguir direto para a conversa.
           </p>
         </div>
         <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
@@ -537,9 +516,9 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
                 <div className="space-y-3 p-4">
                   <p className="text-sm leading-6 text-white/65">{relatedItem.tagline ?? relatedItem.description}</p>
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-lg font-semibold text-white">{formatCurrency(relatedItem.price)}</p>
+                    <p className="text-sm font-semibold text-white/75">{getShowcaseAvailabilityLabel(relatedItem)}</p>
                     <span className="inline-flex items-center gap-2 font-semibold text-orange-200">
-                      Ver detalhes
+                      Abrir preview
                       <ArrowRight className="h-4 w-4" />
                     </span>
                   </div>
@@ -554,15 +533,15 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
         <div className="rounded-[28px] border border-white/10 bg-slate-950/88 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-white/45">Valor</p>
-              <p className="mt-1 text-2xl font-semibold">{formatCurrency(item.price)}</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-white/45">Preview pronto</p>
+              <p className="mt-1 text-base font-semibold text-white/88">{getShowcaseLeadTimeLabel(item)}</p>
             </div>
             <a
               href="#buy-panel"
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
             >
               <MessageCircleMore className="h-4 w-4" />
-              Comprar
+              Escolher peça
             </a>
           </div>
         </div>

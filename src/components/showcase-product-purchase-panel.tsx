@@ -8,7 +8,6 @@ import { addShowcaseCartEntry } from "@/lib/showcase-cart";
 
 type ShowcaseProductPurchasePanelProps = {
   item: DbShowcaseItem;
-  buyLabel: string;
 };
 
 function sanitizeQueryValue(value?: string) {
@@ -28,7 +27,6 @@ function clampQuantity(value: string, maxQuantity: number) {
 
 export function ShowcaseProductPurchasePanel({
   item,
-  buyLabel,
 }: ShowcaseProductPurchasePanelProps) {
   const router = useRouter();
   const variantOptions = item.variants.filter((variant) => variant.active);
@@ -227,7 +225,7 @@ export function ShowcaseProductPurchasePanel({
 
       <div className="rounded-[24px] border border-white/10 bg-black/20 p-3 sm:border-0 sm:bg-transparent sm:p-0">
         <div className="mb-3 flex items-center justify-between gap-3 text-xs uppercase tracking-[0.18em] text-white/45 sm:hidden">
-          <span>Finalizar compra</span>
+          <span>Escolher esta peça</span>
           <span>{safeQuantity} item(s)</span>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -238,7 +236,7 @@ export function ShowcaseProductPurchasePanel({
           className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:bg-slate-800/60 disabled:text-white/45"
         >
           <ShoppingCart className="h-4 w-4" />
-          Adicionar ao carrinho
+          Guardar no carrinho
         </button>
         <button
           type="button"
@@ -247,7 +245,7 @@ export function ShowcaseProductPurchasePanel({
           className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-4 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-white/55"
         >
           <MessageCircleMore className="h-4 w-4" />
-          {buyLabel}
+          Enviar para o WhatsApp
         </button>
         </div>
       </div>

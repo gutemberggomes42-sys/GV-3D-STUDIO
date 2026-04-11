@@ -223,17 +223,13 @@ export async function POST(
         city: deliveryCity,
         state: deliveryState,
       });
-      const grandTotal = estimatedTotal + freight.amount;
-
       const message = [
-        "Olá! Quero comprar este item da vitrine.",
+        "Olá! Quero escolher esta peça da biblioteca.",
         `Item: ${item.name}`,
         `Quantidade: ${quantity}`,
         `Disponibilidade: ${item.fulfillmentType === "MADE_TO_ORDER" ? "Sob encomenda" : "Pronta entrega"}`,
-        `Valor estimado: ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(estimatedTotal)}`,
         `Forma de entrega: ${deliveryMode === "PICKUP" ? "Retirada" : deliveryMode === "LOCAL_DELIVERY" ? "Entrega local" : "Envio"}`,
-        `Frete estimado: ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(freight.amount)}`,
-        `Total com entrega: ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(grandTotal)}`,
+        `Frete: ${freight.label}`,
         selectedVariant ? `Variacao: ${selectedVariant.label}` : null,
         desiredColor ? `Cor desejada: ${desiredColor}` : null,
         desiredSize ? `Tamanho desejado: ${desiredSize}` : null,

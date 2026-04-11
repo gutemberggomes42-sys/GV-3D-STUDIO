@@ -29,7 +29,6 @@ import type {
   DbShowcaseTestimonial,
   DbStorefrontSettings,
 } from "@/lib/db-types";
-import { formatCurrency } from "@/lib/format";
 import { addShowcaseCartEntry } from "@/lib/showcase-cart";
 import {
   getShowcaseAvailabilityLabel,
@@ -41,11 +40,9 @@ import {
   getShowcaseDeliverySummary,
   getShowcaseDescriptionPreview,
   getShowcaseLeadTimeLabel,
-  getShowcaseLowestPrice,
   getShowcasePrimaryImage,
   getShowcasePrimaryVideo,
   getShowcaseTagline,
-  getShowcaseHighestPrice,
   normalizeShowcaseSearchText,
 } from "@/lib/showcase";
 
@@ -58,26 +55,15 @@ type ShowcaseCatalogExplorerProps = {
 };
 
 type AvailabilityFilter = "ALL" | "STOCK" | "MADE_TO_ORDER";
-type PriceFilter = "ALL" | "UNDER_50" | "BETWEEN_50_100" | "BETWEEN_100_200" | "OVER_200";
 type SortOption =
   | "FEATURED"
   | "POPULAR"
   | "MOST_CLICKED"
-  | "LOWEST_PRICE"
-  | "HIGHEST_PRICE"
   | "FASTEST"
   | "READY_FIRST"
   | "NEWEST";
 
 const wishlistStorageKey = "printflow-showcase-wishlist";
-
-const priceFilterOptions: Array<{ id: PriceFilter; label: string }> = [
-  { id: "ALL", label: "Todos os valores" },
-  { id: "UNDER_50", label: "Ate R$ 50" },
-  { id: "BETWEEN_50_100", label: "R$ 50 a R$ 100" },
-  { id: "BETWEEN_100_200", label: "R$ 100 a R$ 200" },
-  { id: "OVER_200", label: "Acima de R$ 200" },
-];
 
 function clampText(lines: number) {
   return {
@@ -173,24 +159,6 @@ function matchesAvailability(item: DbShowcaseItem, filter: AvailabilityFilter) {
   return item.fulfillmentType === filter;
 }
 
-function matchesPrice(item: DbShowcaseItem, filter: PriceFilter) {
-  const lowestPrice = getShowcaseLowestPrice(item);
-
-  switch (filter) {
-    case "UNDER_50":
-      return lowestPrice <= 50;
-    case "BETWEEN_50_100":
-      return lowestPrice > 50 && lowestPrice <= 100;
-    case "BETWEEN_100_200":
-      return lowestPrice > 100 && lowestPrice <= 200;
-    case "OVER_200":
-      return lowestPrice > 200;
-    case "ALL":
-    default:
-      return true;
-  }
-}
-
 function getItemPopularity(item: DbShowcaseItem, inquiryCounts: Record<string, number>) {
   return inquiryCounts[item.id] ?? 0;
 }
@@ -231,10 +199,6 @@ function sortItems(
         return rightPopularity - leftPopularity || right.whatsappClickCount - left.whatsappClickCount;
       case "MOST_CLICKED":
         return right.whatsappClickCount - left.whatsappClickCount || right.viewCount - left.viewCount;
-      case "LOWEST_PRICE":
-        return getShowcaseLowestPrice(left) - getShowcaseLowestPrice(right);
-      case "HIGHEST_PRICE":
-        return getShowcaseHighestPrice(right) - getShowcaseHighestPrice(left);
       case "FASTEST":
         return left.leadTimeDays - right.leadTimeDays || left.price - right.price;
       case "READY_FIRST":
@@ -246,12 +210,6 @@ function sortItems(
         return Number(right.featured) - Number(left.featured) || rightPopularity - leftPopularity;
     }
   });
-}
-
-function getItemRangeLabel(item: DbShowcaseItem) {
-  const lowestPrice = getShowcaseLowestPrice(item);
-  const highestPrice = getShowcaseHighestPrice(item);
-  return lowestPrice === highestPrice ? formatCurrency(item.price) : `${formatCurrency(lowestPrice)} - ${formatCurrency(highestPrice)}`;
 }
 
 function getVariantSummary(item: DbShowcaseItem) {
@@ -294,20 +252,11 @@ type ShelfProps = {
 };
 
 function ShowcaseCard({ item, inquiryCount }: { item: DbShowcaseItem; inquiryCount: number }) {
-  const [quantity, setQuantity] = useState("1");
-  const [cartFeedback, setCartFeedback] = useState("");
   const primaryImage = getShowcasePrimaryImage(item);
   const primaryVideo = getShowcasePrimaryVideo(item);
-  const isDisabled = item.fulfillmentType === "STOCK" && item.stockQuantity <= 0;
-  const visibleColors = item.colorOptions.slice(0, 4);
+  const visibleColors = item.colorOptions.slice(0, 3);
   const extraColors = Math.max(item.colorOptions.length - visibleColors.length, 0);
   const variantSummary = getVariantSummary(item);
-  const buyLabel =
-    item.fulfillmentType === "STOCK" && item.stockQuantity > 0
-      ? "Comprar no WhatsApp"
-      : item.fulfillmentType === "STOCK"
-        ? "Indisponivel"
-        : "Encomendar no WhatsApp";
 
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,12,18,0.96),rgba(5,8,14,0.98))] shadow-[0_22px_90px_rgba(0,0,0,0.26)] transition hover:-translate-y-1 hover:border-white/15 sm:rounded-[30px]">
@@ -340,22 +289,13 @@ function ShowcaseCard({ item, inquiryCount }: { item: DbShowcaseItem; inquiryCou
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
-          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
-            <div className="max-w-full sm:max-w-[70%]">
-              <h4 className="text-xl font-semibold leading-tight text-white sm:text-2xl" style={clampText(2)}>
-                {item.name}
-              </h4>
-              <p className="mt-2 text-sm text-white/72" style={clampText(2)}>
-                {getShowcaseDescriptionPreview(getShowcaseTagline(item), 84)}
-              </p>
-            </div>
-            <div className="rounded-[20px] border border-white/12 bg-slate-950/78 px-4 py-3 text-left backdrop-blur sm:rounded-[22px] sm:text-right">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Valor</p>
-              {item.compareAtPrice ? (
-                <p className="mt-1 text-xs text-white/45 line-through">{formatCurrency(item.compareAtPrice)}</p>
-              ) : null}
-              <p className="mt-1 text-xl font-semibold sm:text-2xl">{getItemRangeLabel(item)}</p>
-            </div>
+          <div className="max-w-full">
+            <h4 className="text-xl font-semibold leading-tight text-white sm:text-2xl" style={clampText(2)}>
+              {item.name}
+            </h4>
+            <p className="mt-2 text-sm text-white/72" style={clampText(2)}>
+              {getShowcaseDescriptionPreview(getShowcaseTagline(item), 84)}
+            </p>
           </div>
         </div>
       </Link>
@@ -387,12 +327,12 @@ function ShowcaseCard({ item, inquiryCount }: { item: DbShowcaseItem; inquiryCou
               {item.materialLabel ?? "Sob consulta"}
             </p>
           </div>
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">Entrega</p>
-            <p className="mt-2 text-sm font-semibold text-white/88" style={clampText(2)}>
-              {getShowcaseDeliverySummary(item)}
-            </p>
-          </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">Entrega</p>
+              <p className="mt-2 text-sm font-semibold text-white/88" style={clampText(2)}>
+                {getShowcaseDeliverySummary(item)}
+              </p>
+            </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -412,62 +352,38 @@ function ShowcaseCard({ item, inquiryCount }: { item: DbShowcaseItem; inquiryCou
           )}
         </div>
 
-        {item.couponCode ? (
-          <div className="rounded-[24px] border border-emerald-400/15 bg-emerald-500/[0.07] px-4 py-3 text-sm text-emerald-100">
-            Cupom disponivel: <span className="font-semibold">{item.couponCode}</span>
-            {item.couponDiscountPercent ? ` · ${item.couponDiscountPercent}% off` : ""}
-          </div>
-        ) : null}
-
         <div className="mt-auto space-y-3 pt-1">
           <div className="flex items-center justify-between gap-3 text-sm text-white/55">
-            <span>{inquiryCount > 0 ? `${inquiryCount} pedidos iniciados` : "Novo na vitrine"}</span>
+            <span>{inquiryCount > 0 ? `${inquiryCount} escolhas iniciadas` : "Disponivel na biblioteca"}</span>
             <Link href={`/produto/${item.id}`} className="inline-flex items-center gap-2 font-semibold text-orange-200 transition hover:text-orange-100">
-              Ver detalhes
+              Abrir preview
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
 
-          <form action={`/comprar/${item.id}`} className="grid gap-3 sm:grid-cols-[116px_minmax(0,1fr)]">
-            <label className="block text-sm text-white/70">
-              Qtd
-              <input name="quantity" type="number" min="1" max={item.fulfillmentType === "STOCK" ? Math.max(item.stockQuantity, 1) : 999} value={quantity} onChange={(event) => setQuantity(event.target.value)} disabled={isDisabled} className="mt-2 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-orange-400/60" />
-              {item.couponCode ? <input type="hidden" name="couponCode" value={item.couponCode} /> : null}
-            </label>
-            <button type="submit" disabled={isDisabled} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-white/55">
-              <MessageCircleMore className="h-4 w-4" />
-              {buyLabel}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Link
+              href={`/produto/${item.id}`}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+            >
+              <Sparkles className="h-4 w-4" />
+              Escolher peça
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                addShowcaseCartEntry({
+                  itemId: item.id,
+                  quantity: 1,
+                  couponCode: item.couponCode || undefined,
+                });
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+            >
+              <ShoppingCart className="h-4 w-4" />
+              Guardar no carrinho
             </button>
-          </form>
-
-          <button
-            type="button"
-            disabled={isDisabled}
-            onClick={() => {
-              const parsedQuantity = Number(quantity);
-              addShowcaseCartEntry({
-                itemId: item.id,
-                quantity: Number.isFinite(parsedQuantity)
-                  ? Math.max(
-                      1,
-                      Math.min(
-                        item.fulfillmentType === "STOCK" ? Math.max(item.stockQuantity, 1) : 999,
-                        Math.round(parsedQuantity),
-                      ),
-                    )
-                  : 1,
-                couponCode: item.couponCode || undefined,
-              });
-              setCartFeedback("Adicionado ao carrinho.");
-              window.setTimeout(() => setCartFeedback(""), 2200);
-            }}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:bg-slate-800/60 disabled:text-white/45"
-          >
-            <ShoppingCart className="h-4 w-4" />
-            Adicionar ao carrinho
-          </button>
-
-          {cartFeedback ? <p className="text-sm text-cyan-100">{cartFeedback}</p> : null}
+          </div>
         </div>
       </div>
     </article>
@@ -508,7 +424,6 @@ export function ShowcaseCatalogExplorer({
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>("ALL");
-  const [priceFilter, setPriceFilter] = useState<PriceFilter>("ALL");
   const [sortBy, setSortBy] = useState<SortOption>("FEATURED");
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
   const deferredQuery = useDeferredValue(normalizeShowcaseSearchText(query));
@@ -559,14 +474,13 @@ export function ShowcaseCatalogExplorer({
           return (
             categoryMatch &&
             searchMatch &&
-            matchesAvailability(item, availabilityFilter) &&
-            matchesPrice(item, priceFilter)
+            matchesAvailability(item, availabilityFilter)
           );
         }),
         sortBy,
         inquiryCounts,
       ),
-    [availabilityFilter, deferredQuery, inquiryCounts, items, priceFilter, selectedCategory, sortBy],
+    [availabilityFilter, deferredQuery, inquiryCounts, items, selectedCategory, sortBy],
   );
 
   const featuredTestimonials = [...testimonials]
@@ -665,7 +579,7 @@ export function ShowcaseCatalogExplorer({
                 <p className="mt-2 text-2xl font-semibold">{items.length}</p>
               </div>
               <div className="rounded-[20px] border border-white/10 bg-black/25 p-4 backdrop-blur sm:rounded-[24px]">
-                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Entrega</p>
+                <p className="text-xs uppercase tracking-[0.22em] text-white/45">Pronta entrega</p>
                 <p className="mt-2 text-2xl font-semibold">{readyItems.length}</p>
               </div>
               <div className="rounded-[20px] border border-white/10 bg-black/25 p-4 backdrop-blur sm:rounded-[24px]">
@@ -680,12 +594,12 @@ export function ShowcaseCatalogExplorer({
 
             <div className="mt-6 grid gap-3 sm:mt-7 sm:flex sm:flex-wrap">
               <a href="#catalogo-grid" className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 sm:w-auto">
-                {settings.heroPrimaryCtaLabel}
+                Explorar biblioteca
                 <ArrowRight className="h-4 w-4" />
               </a>
               {featuredItem ? (
                 <Link href={`/produto/${featuredItem.id}`} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-5 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/12 sm:w-auto">
-                  {settings.heroSecondaryCtaLabel}
+                  Abrir preview principal
                   <Sparkles className="h-4 w-4" />
                 </Link>
               ) : null}
@@ -783,8 +697,8 @@ export function ShowcaseCatalogExplorer({
         <ShowcaseSectionWatermark align="center" intensity="strong" />
         <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Encontre sua peca</p>
-            <h3 className="mt-2 text-2xl font-semibold">Busque, filtre e compare com mais facilidade</h3>
+            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Biblioteca de modelos</p>
+            <h3 className="mt-2 text-2xl font-semibold">Busque e encontre a peça ideal com mais facilidade</h3>
             <p className="mt-3 text-sm text-white/60">{resultsLabel}</p>
           </div>
 
@@ -801,8 +715,6 @@ export function ShowcaseCatalogExplorer({
                 <option value="POPULAR">Mais pedidos</option>
                 <option value="MOST_CLICKED">Mais clicados</option>
                 <option value="READY_FIRST">Pronta entrega primeiro</option>
-                <option value="LOWEST_PRICE">Menor preco</option>
-                <option value="HIGHEST_PRICE">Maior preco</option>
                 <option value="FASTEST">Prazo mais rapido</option>
                 <option value="NEWEST">Mais recentes</option>
               </select>
@@ -833,13 +745,6 @@ export function ShowcaseCatalogExplorer({
           ))}
         </div>
 
-        <div className="relative z-10 mt-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-2 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
-          {priceFilterOptions.map((option) => (
-            <button key={option.id} type="button" onClick={() => setPriceFilter(option.id)} className={`rounded-full border px-4 py-2 text-sm font-medium transition ${priceFilter === option.id ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-100" : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"}`}>
-              {option.label}
-            </button>
-          ))}
-        </div>
       </section>
 
       <section id="catalogo-grid" className="grid gap-4 md:grid-cols-2 xl:gap-5 2xl:grid-cols-3">
@@ -849,7 +754,7 @@ export function ShowcaseCatalogExplorer({
           ))
         ) : (
           <div className="md:col-span-2 2xl:col-span-3 rounded-[28px] border border-dashed border-white/15 bg-slate-950/50 p-8 text-sm text-white/60">
-            Nenhum item encontrado para esse filtro. Tente outra categoria, ajuste o valor ou limpe a busca.
+            Nenhuma peça encontrada para esse filtro. Tente outra categoria ou limpe a busca.
           </div>
         )}
       </section>
