@@ -118,6 +118,9 @@ function syncShowcaseSnapshotFallbackCatalog(data: PrintFlowDb) {
       ...item,
       viewCount: existingItem.viewCount,
       whatsappClickCount: existingItem.whatsappClickCount,
+      aiPreviewDescription: existingItem.aiPreviewDescription,
+      aiPreviewGeneratedAt: existingItem.aiPreviewGeneratedAt,
+      aiPreviewImageSignature: existingItem.aiPreviewImageSignature,
       createdAt: existingItem.createdAt ?? item.createdAt,
     };
   });
@@ -621,6 +624,9 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
         estimatedMaterialGrams: normalizedItem.estimatedMaterialGrams ?? 0,
         viewCount: normalizedItem.viewCount ?? 0,
         whatsappClickCount: normalizedItem.whatsappClickCount ?? 0,
+        aiPreviewDescription: normalizedItem.aiPreviewDescription?.trim() || undefined,
+        aiPreviewGeneratedAt: normalizedItem.aiPreviewGeneratedAt ?? undefined,
+        aiPreviewImageSignature: normalizedItem.aiPreviewImageSignature?.trim() || undefined,
         featured: normalizedItem.featured ?? false,
         active: normalizedItem.active ?? true,
         syncSource:

@@ -17,11 +17,13 @@ import { ShowcaseViewTracker } from "@/components/showcase-view-tracker";
 import { ShowcaseWishlistButton } from "@/components/showcase-wishlist-button";
 import { getCurrentUser } from "@/lib/auth";
 import { formatHours } from "@/lib/format";
+import { getShowcaseAiPreview } from "@/lib/showcase-ai";
 import {
   getShowcaseAvailabilityLabel,
   getShowcaseCategoryLabel,
   getShowcaseColorHex,
   getShowcaseColorSummary,
+  getShowcaseDescriptionPreview,
   getShowcaseDeliverySummary,
   getShowcaseGallery,
   getShowcaseLeadTimeLabel,
@@ -80,6 +82,14 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
   const extraColors = Math.max(item.colorOptions.length - visibleColors.length, 0);
   const variantOptions = item.variants.filter((variant) => variant.active);
   const purchasePanelItem = sanitizeShowcaseItemForStorefront(item);
+  const aiPreviewDescription = await getShowcaseAiPreview(item.id);
+  const previewDescription = aiPreviewDescription ?? item.description;
+  const previewTagline =
+    item.tagline?.trim() && !item.tagline.startsWith("Preview sincronizado automaticamente")
+      ? item.tagline
+      : aiPreviewDescription
+        ? getShowcaseDescriptionPreview(aiPreviewDescription, 124)
+        : item.tagline;
 
   return (
     <AppShell
@@ -136,13 +146,20 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
           </div>
 
           <h3 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">{item.name}</h3>
-          {item.tagline ? (
-            <p className="mt-4 text-base leading-7 text-white/80 sm:text-lg sm:leading-8">{item.tagline}</p>
+          {previewTagline ? (
+            <p className="mt-4 text-base leading-7 text-white/80 sm:text-lg sm:leading-8">{previewTagline}</p>
           ) : null}
 
           <div className="mt-6 rounded-[24px] border border-white/10 bg-white/[0.03] p-4 sm:rounded-[28px] sm:p-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-white/45">Preview da peça</p>
-            <p className="mt-3 text-sm leading-7 text-white/74">{item.description}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/45">Preview da peça</p>
+              {aiPreviewDescription ? (
+                <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                  Gerado com IA pela foto
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-3 text-sm leading-7 text-white/74">{previewDescription}</p>
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">

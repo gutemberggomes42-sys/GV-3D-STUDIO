@@ -85,6 +85,8 @@ Storage profissional opcional:
 
 - `PRINTFLOW_STORAGE_PROVIDER=local|postgres|s3`
 - `PRINTFLOW_SHOWCASE_SYNC_DIR`
+- `OPENAI_API_KEY`
+- `PRINTFLOW_SHOWCASE_AI_MODEL`
 - `PRINTFLOW_S3_BUCKET`
 - `PRINTFLOW_S3_REGION`
 - `PRINTFLOW_S3_ACCESS_KEY_ID`
@@ -116,6 +118,13 @@ Observação importante:
 - esse watcher precisa ficar rodando no computador que tem acesso a pasta `D:\Impressoes 3D`
 - quando estiver em `showcase:watch:push`, uma nova colecao, foto ou mudanca de arquivo gera commit e push automaticos, entao o Render recebe um novo deploy sozinho
 - no Render a mudanca nao aparece instantaneamente porque ainda depende do tempo do deploy terminar
+
+### Preview com IA na pagina da peça
+
+- quando o item tiver foto principal e `OPENAI_API_KEY` configurada, a pagina do produto usa IA para analisar a imagem e gerar um preview mais humano da peça
+- o texto fica cacheado no proprio item, entao a analise nao roda em todo clique
+- se a chave nao estiver configurada, a loja continua usando a descricao normal como fallback
+- no Render, basta preencher `OPENAI_API_KEY`; se quiser trocar o modelo, use `PRINTFLOW_SHOWCASE_AI_MODEL`
 
 ## Hospedagem 24h
 

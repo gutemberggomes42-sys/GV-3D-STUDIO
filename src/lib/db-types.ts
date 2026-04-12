@@ -430,6 +430,9 @@ export type DbShowcaseItem = {
   estimatedMaterialGrams: number;
   viewCount: number;
   whatsappClickCount: number;
+  aiPreviewDescription?: string;
+  aiPreviewGeneratedAt?: IsoDateString;
+  aiPreviewImageSignature?: string;
   featured: boolean;
   active: boolean;
   syncSource?: DbShowcaseItemSyncSource;
