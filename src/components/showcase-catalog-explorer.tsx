@@ -22,6 +22,7 @@ import { studioBrandLogoPath } from "@/lib/branding";
 import { ownerWhatsAppNumber } from "@/lib/constants";
 import type {
   DbShowcaseItem,
+  DbShowcaseLibrary,
   DbShowcaseTestimonial,
   DbStorefrontSettings,
 } from "@/lib/db-types";
@@ -40,6 +41,7 @@ import {
 
 type ShowcaseCatalogExplorerProps = {
   items: DbShowcaseItem[];
+  libraries: DbShowcaseLibrary[];
   inquiryCounts: Record<string, number>;
   testimonials: DbShowcaseTestimonial[];
   settings: DbStorefrontSettings;
@@ -106,6 +108,21 @@ function getSearchHaystack(item: DbShowcaseItem) {
   );
 }
 
+function getItemCollectionLabel(
+  item: DbShowcaseItem,
+  libraryMap: Map<string, DbShowcaseLibrary>,
+) {
+  if (item.libraryId) {
+    const library = libraryMap.get(item.libraryId);
+
+    if (library?.name) {
+      return library.name;
+    }
+  }
+
+  return getShowcaseCategoryLabel(item);
+}
+
 function sortItems(
   items: DbShowcaseItem[],
   sortBy: SortOption,
@@ -151,9 +168,11 @@ function LibraryWatermark() {
 function PreviewCard({
   item,
   inquiryCount,
+  collectionLabel,
 }: {
   item: DbShowcaseItem;
   inquiryCount: number;
+  collectionLabel: string;
 }) {
   const primaryImage = getShowcasePrimaryImage(item);
   const primaryVideo = getShowcasePrimaryVideo(item);
@@ -178,7 +197,7 @@ function PreviewCard({
 
         <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
           <span className="rounded-full border border-white/15 bg-black/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/82">
-            {getShowcaseCategoryLabel(item)}
+            {collectionLabel}
           </span>
           <ShowcaseWishlistButton itemId={item.id} />
         </div>
@@ -222,19 +241,23 @@ function PreviewCard({
 }
 
 function CategoryCard({
+  imageUrl,
   title,
+  description,
   count,
   item,
   active,
   onClick,
 }: {
+  imageUrl?: string;
   title: string;
+  description?: string;
   count: number;
   item?: DbShowcaseItem;
   active: boolean;
   onClick: () => void;
 }) {
-  const imageUrl = item ? getShowcasePrimaryImage(item) : undefined;
+  const coverImageUrl = imageUrl || (item ? getShowcasePrimaryImage(item) : undefined);
 
   return (
     <button
@@ -247,9 +270,9 @@ function CategoryCard({
       }`}
     >
       <div className="relative h-40 sm:h-48">
-        {imageUrl ? (
+        {coverImageUrl ? (
           <img
-            src={imageUrl}
+            src={coverImageUrl}
             alt={title}
             className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
           />
@@ -260,6 +283,11 @@ function CategoryCard({
         <div className="absolute bottom-4 left-4 right-4">
           <p className="text-[11px] uppercase tracking-[0.18em] text-white/52">Biblioteca</p>
           <h4 className="mt-2 text-xl font-semibold text-white">{title}</h4>
+          {description ? (
+            <p className="mt-2 text-sm leading-6 text-white/68" style={clampText(2)}>
+              {description}
+            </p>
+          ) : null}
           <p className="mt-2 text-sm text-white/68">
             {count} {count === 1 ? "modelo" : "modelos"}
           </p>
@@ -271,13 +299,14 @@ function CategoryCard({
 
 export function ShowcaseCatalogExplorer({
   items,
+  libraries,
   inquiryCounts,
   testimonials: _testimonials,
   settings,
   canManage,
 }: ShowcaseCatalogExplorerProps) {
   const [query, setQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("Todas");
+  const [selectedCollectionKey, setSelectedCollectionKey] = useState("all");
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>("ALL");
   const [sortBy, setSortBy] = useState<SortOption>("FEATURED");
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
@@ -303,19 +332,45 @@ export function ShowcaseCatalogExplorer({
     [inquiryCounts, items],
   );
   const featuredItem = sortedFeaturedItems[0];
-  const categories = getShowcaseCategoryOptions(items);
-  const categoryCards = useMemo(
-    () =>
-      categories.map((category) => {
-        const categoryItems = items.filter((item) => getShowcaseCategoryLabel(item) === category);
-        return {
-          category,
-          count: categoryItems.length,
-          item: sortItems(categoryItems, "FEATURED", inquiryCounts)[0] ?? categoryItems[0],
-        };
-      }),
-    [categories, inquiryCounts, items],
+  const libraryMap = useMemo(
+    () => new Map(libraries.map((library) => [library.id, library])),
+    [libraries],
   );
+  const activeLibraries = useMemo(
+    () => libraries.filter((library) => library.active),
+    [libraries],
+  );
+  const categories = getShowcaseCategoryOptions(items);
+  const hasManagedLibraries = activeLibraries.length > 0;
+  const collectionCards = useMemo(() => {
+    if (hasManagedLibraries) {
+      return activeLibraries.map((library) => {
+        const libraryItems = items.filter((item) => item.libraryId === library.id);
+
+        return {
+          key: library.id,
+          title: library.name,
+          description: library.description,
+          count: libraryItems.length,
+          item: sortItems(libraryItems, "FEATURED", inquiryCounts)[0] ?? libraryItems[0],
+          imageUrl: library.coverImageUrl,
+        };
+      });
+    }
+
+    return categories.map((category) => {
+      const categoryItems = items.filter((item) => getShowcaseCategoryLabel(item) === category);
+
+      return {
+        key: category,
+        title: category,
+        description: undefined,
+        count: categoryItems.length,
+        item: sortItems(categoryItems, "FEATURED", inquiryCounts)[0] ?? categoryItems[0],
+        imageUrl: undefined,
+      };
+    });
+  }, [activeLibraries, categories, hasManagedLibraries, inquiryCounts, items]);
   const activeCampaign = useMemo(
     () => getActiveStorefrontCampaigns(settings.campaignBanners)[0],
     [settings.campaignBanners],
@@ -328,17 +383,24 @@ export function ShowcaseCatalogExplorer({
     () =>
       sortItems(
         items.filter((item) => {
-          const categoryMatch =
-            selectedCategory === "Todas" || getShowcaseCategoryLabel(item) === selectedCategory;
+          const collectionMatch =
+            selectedCollectionKey === "all" ||
+            (hasManagedLibraries
+              ? item.libraryId === selectedCollectionKey
+              : getShowcaseCategoryLabel(item) === selectedCollectionKey);
           const availabilityMatch = matchesAvailability(item, availabilityFilter);
-          const searchMatch = !deferredQuery || getSearchHaystack(item).includes(deferredQuery);
+          const searchMatch =
+            !deferredQuery ||
+            normalizeShowcaseSearchText(
+              `${getSearchHaystack(item)} ${getItemCollectionLabel(item, libraryMap)}`,
+            ).includes(deferredQuery);
 
-          return categoryMatch && availabilityMatch && searchMatch;
+          return collectionMatch && availabilityMatch && searchMatch;
         }),
         sortBy,
         inquiryCounts,
       ),
-    [availabilityFilter, deferredQuery, inquiryCounts, items, selectedCategory, sortBy],
+    [availabilityFilter, deferredQuery, hasManagedLibraries, inquiryCounts, items, libraryMap, selectedCollectionKey, sortBy],
   );
 
   const heroImage =
@@ -366,7 +428,7 @@ export function ShowcaseCatalogExplorer({
               </span>
               {canManage ? (
                 <Link
-                  href="/admin?section=vitrine"
+                  href="/admin?section=bibliotecas"
                   className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/75 transition hover:bg-white/10"
                 >
                   Gerenciar biblioteca
@@ -386,7 +448,7 @@ export function ShowcaseCatalogExplorer({
               {(settings.heroHighlights.length ? settings.heroHighlights : [
                 "Preview limpo dos modelos",
                 "Escolha pelo WhatsApp ou carrinho",
-                "Biblioteca organizada por categoria",
+                "Bibliotecas organizadas pelo admin",
               ]).slice(0, 3).map((highlight) => (
                 <span
                   key={highlight}
@@ -404,8 +466,8 @@ export function ShowcaseCatalogExplorer({
                 <p className="mt-2 text-sm text-white/62">Modelos visiveis para preview</p>
               </div>
               <div className="rounded-[22px] border border-white/10 bg-black/20 px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Categorias</p>
-                <p className="mt-2 text-2xl font-semibold">{categories.length}</p>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Bibliotecas</p>
+                <p className="mt-2 text-2xl font-semibold">{collectionCards.length}</p>
                 <p className="mt-2 text-sm text-white/62">Colecoes organizadas</p>
               </div>
               <div className="rounded-[22px] border border-white/10 bg-black/20 px-4 py-4">
@@ -470,11 +532,11 @@ export function ShowcaseCatalogExplorer({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-white/45">Biblioteca principal</p>
-            <h3 className="mt-2 text-2xl font-semibold">Escolha primeiro a colecao que voce quer abrir</h3>
+            <h3 className="mt-2 text-2xl font-semibold">Escolha primeiro a biblioteca que voce quer abrir</h3>
           </div>
           <div className="inline-flex items-center gap-2 text-sm text-white/60">
             <Sparkles className="h-4 w-4 text-orange-200" />
-            Clique na categoria e veja os previews da biblioteca
+            Clique na biblioteca e veja os previews das pecas
           </div>
         </div>
 
@@ -483,17 +545,19 @@ export function ShowcaseCatalogExplorer({
             title="Todas as colecoes"
             count={items.length}
             item={featuredItem}
-            active={selectedCategory === "Todas"}
-            onClick={() => setSelectedCategory("Todas")}
+            active={selectedCollectionKey === "all"}
+            onClick={() => setSelectedCollectionKey("all")}
           />
-          {categoryCards.map((entry) => (
+          {collectionCards.map((entry) => (
             <CategoryCard
-              key={entry.category}
-              title={entry.category}
+              key={entry.key}
+              imageUrl={entry.imageUrl}
+              title={entry.title}
+              description={entry.description}
               count={entry.count}
               item={entry.item}
-              active={selectedCategory === entry.category}
-              onClick={() => setSelectedCategory(entry.category)}
+              active={selectedCollectionKey === entry.key}
+              onClick={() => setSelectedCollectionKey(entry.key)}
             />
           ))}
         </div>
@@ -518,7 +582,7 @@ export function ShowcaseCatalogExplorer({
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar por nome, material, categoria ou acabamento"
+                placeholder="Buscar por nome, material, biblioteca ou acabamento"
                 className="w-full rounded-2xl border border-white/10 bg-slate-950/70 py-3 pl-11 pr-4 text-sm text-white outline-none transition focus:border-orange-400/60"
               />
             </label>
@@ -563,11 +627,16 @@ export function ShowcaseCatalogExplorer({
         <div className="relative z-10 mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredItems.length ? (
             filteredItems.map((item) => (
-              <PreviewCard key={item.id} item={item} inquiryCount={getItemPopularity(item, inquiryCounts)} />
+              <PreviewCard
+                key={item.id}
+                item={item}
+                inquiryCount={getItemPopularity(item, inquiryCounts)}
+                collectionLabel={getItemCollectionLabel(item, libraryMap)}
+              />
             ))
           ) : (
             <div className="md:col-span-2 xl:col-span-3 rounded-[26px] border border-dashed border-white/15 bg-slate-950/50 p-8 text-sm text-white/60">
-              Nenhum preview encontrado para esse filtro. Tente outra categoria ou ajuste a busca.
+              Nenhum preview encontrado para esse filtro. Tente outra biblioteca ou ajuste a busca.
             </div>
           )}
         </div>

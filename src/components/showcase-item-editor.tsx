@@ -9,7 +9,7 @@ import {
   type ActionState,
   updateShowcaseItemAction,
 } from "@/lib/actions";
-import type { DbMaterial, DbShowcaseItem } from "@/lib/db-types";
+import type { DbMaterial, DbShowcaseItem, DbShowcaseLibrary } from "@/lib/db-types";
 import {
   getShowcaseDeliverySummary,
   getShowcaseGallery,
@@ -26,6 +26,7 @@ type ShowcaseItemEditorProps = {
   item: DbShowcaseItem;
   interestCount: number;
   materials: DbMaterial[];
+  libraries: DbShowcaseLibrary[];
 };
 
 type CalculatorMaterialEntryInitial = {
@@ -84,7 +85,7 @@ function parseDeliveryModes(value?: string) {
   );
 }
 
-export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseItemEditorProps) {
+export function ShowcaseItemEditor({ item, interestCount, materials, libraries }: ShowcaseItemEditorProps) {
   const [updateState, updateAction] = useActionState(updateShowcaseItemAction, initialState);
   const [deleteState, deleteAction] = useActionState(deleteShowcaseItemAction, initialState);
   const formKey = JSON.stringify(updateState.fields ?? {});
@@ -95,6 +96,7 @@ export function ShowcaseItemEditor({ item, interestCount, materials }: ShowcaseI
       item={item}
       interestCount={interestCount}
       materials={materials}
+      libraries={libraries}
       updateState={updateState}
       updateAction={updateAction}
       deleteState={deleteState}
@@ -114,6 +116,7 @@ function ShowcaseItemEditorContent({
   item,
   interestCount,
   materials,
+  libraries,
   updateState,
   updateAction,
   deleteState,
@@ -153,6 +156,7 @@ function ShowcaseItemEditorContent({
   const variantGallery = useMemo(() => getShowcaseVariantGallery(item), [item]);
   const primaryImage = getShowcasePrimaryImage(item);
   const primaryVideo = getShowcasePrimaryVideo(item);
+  const currentLibrary = libraries.find((library) => library.id === item.libraryId);
   const stockRatio =
     item.fulfillmentType === "STOCK" ? Math.min(100, Math.max(0, item.stockQuantity * 20)) : 100;
 
@@ -180,6 +184,9 @@ function ShowcaseItemEditorContent({
 
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 to-transparent p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-white/50">{item.category}</p>
+              {currentLibrary ? (
+                <p className="mt-2 text-sm font-medium text-cyan-100/85">{currentLibrary.name}</p>
+              ) : null}
               <h4 className="mt-2 text-2xl font-semibold">{item.name}</h4>
               <div className="mt-3 flex flex-wrap gap-2">
                 {(item.badges ?? []).slice(0, 3).map((badge) => (
@@ -265,9 +272,27 @@ function ShowcaseItemEditorContent({
                   <input name="category" list={`showcase-category-options-${item.id}`} defaultValue={fields.category ?? item.category} className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60" />
                 </label>
                 <label className="block text-sm text-white/70">
+                  Biblioteca
+                  <select
+                    name="libraryId"
+                    defaultValue={fields.libraryId ?? item.libraryId ?? ""}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60"
+                  >
+                    <option value="">Sem vinculo</option>
+                    {libraries.map((library) => (
+                      <option key={library.id} value={library.id}>
+                        {library.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-sm text-white/70">
                   Valor (R$)
                   <input name="price" value={price} onChange={(event) => setPrice(event.target.value)} type="number" step="0.01" min="0.01" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60" />
                 </label>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <label className="block text-sm text-white/70">
                   Tempo de impressão (h)
                   <input name="estimatedPrintHours" value={estimatedPrintHours} onChange={(event) => setEstimatedPrintHours(event.target.value)} type="number" step="0.1" min="0.1" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60" />

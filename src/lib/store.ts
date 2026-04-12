@@ -417,6 +417,16 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
       updatedAt:
         sourceStorefrontSettings.updatedAt ?? initial.storefrontSettings.updatedAt,
     },
+    showcaseLibraries: (data.showcaseLibraries ?? initial.showcaseLibraries).map((library, index) => ({
+      ...library,
+      name: library.name?.trim() || `Biblioteca ${index + 1}`,
+      description: library.description?.trim() || undefined,
+      coverImageUrl: library.coverImageUrl?.trim() || undefined,
+      sortOrder: library.sortOrder ?? index,
+      active: library.active ?? true,
+      createdAt: library.createdAt ?? new Date().toISOString(),
+      updatedAt: library.updatedAt ?? library.createdAt ?? new Date().toISOString(),
+    })),
     showcaseItems: (data.showcaseItems ?? initial.showcaseItems).map((item) => {
       const normalizedItem = item as Partial<PrintFlowDb["showcaseItems"][number]>;
       return {
@@ -425,6 +435,7 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
           !normalizedItem.category?.trim() || normalizedItem.category.trim() === "Colecao PrintFlow"
             ? studioCollectionName
             : normalizedItem.category.trim(),
+        libraryId: normalizedItem.libraryId?.trim() || undefined,
         tagline: normalizedItem.tagline?.trim() || undefined,
         productionChecklist: normalizedItem.productionChecklist?.trim() || undefined,
         imageUrl: normalizedItem.imageUrl ?? undefined,
@@ -827,6 +838,10 @@ export async function getSnapshot() {
     expenses: clone(db.expenses),
     payables: clone(db.payables),
     orders: sortByDateDesc(db.orders),
+    showcaseLibraries: [...db.showcaseLibraries].sort(
+      (left, right) =>
+        left.sortOrder - right.sortOrder || right.updatedAt.localeCompare(left.updatedAt),
+    ),
     showcaseItems: sortByDateDesc(db.showcaseItems),
     showcaseInquiries: sortByDateDesc(db.showcaseInquiries),
     auditLogs: sortByDateDesc(db.auditLogs),

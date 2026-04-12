@@ -10,6 +10,8 @@ import { MetricCard } from "@/components/metric-card";
 import { ShowcaseDeliveryManager } from "@/components/showcase-delivery-manager";
 import { ShowcaseInquiryEditor } from "@/components/showcase-inquiry-editor";
 import { ShowcaseInquiryForm } from "@/components/showcase-inquiry-form";
+import { ShowcaseLibraryEditor } from "@/components/showcase-library-editor";
+import { ShowcaseLibraryForm } from "@/components/showcase-library-form";
 import { ShowcaseItemEditor } from "@/components/showcase-item-editor";
 import { ShowcaseItemForm } from "@/components/showcase-item-form";
 import { ShowcaseTestimonialEditor } from "@/components/showcase-testimonial-editor";
@@ -64,6 +66,7 @@ import { cn } from "@/lib/utils";
 type AdminSection =
   | "summary"
   | "vitrine"
+  | "bibliotecas"
   | "configuracoes"
   | "leads"
   | "pedidos"
@@ -94,6 +97,7 @@ const adminSections: Array<{
 }> = [
   { key: "summary", label: "Resumo", description: "Visão geral e atalhos do dono" },
   { key: "vitrine", label: "Vitrine", description: "Cadastrar e editar produtos expostos" },
+  { key: "bibliotecas", label: "Bibliotecas", description: "Coleções e capas da biblioteca pública" },
   { key: "configuracoes", label: "Configurações", description: "Banner, textos e presença da marca" },
   { key: "leads", label: "Leads", description: "Ver quem chamou no WhatsApp" },
   { key: "pedidos", label: "Pedidos", description: "Faturamento, fila e andamento" },
@@ -107,11 +111,18 @@ const adminContextLinks: Record<
   Array<{ label: string; href: string }>
 > = {
   vitrine: [
+    { label: "Bibliotecas públicas", href: "/admin?section=bibliotecas" },
     { label: "Leads da vitrine", href: "/admin?section=leads" },
     { label: "Configurações da loja", href: "/admin?section=configuracoes" },
     { label: "Abrir catálogo público", href: "/" },
   ],
+  bibliotecas: [
+    { label: "Produtos da vitrine", href: "/admin?section=vitrine" },
+    { label: "Configurações da loja", href: "/admin?section=configuracoes" },
+    { label: "Abrir catálogo público", href: "/" },
+  ],
   configuracoes: [
+    { label: "Bibliotecas públicas", href: "/admin?section=bibliotecas" },
     { label: "Produtos da vitrine", href: "/admin?section=vitrine" },
     { label: "Abrir catálogo público", href: "/" },
     { label: "Voltar ao resumo", href: "/admin" },
@@ -261,6 +272,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     expenses,
     payables,
     storefrontSettings,
+    showcaseLibraries,
     showcaseItems,
     showcaseTestimonials,
     showcaseInquiries,
@@ -271,6 +283,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const dayInMs = 24 * 60 * 60 * 1000;
   const overview = getOverviewMetrics(orders, machines, materials);
   const ordersByStatus = groupOrdersByStatus(orders);
+  const showcaseLibrariesActiveCount = showcaseLibraries.filter((library) => library.active).length;
+  const showcaseLinkedLibraryCount = showcaseItems.filter((item) => item.libraryId).length;
+  const showcaseItemsWithoutLibraryCount = showcaseItems.filter((item) => !item.libraryId).length;
 
   const showcaseActiveCount = showcaseItems.filter((item) => item.active).length;
   const showcaseOutOfStockCount = showcaseItems.filter(
@@ -689,8 +704,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   ];
 
   const sectionCounts: Record<AdminSection, string> = {
-    summary: "8 areas",
+    summary: "9 areas",
     vitrine: `${showcaseItems.length} itens`,
+    bibliotecas: `${showcaseLibraries.length} colecoes`,
     configuracoes: `${showcaseTestimonials.length} ajustes`,
     leads: `${showcaseInquiries.length} contatos`,
     pedidos: `${orders.length + closedShowcaseOrders.length} pedidos`,
@@ -2030,13 +2046,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <>
           <section className="grid gap-4 xl:grid-cols-4">
             <MetricCard label="Itens ativos" value={String(showcaseActiveCount)} caption="Produtos visíveis no catálogo." accent="orange" />
+            <MetricCard label="Bibliotecas" value={String(showcaseLibraries.length)} caption="Coleções públicas cadastradas." accent="blue" />
             <MetricCard label="Itens sem estoque" value={String(showcaseOutOfStockCount)} caption="Produtos que precisam reposição." accent="rose" />
-            <MetricCard label="Visualizações" value={String(showcaseViewsTotal)} caption="Acessos nas páginas dos produtos." accent="blue" />
             <MetricCard label="Cliques no WhatsApp" value={String(showcaseClicksTotal)} caption={`${showcaseConversionRate}% de cliques sobre visualizações.`} accent="mint" />
           </section>
 
           <section id="novo-produto">
-            <ShowcaseItemForm materials={materials} />
+            <ShowcaseItemForm materials={materials} libraries={showcaseLibraries} />
           </section>
 
           <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
@@ -2110,6 +2126,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                                 <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/65">
                                   {item.category}
                                 </span>
+                                {item.libraryId ? (
+                                  <span className="rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-cyan-100">
+                                    {showcaseLibraries.find((library) => library.id === item.libraryId)?.name ?? "Biblioteca"}
+                                  </span>
+                                ) : null}
                                 {item.featured ? (
                                   <span className="rounded-full border border-amber-300/20 bg-amber-400/10 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-amber-100">
                                     Destaque
@@ -2171,6 +2192,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                           item={item}
                           interestCount={interestCount}
                           materials={materials}
+                          libraries={showcaseLibraries}
                         />
                       </div>
                     </details>
@@ -2179,6 +2201,127 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               ) : (
                 <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-5 text-sm text-white/60">
                   Nenhum item cadastrado ainda. Use o formulário acima para subir a primeira peça da vitrine.
+                </div>
+              )}
+            </div>
+          </section>
+        </>
+      ) : null}
+
+      {activeSection === "bibliotecas" ? (
+        <>
+          <section className="grid gap-4 xl:grid-cols-4">
+            <MetricCard
+              label="Bibliotecas"
+              value={String(showcaseLibraries.length)}
+              caption="Coleções cadastradas para a loja pública."
+              accent="orange"
+            />
+            <MetricCard
+              label="Ativas"
+              value={String(showcaseLibrariesActiveCount)}
+              caption="Bibliotecas aparecendo para o cliente."
+              accent="mint"
+            />
+            <MetricCard
+              label="Produtos vinculados"
+              value={String(showcaseLinkedLibraryCount)}
+              caption="Peças já organizadas dentro das bibliotecas."
+              accent="blue"
+            />
+            <MetricCard
+              label="Sem biblioteca"
+              value={String(showcaseItemsWithoutLibraryCount)}
+              caption="Produtos que ainda dependem só da categoria."
+              accent="rose"
+            />
+          </section>
+
+          <section id="nova-biblioteca">
+            <ShowcaseLibraryForm />
+          </section>
+
+          <section className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+            <p className="text-xs uppercase tracking-[0.24em] text-white/45">Bibliotecas cadastradas</p>
+            <h3 className="mt-2 text-2xl font-semibold">Clique na coleção para abrir a edição</h3>
+            <p className="mt-2 text-sm text-white/60">
+              Aqui você organiza as capas e descrições da biblioteca pública sem misturar com o cadastro dos produtos.
+            </p>
+
+            <div className="mt-6 space-y-4">
+              {showcaseLibraries.length ? (
+                showcaseLibraries.map((library) => {
+                  const linkedItemCount = showcaseItems.filter((item) => item.libraryId === library.id).length;
+
+                  return (
+                    <details
+                      key={library.id}
+                      id={`biblioteca-${library.id}`}
+                      className="overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/45"
+                    >
+                      <summary className="list-none cursor-pointer p-4 transition hover:bg-white/5 [&::-webkit-details-marker]:hidden">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[22px] border border-white/10 bg-slate-950/70">
+                              {library.coverImageUrl ? (
+                                <div
+                                  className="h-full w-full bg-cover bg-center"
+                                  style={{ backgroundImage: `url("${library.coverImageUrl}")` }}
+                                />
+                              ) : (
+                                <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,_rgba(255,122,24,0.35),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(89,185,255,0.22),_transparent_32%),linear-gradient(135deg,_rgba(255,255,255,0.08),_rgba(15,23,42,0.95))]" />
+                              )}
+                            </div>
+
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-lg font-semibold text-white">{library.name}</p>
+                                <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/65">
+                                  Ordem {library.sortOrder}
+                                </span>
+                                <span
+                                  className={cn(
+                                    "rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.18em]",
+                                    library.active
+                                      ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
+                                      : "border-white/10 bg-black/25 text-white/65",
+                                  )}
+                                >
+                                  {library.active ? "Ativa" : "Oculta"}
+                                </span>
+                              </div>
+                              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/62">
+                                {library.description || "Sem descrição curta para esta biblioteca ainda."}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[320px]">
+                            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Produtos</p>
+                              <p className="mt-2 text-base font-semibold text-white">{linkedItemCount}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Status</p>
+                              <p className="mt-2 text-base font-semibold text-white">{library.active ? "Publica" : "Oculta"}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Abrir edição</p>
+                              <p className="mt-2 text-sm font-semibold text-orange-200">Clique para atualizar</p>
+                            </div>
+                          </div>
+                        </div>
+                      </summary>
+
+                      <div className="border-t border-white/10 p-4 pt-5">
+                        <ShowcaseLibraryEditor library={library} linkedItemCount={linkedItemCount} />
+                      </div>
+                    </details>
+                  );
+                })
+              ) : (
+                <div className="rounded-[22px] border border-dashed border-white/15 bg-slate-950/40 p-5 text-sm text-white/60">
+                  Nenhuma biblioteca cadastrada ainda. Crie a primeira coleção para organizar a vitrine pública.
                 </div>
               )}
             </div>

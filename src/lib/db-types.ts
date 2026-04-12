@@ -357,10 +357,22 @@ export type DbShowcaseTestimonial = {
   updatedAt: IsoDateString;
 };
 
+export type DbShowcaseLibrary = {
+  id: string;
+  name: string;
+  description?: string;
+  coverImageUrl?: string;
+  sortOrder: number;
+  active: boolean;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+};
+
 export type DbShowcaseItem = {
   id: string;
   name: string;
   category: string;
+  libraryId?: string;
   tagline?: string;
   description: string;
   price: number;
@@ -481,6 +493,7 @@ export type PrintFlowDb = {
   payables: DbPayable[];
   orders: DbOrder[];
   storefrontSettings: DbStorefrontSettings;
+  showcaseLibraries: DbShowcaseLibrary[];
   showcaseItems: DbShowcaseItem[];
   showcaseTestimonials: DbShowcaseTestimonial[];
   showcaseInquiries: DbShowcaseInquiry[];

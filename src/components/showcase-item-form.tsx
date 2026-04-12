@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { ShowcasePriceCalculator } from "@/components/showcase-price-calculator";
 import { SubmitButton } from "@/components/submit-button";
 import { createShowcaseItemAction, type ActionState } from "@/lib/actions";
-import type { DbMaterial } from "@/lib/db-types";
+import type { DbMaterial, DbShowcaseLibrary } from "@/lib/db-types";
 import {
   showcaseBadgeSuggestions,
   showcaseCategorySuggestions,
@@ -14,6 +14,7 @@ const initialState: ActionState = { ok: false };
 
 type ShowcaseItemFormProps = {
   materials: DbMaterial[];
+  libraries: DbShowcaseLibrary[];
 };
 
 type CalculatorMaterialEntryInitial = {
@@ -72,23 +73,33 @@ function parseDeliveryModes(value?: string) {
   );
 }
 
-export function ShowcaseItemForm({ materials }: ShowcaseItemFormProps) {
+export function ShowcaseItemForm({ materials, libraries }: ShowcaseItemFormProps) {
   const [state, formAction] = useActionState(createShowcaseItemAction, initialState);
   const formKey = JSON.stringify(state.fields ?? {});
 
-  return <ShowcaseItemFormContent key={formKey} state={state} formAction={formAction} materials={materials} />;
+  return (
+    <ShowcaseItemFormContent
+      key={formKey}
+      state={state}
+      formAction={formAction}
+      materials={materials}
+      libraries={libraries}
+    />
+  );
 }
 
 type ShowcaseItemFormContentProps = {
   state: ActionState;
   formAction: (payload: FormData) => void;
   materials: DbMaterial[];
+  libraries: DbShowcaseLibrary[];
 };
 
 function ShowcaseItemFormContent({
   state,
   formAction,
   materials,
+  libraries,
 }: ShowcaseItemFormContentProps) {
   const fields = state.fields ?? {};
   const [price, setPrice] = useState(fields.price ?? "");
@@ -160,16 +171,31 @@ function ShowcaseItemFormContent({
             <input name="category" list="showcase-category-options" defaultValue={fields.category ?? ""} placeholder="Geek" className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60" />
           </label>
           <label className="block text-sm text-white/70">
-            Valor (R$)
-            <input name="price" value={price} onChange={(event) => setPrice(event.target.value)} type="number" step="0.01" min="0.01" placeholder="39.90" className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60" />
+            Biblioteca
+            <select
+              name="libraryId"
+              defaultValue={fields.libraryId ?? ""}
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60"
+            >
+              <option value="">Sem vinculo</option>
+              {libraries.map((library) => (
+                <option key={library.id} value={library.id}>
+                  {library.name}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="block text-sm text-white/70">
-            Tempo de impressão (h)
-            <input name="estimatedPrintHours" value={estimatedPrintHours} onChange={(event) => setEstimatedPrintHours(event.target.value)} type="number" step="0.1" min="0.1" className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60" />
+            Valor (R$)
+            <input name="price" value={price} onChange={(event) => setPrice(event.target.value)} type="number" step="0.01" min="0.01" placeholder="39.90" className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60" />
           </label>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <label className="block text-sm text-white/70">
+            Tempo de impressão (h)
+            <input name="estimatedPrintHours" value={estimatedPrintHours} onChange={(event) => setEstimatedPrintHours(event.target.value)} type="number" step="0.1" min="0.1" className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60" />
+          </label>
           <label className="block text-sm text-white/70">
             Modalidade
             <select name="fulfillmentType" value={fulfillmentType} onChange={(event) => setFulfillmentType(event.target.value as "STOCK" | "MADE_TO_ORDER")} className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60">

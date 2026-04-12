@@ -25,6 +25,7 @@ import type {
   DbQualityCheck,
   DbShowcaseInquiry,
   DbShowcaseItem,
+  DbShowcaseLibrary,
   DbShowcaseTestimonial,
   DbStorefrontSettings,
   DbExpenseCategory,
@@ -252,6 +253,7 @@ const showcaseItemSchema = z
   .object({
     name: z.string().min(2, "Informe o nome do item."),
     category: z.string().min(2, "Informe a categoria do item."),
+    libraryId: z.string().trim().optional(),
     tagline: z.string().trim().optional(),
     description: z.string().min(10, "Descreva o item exposto."),
     price: z.coerce.number().positive("Informe o valor do item."),
@@ -312,6 +314,14 @@ const showcaseItemSchema = z
       });
     }
   });
+
+const showcaseLibrarySchema = z.object({
+  name: z.string().trim().min(2, "Informe o nome da biblioteca."),
+  description: z.string().trim().optional(),
+  coverImageUrl: z.string().trim().optional(),
+  sortOrder: z.coerce.number().int().nonnegative("Informe a ordem da biblioteca."),
+  active: z.boolean(),
+});
 
 const storefrontSettingsSchema = z.object({
   brandName: z.string().trim().min(2, "Informe o nome da loja."),
@@ -555,6 +565,7 @@ function parseShowcaseItemFormData(formData: FormData) {
   return showcaseItemSchema.safeParse({
     name: formData.get("name"),
     category: formData.get("category"),
+    libraryId: formData.get("libraryId")?.toString(),
     tagline: formData.get("tagline")?.toString(),
     description: formData.get("description"),
     price: formData.get("price"),
@@ -597,6 +608,7 @@ function getShowcaseItemFormFields(formData: FormData) {
     itemId: String(formData.get("itemId") ?? ""),
     name: String(formData.get("name") ?? ""),
     category: String(formData.get("category") ?? ""),
+    libraryId: String(formData.get("libraryId") ?? ""),
     tagline: String(formData.get("tagline") ?? ""),
     description: String(formData.get("description") ?? ""),
     price: String(formData.get("price") ?? ""),
@@ -639,6 +651,27 @@ function getShowcaseItemFormFields(formData: FormData) {
     calculatorLaborHours: String(formData.get("calculatorLaborHours") ?? ""),
     calculatorMarginPercent: String(formData.get("calculatorMarginPercent") ?? ""),
     featured: formData.get("featured") === "on" ? "true" : "false",
+    active: formData.get("active") === "on" ? "true" : "false",
+  };
+}
+
+function parseShowcaseLibraryFormData(formData: FormData) {
+  return showcaseLibrarySchema.safeParse({
+    name: formData.get("name"),
+    description: formData.get("description")?.toString(),
+    coverImageUrl: formData.get("coverImageUrl")?.toString(),
+    sortOrder: formData.get("sortOrder") || 0,
+    active: formData.get("active") === "on",
+  });
+}
+
+function getShowcaseLibraryFormFields(formData: FormData) {
+  return {
+    libraryId: String(formData.get("libraryId") ?? ""),
+    name: String(formData.get("name") ?? ""),
+    description: String(formData.get("description") ?? ""),
+    coverImageUrl: String(formData.get("coverImageUrl") ?? ""),
+    sortOrder: String(formData.get("sortOrder") ?? "0"),
     active: formData.get("active") === "on" ? "true" : "false",
   };
 }
@@ -822,6 +855,10 @@ function buildAdminSettingsSectionUrl(message: string) {
   return `/admin?section=configuracoes&message=${encodeURIComponent(message)}`;
 }
 
+function buildAdminLibrariesSectionUrl(message: string) {
+  return `/admin?section=bibliotecas&message=${encodeURIComponent(message)}`;
+}
+
 function buildAdminLeadsSectionUrl(message: string) {
   return `/admin?section=leads&message=${encodeURIComponent(message)}`;
 }
@@ -884,6 +921,25 @@ function pushAuditLog(
 
   db.auditLogs.unshift(entry);
   db.auditLogs = db.auditLogs.slice(0, 250);
+}
+
+function ensureShowcaseLibraryExists(
+  db: Awaited<ReturnType<typeof readDb>>,
+  libraryId: string | undefined,
+) {
+  const normalizedLibraryId = libraryId?.trim();
+
+  if (!normalizedLibraryId) {
+    return undefined;
+  }
+
+  const library = db.showcaseLibraries.find((entry) => entry.id === normalizedLibraryId);
+
+  if (!library) {
+    throw new Error("Selecione uma biblioteca válida para o produto.");
+  }
+
+  return library;
 }
 
 function buildExpensePayload(data: z.infer<typeof expenseSchema>): DbExpense {
@@ -961,6 +1017,7 @@ function buildShowcaseItemPayload(data: z.infer<typeof showcaseItemSchema>): DbS
     id: createId("vit"),
     name: data.name,
     category: data.category,
+    libraryId: data.libraryId?.trim() || undefined,
     tagline: data.tagline?.trim() || undefined,
     description: data.description,
     price: data.price,
@@ -993,6 +1050,23 @@ function buildShowcaseItemPayload(data: z.infer<typeof showcaseItemSchema>): DbS
     viewCount: 0,
     whatsappClickCount: 0,
     featured: data.featured,
+    active: data.active,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function buildShowcaseLibraryPayload(
+  data: z.infer<typeof showcaseLibrarySchema>,
+): DbShowcaseLibrary {
+  const now = new Date().toISOString();
+
+  return {
+    id: createId("lib"),
+    name: data.name.trim(),
+    description: data.description?.trim() || undefined,
+    coverImageUrl: data.coverImageUrl?.trim() || undefined,
+    sortOrder: data.sortOrder,
     active: data.active,
     createdAt: now,
     updatedAt: now,
@@ -1281,6 +1355,22 @@ async function resolveShowcaseTestimonialImageUrl(formData: FormData) {
 
   if (!allowedImageFormats.includes(fileExtension as (typeof allowedImageFormats)[number])) {
     throw new Error("Use uma imagem PNG, JPG, JPEG, WEBP ou GIF no depoimento.");
+  }
+
+  return saveUpload(imageFile);
+}
+
+async function resolveShowcaseLibraryCoverImageUrl(formData: FormData) {
+  const imageFile = formData.get("coverImageFile");
+
+  if (!(imageFile instanceof File) || !imageFile.name) {
+    return null;
+  }
+
+  const fileExtension = getFileExtension(imageFile.name);
+
+  if (!allowedImageFormats.includes(fileExtension as (typeof allowedImageFormats)[number])) {
+    throw new Error("Use uma imagem PNG, JPG, JPEG, WEBP ou GIF na capa da biblioteca.");
   }
 
   return saveUpload(imageFile);
@@ -2575,6 +2665,7 @@ export async function createShowcaseItemAction(
     const galleryImageUrls = await resolveShowcaseGalleryImageUrls(formData);
     await updateDb((db) => {
       const materialSelection = resolveShowcaseMaterialSelection(db, parsed.data);
+      ensureShowcaseLibraryExists(db, parsed.data.libraryId);
       const item = buildShowcaseItemPayload({
         ...parsed.data,
         ...materialSelection,
@@ -2648,9 +2739,11 @@ export async function updateShowcaseItemAction(
       }
 
       const materialSelection = resolveShowcaseMaterialSelection(db, parsed.data);
+      ensureShowcaseLibraryExists(db, parsed.data.libraryId);
 
       item.name = parsed.data.name;
       item.category = parsed.data.category;
+      item.libraryId = parsed.data.libraryId?.trim() || undefined;
       item.tagline = parsed.data.tagline?.trim() || undefined;
       item.description = parsed.data.description;
       item.price = parsed.data.price;
@@ -2757,6 +2850,174 @@ export async function deleteShowcaseItemAction(
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Não foi possível excluir o item da vitrine.",
+    };
+  }
+}
+
+export async function createShowcaseLibraryAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const fields = getShowcaseLibraryFormFields(formData);
+  const parsed = parseShowcaseLibraryFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Nao foi possivel salvar a biblioteca.",
+      fields,
+    };
+  }
+
+  try {
+    const uploadedCoverImageUrl = await resolveShowcaseLibraryCoverImageUrl(formData);
+
+    await updateDb((db) => {
+      const library = buildShowcaseLibraryPayload({
+        ...parsed.data,
+        coverImageUrl: uploadedCoverImageUrl ?? parsed.data.coverImageUrl,
+      });
+      db.showcaseLibraries.push(library);
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "showcase_library",
+        action: "create_library",
+        summary: `Biblioteca cadastrada: ${library.name}.`,
+        entityType: "showcase_library",
+        entityId: library.id,
+        details: library.active ? "Biblioteca ativa." : "Biblioteca salva como inativa.",
+      });
+    });
+
+    revalidateAll();
+    redirect(buildAdminLibrariesSectionUrl("Biblioteca salva com sucesso."));
+  } catch (error) {
+    rethrowNextRedirect(error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Nao foi possivel salvar a biblioteca.",
+      fields,
+    };
+  }
+}
+
+export async function updateShowcaseLibraryAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const fields = getShowcaseLibraryFormFields(formData);
+  const libraryId = String(formData.get("libraryId") ?? "").trim();
+  const parsed = parseShowcaseLibraryFormData(formData);
+
+  if (!libraryId) {
+    return {
+      ok: false,
+      error: "Biblioteca nao encontrada para atualizacao.",
+      fields,
+    };
+  }
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Nao foi possivel atualizar a biblioteca.",
+      fields,
+    };
+  }
+
+  try {
+    const uploadedCoverImageUrl = await resolveShowcaseLibraryCoverImageUrl(formData);
+
+    await updateDb((db) => {
+      const library = db.showcaseLibraries.find((entry) => entry.id === libraryId);
+
+      if (!library) {
+        throw new Error("Biblioteca nao encontrada.");
+      }
+
+      library.name = parsed.data.name.trim();
+      library.description = parsed.data.description?.trim() || undefined;
+      library.coverImageUrl = uploadedCoverImageUrl ?? (parsed.data.coverImageUrl?.trim() || undefined);
+      library.sortOrder = parsed.data.sortOrder;
+      library.active = parsed.data.active;
+      library.updatedAt = new Date().toISOString();
+
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "showcase_library",
+        action: "update_library",
+        summary: `Biblioteca atualizada: ${library.name}.`,
+        entityType: "showcase_library",
+        entityId: library.id,
+      });
+    });
+
+    revalidateAll();
+    redirect(buildAdminLibrariesSectionUrl("Biblioteca atualizada com sucesso."));
+  } catch (error) {
+    rethrowNextRedirect(error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Nao foi possivel atualizar a biblioteca.",
+      fields,
+    };
+  }
+}
+
+export async function deleteShowcaseLibraryAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await requireRoles([UserRole.ADMIN, UserRole.SUPERVISOR]);
+  const libraryId = String(formData.get("libraryId") ?? "").trim();
+
+  if (!libraryId) {
+    return {
+      ok: false,
+      error: "Biblioteca nao encontrada para exclusao.",
+    };
+  }
+
+  try {
+    await updateDb((db) => {
+      const libraryIndex = db.showcaseLibraries.findIndex((entry) => entry.id === libraryId);
+
+      if (libraryIndex === -1) {
+        throw new Error("Biblioteca nao encontrada.");
+      }
+
+      const [library] = db.showcaseLibraries.splice(libraryIndex, 1);
+      const now = new Date().toISOString();
+      const linkedItems = db.showcaseItems.filter((item) => item.libraryId === library.id);
+
+      for (const item of linkedItems) {
+        item.libraryId = undefined;
+        item.updatedAt = now;
+      }
+
+      pushAuditLog(db, {
+        actorId: user.id,
+        area: "showcase_library",
+        action: "delete_library",
+        summary: `Biblioteca removida: ${library.name}.`,
+        entityType: "showcase_library",
+        entityId: library.id,
+        details:
+          linkedItems.length > 0
+            ? `${linkedItems.length} produtos ficaram sem vinculo de biblioteca.`
+            : undefined,
+      });
+    });
+
+    revalidateAll();
+    redirect(buildAdminLibrariesSectionUrl("Biblioteca removida com sucesso."));
+  } catch (error) {
+    rethrowNextRedirect(error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Nao foi possivel excluir a biblioteca.",
     };
   }
 }

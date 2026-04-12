@@ -58,6 +58,7 @@ export function createInitialData(): PrintFlowDb {
       shareImageUrl: studioBrandLogoPath,
       updatedAt: now,
     },
+    showcaseLibraries: [],
     showcaseItems: [],
     showcaseTestimonials: [],
     showcaseInquiries: [],

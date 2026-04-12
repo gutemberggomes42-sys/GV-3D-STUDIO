@@ -4,6 +4,7 @@ import { ShowcaseCatalogExplorer } from "@/components/showcase-catalog-explorer"
 import type { SessionUser } from "@/lib/auth";
 import type {
   DbShowcaseItem,
+  DbShowcaseLibrary,
   DbShowcaseTestimonial,
   DbStorefrontSettings,
 } from "@/lib/db-types";
@@ -11,6 +12,7 @@ import type {
 type ShowcaseCatalogProps = {
   user: SessionUser | null;
   items: DbShowcaseItem[];
+  libraries: DbShowcaseLibrary[];
   inquiryCounts: Record<string, number>;
   settings: DbStorefrontSettings;
   testimonials: DbShowcaseTestimonial[];
@@ -21,6 +23,7 @@ type ShowcaseCatalogProps = {
 export function ShowcaseCatalog({
   user,
   items,
+  libraries,
   inquiryCounts,
   settings,
   testimonials,
@@ -44,6 +47,7 @@ export function ShowcaseCatalog({
 
       <ShowcaseCatalogExplorer
         items={visibleItems}
+        libraries={libraries}
         inquiryCounts={inquiryCounts}
         settings={settings}
         testimonials={testimonials}

@@ -51,5 +51,6 @@ next-env.d.ts
 
 # local runtime data
 /storage/printflow-db.json
+/storage/backups/
 /storage/uploads/
 /public/uploads/[0-9]*

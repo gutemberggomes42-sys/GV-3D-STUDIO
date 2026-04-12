@@ -24,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const user = await getCurrentUser();
-  const { showcaseItems, showcaseInquiries, storefrontSettings, showcaseTestimonials } =
+  const { showcaseItems, showcaseLibraries, showcaseInquiries, storefrontSettings, showcaseTestimonials } =
     await getHydratedData();
   const params = searchParams ? await searchParams : {};
   const message = typeof params.message === "string" ? params.message : null;
@@ -37,6 +37,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     <ShowcaseCatalog
       user={user}
       items={showcaseItems}
+      libraries={showcaseLibraries}
       inquiryCounts={inquiryCounts}
       settings={storefrontSettings}
       testimonials={showcaseTestimonials}
