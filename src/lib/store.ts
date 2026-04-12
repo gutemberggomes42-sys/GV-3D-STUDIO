@@ -41,9 +41,113 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function syncShowcaseSnapshotFallbackCatalog(data: PrintFlowDb) {
+  const seededData = createInitialData();
+  const snapshotLibraries = seededData.showcaseLibraries.filter(
+    (library) => library.syncSource?.mode === "FILESYSTEM",
+  );
+  const snapshotItems = seededData.showcaseItems.filter(
+    (item) => item.syncSource?.mode === "FILESYSTEM",
+  );
+
+  if (!snapshotLibraries.length && !snapshotItems.length) {
+    return false;
+  }
+
+  const previousState = JSON.stringify({
+    showcaseLibraries: data.showcaseLibraries,
+    showcaseItems: data.showcaseItems,
+  });
+  const existingSnapshotLibrariesByKey = new Map(
+    data.showcaseLibraries
+      .filter((library) => library.syncSource?.mode === "FILESYSTEM")
+      .map((library) => [library.syncSource?.key ?? library.id, library] as const),
+  );
+  const existingSnapshotItemsByKey = new Map(
+    data.showcaseItems
+      .filter((item) => item.syncSource?.mode === "FILESYSTEM")
+      .map((item) => [item.syncSource?.key ?? item.id, item] as const),
+  );
+  const snapshotLibraryKeys = new Set(
+    snapshotLibraries.map((library) => library.syncSource?.key ?? library.id),
+  );
+  const snapshotItemKeys = new Set(
+    snapshotItems.map((item) => item.syncSource?.key ?? item.id),
+  );
+  const manualLibraries = data.showcaseLibraries.filter(
+    (library) => library.syncSource?.mode !== "FILESYSTEM",
+  );
+  const manualItems = data.showcaseItems.filter(
+    (item) => item.syncSource?.mode !== "FILESYSTEM",
+  );
+
+  const nextSnapshotLibraries = snapshotLibraries.map((library) => {
+    const snapshotKey = library.syncSource?.key ?? library.id;
+    const existingLibrary = existingSnapshotLibrariesByKey.get(snapshotKey);
+
+    if (!existingLibrary) {
+      return library;
+    }
+
+    return {
+      ...library,
+      createdAt: existingLibrary.createdAt ?? library.createdAt,
+    };
+  });
+  const staleSnapshotLibraries = data.showcaseLibraries
+    .filter((library) => library.syncSource?.mode === "FILESYSTEM")
+    .filter((library) => !snapshotLibraryKeys.has(library.syncSource?.key ?? library.id))
+    .map((library) => ({
+      ...library,
+      syncSource: library.syncSource
+        ? {
+            ...library.syncSource,
+            missing: true,
+          }
+        : library.syncSource,
+    }));
+  const nextSnapshotItems = snapshotItems.map((item) => {
+    const snapshotKey = item.syncSource?.key ?? item.id;
+    const existingItem = existingSnapshotItemsByKey.get(snapshotKey);
+
+    if (!existingItem) {
+      return item;
+    }
+
+    return {
+      ...item,
+      viewCount: existingItem.viewCount,
+      whatsappClickCount: existingItem.whatsappClickCount,
+      createdAt: existingItem.createdAt ?? item.createdAt,
+    };
+  });
+  const staleSnapshotItems = data.showcaseItems
+    .filter((item) => item.syncSource?.mode === "FILESYSTEM")
+    .filter((item) => !snapshotItemKeys.has(item.syncSource?.key ?? item.id))
+    .map((item) => ({
+      ...item,
+      syncSource: item.syncSource
+        ? {
+            ...item.syncSource,
+            missing: true,
+          }
+        : item.syncSource,
+    }));
+
+  data.showcaseLibraries = [...manualLibraries, ...nextSnapshotLibraries, ...staleSnapshotLibraries];
+  data.showcaseItems = [...manualItems, ...nextSnapshotItems, ...staleSnapshotItems];
+
+  const nextState = JSON.stringify({
+    showcaseLibraries: data.showcaseLibraries,
+    showcaseItems: data.showcaseItems,
+  });
+
+  return previousState !== nextState;
+}
+
 function hydrateShowcaseSnapshotFallback(data: PrintFlowDb) {
   if (data.showcaseLibraries.length > 0 || data.showcaseItems.length > 0) {
-    return false;
+    return syncShowcaseSnapshotFallbackCatalog(data);
   }
 
   const seededData = createInitialData();
