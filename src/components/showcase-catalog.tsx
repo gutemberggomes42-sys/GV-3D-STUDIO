@@ -8,6 +8,11 @@ import type {
   DbShowcaseTestimonial,
   DbStorefrontSettings,
 } from "@/lib/db-types";
+import {
+  isShowcaseItemVisible,
+  sanitizeShowcaseItemForStorefront,
+  sanitizeShowcaseLibraryForStorefront,
+} from "@/lib/showcase";
 
 type ShowcaseCatalogProps = {
   user: SessionUser | null;
@@ -30,7 +35,10 @@ export function ShowcaseCatalog({
   message,
   pathname,
 }: ShowcaseCatalogProps) {
-  const visibleItems = items.filter((item) => item.active);
+  const visibleItems = items
+    .filter(isShowcaseItemVisible)
+    .map(sanitizeShowcaseItemForStorefront);
+  const storefrontLibraries = libraries.map(sanitizeShowcaseLibraryForStorefront);
 
   return (
     <AppShell
@@ -47,7 +55,7 @@ export function ShowcaseCatalog({
 
       <ShowcaseCatalogExplorer
         items={visibleItems}
-        libraries={libraries}
+        libraries={storefrontLibraries}
         inquiryCounts={inquiryCounts}
         settings={settings}
         testimonials={testimonials}

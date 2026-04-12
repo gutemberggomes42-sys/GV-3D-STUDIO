@@ -58,6 +58,8 @@ import {
   getShowcasePrimaryImage,
   getShowcasePrimaryVideo,
   getShowcaseTagline,
+  isShowcaseItemVisible,
+  isShowcaseLibraryVisible,
 } from "@/lib/showcase";
 import { getSuggestedCarrier } from "@/lib/shipping";
 import { listBackupSnapshots } from "@/lib/store";
@@ -283,20 +285,22 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const dayInMs = 24 * 60 * 60 * 1000;
   const overview = getOverviewMetrics(orders, machines, materials);
   const ordersByStatus = groupOrdersByStatus(orders);
-  const showcaseLibrariesActiveCount = showcaseLibraries.filter((library) => library.active).length;
-  const showcaseLinkedLibraryCount = showcaseItems.filter((item) => item.libraryId).length;
-  const showcaseItemsWithoutLibraryCount = showcaseItems.filter((item) => !item.libraryId).length;
+  const visibleShowcaseLibraries = showcaseLibraries.filter((library) => isShowcaseLibraryVisible(library));
+  const visibleShowcaseItems = showcaseItems.filter((item) => isShowcaseItemVisible(item));
+  const showcaseLibrariesActiveCount = visibleShowcaseLibraries.length;
+  const showcaseLinkedLibraryCount = visibleShowcaseItems.filter((item) => item.libraryId).length;
+  const showcaseItemsWithoutLibraryCount = visibleShowcaseItems.filter((item) => !item.libraryId).length;
 
-  const showcaseActiveCount = showcaseItems.filter((item) => item.active).length;
-  const showcaseOutOfStockCount = showcaseItems.filter(
+  const showcaseActiveCount = visibleShowcaseItems.length;
+  const showcaseOutOfStockCount = visibleShowcaseItems.filter(
     (item) => item.fulfillmentType === "STOCK" && item.stockQuantity <= 0,
   ).length;
-  const showcaseViewsTotal = showcaseItems.reduce((sum, item) => sum + item.viewCount, 0);
-  const showcaseClicksTotal = showcaseItems.reduce((sum, item) => sum + item.whatsappClickCount, 0);
+  const showcaseViewsTotal = visibleShowcaseItems.reduce((sum, item) => sum + item.viewCount, 0);
+  const showcaseClicksTotal = visibleShowcaseItems.reduce((sum, item) => sum + item.whatsappClickCount, 0);
   const showcaseConversionRate =
     showcaseViewsTotal > 0 ? ((showcaseClicksTotal / showcaseViewsTotal) * 100).toFixed(1) : "0.0";
-  const showcaseCriticalStockItems = showcaseItems.filter(
-    (item) => item.active && item.fulfillmentType === "STOCK" && item.stockQuantity < 2,
+  const showcaseCriticalStockItems = visibleShowcaseItems.filter(
+    (item) => item.fulfillmentType === "STOCK" && item.stockQuantity < 2,
   );
   const leadsPendingCount = showcaseInquiries.filter((item) => item.status === "PENDING").length;
   const leadsClosedCount = showcaseInquiries.filter((item) => item.status === "CLOSED").length;
@@ -318,11 +322,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     return now - new Date(lastTouch).getTime() >= 2 * dayInMs;
   }).length;
   const closedShowcaseOrders = showcaseInquiries.filter((item) => item.status === "CLOSED");
-  const showcaseItemPriceMap = new Map(showcaseItems.map((item) => [item.id, item.price]));
-  const topShowcaseByClicks = [...showcaseItems]
+  const showcaseItemPriceMap = new Map(visibleShowcaseItems.map((item) => [item.id, item.price]));
+  const topShowcaseByClicks = [...visibleShowcaseItems]
     .sort((left, right) => right.whatsappClickCount - left.whatsappClickCount || right.viewCount - left.viewCount)
     .slice(0, 5);
-  const topShowcaseByViews = [...showcaseItems]
+  const topShowcaseByViews = [...visibleShowcaseItems]
     .sort((left, right) => right.viewCount - left.viewCount || right.whatsappClickCount - left.whatsappClickCount)
     .slice(0, 5);
   const showcaseRevenueValue = closedShowcaseOrders
@@ -487,7 +491,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     });
   const materialLinksCount =
     orders.filter((order) => order.materialId).length +
-    showcaseItems.filter((item) => item.materialId).length;
+    visibleShowcaseItems.filter((item) => item.materialId).length;
   const crmQueue = [...showcaseInquiries].sort((left, right) => {
     const leftFollowUpTime = left.followUpAt ? new Date(left.followUpAt).getTime() : Number.MAX_SAFE_INTEGER;
     const rightFollowUpTime = right.followUpAt ? new Date(right.followUpAt).getTime() : Number.MAX_SAFE_INTEGER;

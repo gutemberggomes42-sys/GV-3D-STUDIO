@@ -2832,6 +2832,11 @@ export async function deleteShowcaseItemAction(
       }
 
       const item = db.showcaseItems[itemIndex];
+
+      if (item.syncSource?.mode === "FILESYSTEM") {
+        throw new Error("Esse item veio da pasta sincronizada. Para removê-lo, apague a pasta/arquivo de origem ou desative a exibição do produto.");
+      }
+
       db.showcaseItems.splice(itemIndex, 1);
       pushAuditLog(db, {
         actorId: user.id,
@@ -2988,7 +2993,12 @@ export async function deleteShowcaseLibraryAction(
         throw new Error("Biblioteca nao encontrada.");
       }
 
-      const [library] = db.showcaseLibraries.splice(libraryIndex, 1);
+      const library = db.showcaseLibraries[libraryIndex];
+      if (library.syncSource?.mode === "FILESYSTEM") {
+        throw new Error("Essa biblioteca veio da pasta sincronizada. Para removê-la, apague a pasta de origem ou desative a biblioteca.");
+      }
+
+      db.showcaseLibraries.splice(libraryIndex, 1);
       const now = new Date().toISOString();
       const linkedItems = db.showcaseItems.filter((item) => item.libraryId === library.id);
 

@@ -4,6 +4,7 @@
 import { useActionState, useMemo, useState } from "react";
 import { ShowcasePriceCalculator } from "@/components/showcase-price-calculator";
 import { SubmitButton } from "@/components/submit-button";
+import { ThreeFileViewer } from "@/components/three-file-viewer";
 import {
   deleteShowcaseItemAction,
   type ActionState,
@@ -123,6 +124,7 @@ function ShowcaseItemEditorContent({
   deleteAction,
 }: ShowcaseItemEditorContentProps) {
   const fields = updateState.fields ?? {};
+  const isFilesystemSynced = item.syncSource?.mode === "FILESYSTEM";
   const [price, setPrice] = useState(fields.price ?? item.price.toFixed(2));
   const [estimatedPrintHours, setEstimatedPrintHours] = useState(
     fields.estimatedPrintHours ?? String(item.estimatedPrintHours),
@@ -248,6 +250,39 @@ function ShowcaseItemEditorContent({
                 </div>
               </div>
             ) : null}
+
+            {item.syncSource?.fileUrl && item.syncSource.fileFormat ? (
+              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/5 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-100/70">
+                      Arquivo 3D do admin
+                    </p>
+                    <p className="mt-2 text-base font-semibold text-white/92">
+                      {item.syncSource.fileName ?? item.name}
+                    </p>
+                    <p className="mt-2 text-sm text-white/68">
+                      Esse arquivo aparece só no painel administrativo. Na vitrine pública o cliente vê apenas as fotos.
+                    </p>
+                  </div>
+                  <a
+                    href={item.syncSource.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/15"
+                  >
+                    Abrir arquivo 3D
+                  </a>
+                </div>
+
+                <div className="mt-4">
+                  <ThreeFileViewer
+                    fileUrl={item.syncSource.fileUrl}
+                    fileFormat={item.syncSource.fileFormat}
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -260,6 +295,15 @@ function ShowcaseItemEditorContent({
 
           <form action={updateAction} encType="multipart/form-data" className="space-y-5">
             <input type="hidden" name="itemId" value={item.id} />
+
+            {isFilesystemSynced ? (
+              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-50">
+                Sincronizado da pasta `{item.syncSource?.relativePath}`.
+                {item.syncSource?.missing
+                  ? " O arquivo de origem não foi encontrado agora, então o item saiu da vitrine pública até voltar."
+                  : ` ${item.syncSource?.fileCount ?? 0} arquivo${item.syncSource?.fileCount === 1 ? "" : "s"} 3D e ${item.syncSource?.imageCount ?? 0} imagem${item.syncSource?.imageCount === 1 ? "" : "ns"} estão sendo puxados automaticamente do computador. Em servidores externos como o Render, a vitrine usa o cache das fotos; os arquivos 3D completos continuam locais, a menos que o servidor também tenha acesso à pasta sincronizada.`}
+              </div>
+            ) : null}
 
             <section className="space-y-4 rounded-[24px] border border-white/10 bg-black/20 p-4">
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -552,27 +596,37 @@ function ShowcaseItemEditorContent({
             <SubmitButton label="Salvar produto da vitrine" pendingLabel="Salvando..." className="w-full bg-orange-500 text-slate-950 hover:bg-orange-400" />
           </form>
 
-          <form
-            action={deleteAction}
-            onSubmit={(event) => {
-              if (!window.confirm("Excluir este produto da vitrine?")) {
-                event.preventDefault();
-              }
-            }}
-            className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-500/5 p-4"
-          >
-            <input type="hidden" name="itemId" value={item.id} />
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="font-semibold text-rose-100">Excluir produto da vitrine</p>
-                <p className="mt-1 text-sm text-rose-100/75">
-                  Use essa opção apenas quando esse item não deve mais fazer parte da loja.
-                </p>
-              </div>
-              <SubmitButton label="Excluir produto" pendingLabel="Excluindo..." className="bg-rose-500/90 text-white hover:bg-rose-400" />
+          {isFilesystemSynced ? (
+            <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/5 p-4">
+              <p className="font-semibold text-amber-100">Item protegido pela sincronização</p>
+              <p className="mt-1 text-sm text-amber-100/75">
+                Para remover este item da loja, apague ou mova o arquivo/pasta de origem em `D:\Impressoes 3D`. Se quiser apenas esconder da vitrine, desmarque a opção de exibição e salve.
+              </p>
+              {deleteState.error ? <p className="mt-3 text-sm text-rose-200">{deleteState.error}</p> : null}
             </div>
-            {deleteState.error ? <p className="mt-3 text-sm text-rose-200">{deleteState.error}</p> : null}
-          </form>
+          ) : (
+            <form
+              action={deleteAction}
+              onSubmit={(event) => {
+                if (!window.confirm("Excluir este produto da vitrine?")) {
+                  event.preventDefault();
+                }
+              }}
+              className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-500/5 p-4"
+            >
+              <input type="hidden" name="itemId" value={item.id} />
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="font-semibold text-rose-100">Excluir produto da vitrine</p>
+                  <p className="mt-1 text-sm text-rose-100/75">
+                    Use essa opção apenas quando esse item não deve mais fazer parte da loja.
+                  </p>
+                </div>
+                <SubmitButton label="Excluir produto" pendingLabel="Excluindo..." className="bg-rose-500/90 text-white hover:bg-rose-400" />
+              </div>
+              {deleteState.error ? <p className="mt-3 text-sm text-rose-200">{deleteState.error}</p> : null}
+            </form>
+          )}
         </div>
       </div>
     </article>

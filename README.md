@@ -84,6 +84,7 @@ Banco principal opcional:
 Storage profissional opcional:
 
 - `PRINTFLOW_STORAGE_PROVIDER=local|postgres|s3`
+- `PRINTFLOW_SHOWCASE_SYNC_DIR`
 - `PRINTFLOW_S3_BUCKET`
 - `PRINTFLOW_S3_REGION`
 - `PRINTFLOW_S3_ACCESS_KEY_ID`
@@ -98,6 +99,15 @@ Observação importante:
 - o projeto ainda usa `DATABASE_URL` do Prisma para geração local do client e enums
 - para o banco principal do app em produção, use `PRINTFLOW_POSTGRES_URL`
 - isso evita conflito com o build atual do projeto
+- a vitrine sincronizada por pasta usa `PRINTFLOW_SHOWCASE_SYNC_DIR`; no Windows local, se ela não estiver definida, o app tenta `D:\Impressoes 3D`
+
+## Biblioteca sincronizada
+
+- quando o app encontra a pasta sincronizada, ele atualiza as bibliotecas e produtos automaticamente
+- as fotos dessa biblioteca também são copiadas para `public/showcase-sync-cache`
+- isso permite que o deploy no Render continue mostrando as imagens da vitrine mesmo sem acesso ao disco `D:\`
+- os arquivos 3D completos continuam locais por padrão; para abri-los no servidor, o próprio servidor precisa ter acesso a uma pasta configurada em `PRINTFLOW_SHOWCASE_SYNC_DIR`
+- o projeto agora inclui um snapshot commitado do catálogo sincronizado para o primeiro deploy no Render nascer com a vitrine pronta
 
 ## Hospedagem 24h
 
@@ -112,6 +122,8 @@ Agora o projeto pode rodar de 3 formas no Render:
 - o projeto ja tem um `render.yaml` na raiz
 - se você ficar no modo local, o disco deve ser montado em `/opt/render/project/src/storage`
 - se usar PostgreSQL e S3, o disco vira apenas fallback e cache local
+- a vitrine sincronizada por pasta funciona no Render usando o snapshot commitado e o cache de fotos em `public/showcase-sync-cache`
+- se quiser abrir os arquivos 3D também no Render, configure `PRINTFLOW_SHOWCASE_SYNC_DIR` apontando para um diretório acessível pelo servidor ou mova esses arquivos para um storage externo
 
 Passos resumidos:
 

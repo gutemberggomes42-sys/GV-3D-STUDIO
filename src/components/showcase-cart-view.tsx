@@ -13,7 +13,7 @@ import {
   type ShowcaseCartEntry,
   updateShowcaseCartEntryQuantity,
 } from "@/lib/showcase-cart";
-import { getShowcasePrimaryImage } from "@/lib/showcase";
+import { getShowcasePrimaryImage, isShowcaseItemVisible } from "@/lib/showcase";
 import { deliveryModeLabels, estimateFreightCost, getAvailableDeliveryModes } from "@/lib/shipping";
 
 type ShowcaseCartViewProps = {
@@ -46,20 +46,19 @@ function getAvailableQuantity(item: DbShowcaseItem, selectedVariantId?: string) 
 
 function buildCartLines(entries: ShowcaseCartEntry[], items: DbShowcaseItem[]): CartLine[] {
   return entries.map((entry) => {
-    const item = items.find((candidate) => candidate.id === entry.itemId && candidate.active);
+    const item = items.find(
+      (candidate) => candidate.id === entry.itemId && isShowcaseItemVisible(candidate),
+    );
 
     if (!item) {
       return {
         entry,
         item: undefined,
         availableQuantity: 0,
-        statusMessage: "Esse item nao esta mais ativo na vitrine.",
+        statusMessage: "Esse item nao esta mais disponivel na vitrine.",
       };
     }
 
-    const selectedVariant = item.variants.find(
-      (variant) => variant.id === entry.selectedVariantId && variant.active,
-    );
     const couponDiscount =
       entry.couponCode &&
       item.couponCode &&

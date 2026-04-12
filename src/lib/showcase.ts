@@ -3,6 +3,7 @@ import type {
   DbStorefrontGalleryCard,
   DbStorefrontReelCard,
   DbShowcaseItem,
+  DbShowcaseLibrary,
   DbShowcaseVariant,
   ShowcaseDeliveryMode,
 } from "@/lib/db-types";
@@ -281,6 +282,36 @@ export function serializeShowcaseVariants(variants: DbShowcaseVariant[] | undefi
 
 export function getShowcasePrimaryImage(item: Pick<DbShowcaseItem, "imageUrl" | "galleryImageUrls">) {
   return item.imageUrl ?? item.galleryImageUrls[0] ?? undefined;
+}
+
+export function isShowcaseItemVisible(item: Pick<DbShowcaseItem, "active" | "syncSource">) {
+  return item.active && !item.syncSource?.missing;
+}
+
+export function isShowcaseLibraryVisible(item: Pick<DbShowcaseLibrary, "active" | "syncSource">) {
+  return item.active && !item.syncSource?.missing;
+}
+
+export function sanitizeShowcaseItemForStorefront(item: DbShowcaseItem): DbShowcaseItem {
+  if (!item.syncSource) {
+    return item;
+  }
+
+  return {
+    ...item,
+    syncSource: undefined,
+  };
+}
+
+export function sanitizeShowcaseLibraryForStorefront(library: DbShowcaseLibrary): DbShowcaseLibrary {
+  if (!library.syncSource) {
+    return library;
+  }
+
+  return {
+    ...library,
+    syncSource: undefined,
+  };
 }
 
 export function getShowcasePrimaryVideo(item: Pick<DbShowcaseItem, "videoUrl">) {

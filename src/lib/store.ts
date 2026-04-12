@@ -13,6 +13,7 @@ import {
 import { ownerEmail } from "@/lib/constants";
 import type { DbBackupSnapshot, PrintFlowDb } from "@/lib/db-types";
 import { createInitialData } from "@/lib/seed-data";
+import { syncFilesystemShowcaseCatalog } from "@/lib/showcase-filesystem";
 
 const dataDirectory = path.join(process.cwd(), "storage");
 const dataPath = path.join(dataDirectory, "printflow-db.json");
@@ -424,6 +425,17 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
       coverImageUrl: library.coverImageUrl?.trim() || undefined,
       sortOrder: library.sortOrder ?? index,
       active: library.active ?? true,
+      syncSource:
+        library.syncSource?.mode === "FILESYSTEM"
+          ? {
+              mode: "FILESYSTEM",
+              key: library.syncSource.key,
+              relativePath: library.syncSource.relativePath,
+              generatedName: library.syncSource.generatedName?.trim() || library.name?.trim() || `Biblioteca ${index + 1}`,
+              generatedDescription: library.syncSource.generatedDescription?.trim() || undefined,
+              missing: library.syncSource.missing ?? false,
+            }
+          : undefined,
       createdAt: library.createdAt ?? new Date().toISOString(),
       updatedAt: library.updatedAt ?? library.createdAt ?? new Date().toISOString(),
     })),
@@ -488,6 +500,24 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
         whatsappClickCount: normalizedItem.whatsappClickCount ?? 0,
         featured: normalizedItem.featured ?? false,
         active: normalizedItem.active ?? true,
+        syncSource:
+          normalizedItem.syncSource?.mode === "FILESYSTEM"
+            ? {
+                mode: "FILESYSTEM",
+                key: normalizedItem.syncSource.key,
+                relativePath: normalizedItem.syncSource.relativePath,
+                generatedName: normalizedItem.syncSource.generatedName?.trim() || item.name,
+                generatedCategory: normalizedItem.syncSource.generatedCategory?.trim() || undefined,
+                generatedDescription: normalizedItem.syncSource.generatedDescription?.trim() || undefined,
+                generatedTagline: normalizedItem.syncSource.generatedTagline?.trim() || undefined,
+                fileUrl: normalizedItem.syncSource.fileUrl ?? undefined,
+                fileName: normalizedItem.syncSource.fileName?.trim() || undefined,
+                fileFormat: normalizedItem.syncSource.fileFormat?.trim() || undefined,
+                fileCount: normalizedItem.syncSource.fileCount ?? 0,
+                imageCount: normalizedItem.syncSource.imageCount ?? 0,
+                missing: normalizedItem.syncSource.missing ?? false,
+              }
+            : undefined,
       };
     }),
     showcaseTestimonials: (data.showcaseTestimonials ?? initial.showcaseTestimonials).map(
@@ -656,7 +686,14 @@ export async function readDb() {
     normalizedData = normalizeDb(await readLocalStateSource());
   }
 
-  return ensureOwnerBootstrap(normalizedData);
+  normalizedData = await ensureOwnerBootstrap(normalizedData);
+
+  const syncChanged = await syncFilesystemShowcaseCatalog(normalizedData);
+  if (syncChanged) {
+    await writeDb(normalizedData);
+  }
+
+  return normalizedData;
 }
 
 export async function writeDb(data: PrintFlowDb) {

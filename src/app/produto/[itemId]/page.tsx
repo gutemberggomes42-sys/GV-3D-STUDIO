@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -27,6 +26,8 @@ import {
   getShowcaseGallery,
   getShowcaseLeadTimeLabel,
   getShowcasePrimaryVideo,
+  isShowcaseItemVisible,
+  sanitizeShowcaseItemForStorefront,
 } from "@/lib/showcase";
 import { getHydratedData } from "@/lib/view-data";
 
@@ -39,7 +40,7 @@ export async function generateMetadata({
 }: ShowcaseProductPageProps): Promise<Metadata> {
   const { itemId } = await params;
   const { showcaseItems, storefrontSettings } = await getHydratedData();
-  const item = showcaseItems.find((candidate) => candidate.id === itemId && candidate.active);
+  const item = showcaseItems.find((candidate) => candidate.id === itemId && isShowcaseItemVisible(candidate));
 
   if (!item) {
     return {
@@ -68,7 +69,7 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
   const user = await getCurrentUser();
   const { itemId } = await params;
   const { showcaseItems } = await getHydratedData();
-  const item = showcaseItems.find((candidate) => candidate.id === itemId && candidate.active);
+  const item = showcaseItems.find((candidate) => candidate.id === itemId && isShowcaseItemVisible(candidate));
 
   if (!item) {
     notFound();
@@ -78,6 +79,7 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
   const visibleColors = item.colorOptions.slice(0, 6);
   const extraColors = Math.max(item.colorOptions.length - visibleColors.length, 0);
   const variantOptions = item.variants.filter((variant) => variant.active);
+  const purchasePanelItem = sanitizeShowcaseItemForStorefront(item);
 
   return (
     <AppShell
@@ -251,7 +253,7 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
             <p className="mt-3 text-sm leading-6 text-white/68">
               Aqui você só define a peça e a forma de continuar. O envio para o WhatsApp e o carrinho ficam disponíveis logo abaixo.
             </p>
-            <ShowcaseProductPurchasePanel item={item} />
+            <ShowcaseProductPurchasePanel item={purchasePanelItem} />
           </div>
         </article>
       </section>

@@ -13,6 +13,7 @@ import {
   getShowcaseGallery,
   getShowcaseLeadTimeLabel,
   getShowcasePrimaryVideo,
+  isShowcaseItemVisible,
 } from "@/lib/showcase";
 import { getAvailableDeliveryModes } from "@/lib/shipping";
 import { getHydratedData } from "@/lib/view-data";
@@ -63,7 +64,7 @@ export default async function BuyItemPage({
   const deliveryState = getRequestedValue(query.deliveryState);
   const message = typeof query.message === "string" ? query.message : null;
   const { showcaseItems } = await getHydratedData();
-  const item = showcaseItems.find((candidate) => candidate.id === itemId && candidate.active);
+  const item = showcaseItems.find((candidate) => candidate.id === itemId && isShowcaseItemVisible(candidate));
 
   if (!item) {
     redirect("/?message=Item%20da%20vitrine%20nao%20encontrado.");

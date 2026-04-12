@@ -1,8 +1,15 @@
 import type { PrintFlowDb } from "@/lib/db-types";
 import { studioBrandLogoPath, studioBrandName } from "@/lib/branding";
+import showcaseSyncSnapshot from "@/lib/showcase-sync-snapshot.json";
 
 export function createInitialData(): PrintFlowDb {
   const now = new Date().toISOString();
+  const showcaseLibraries = JSON.parse(
+    JSON.stringify(showcaseSyncSnapshot.showcaseLibraries ?? []),
+  ) as PrintFlowDb["showcaseLibraries"];
+  const showcaseItems = JSON.parse(
+    JSON.stringify(showcaseSyncSnapshot.showcaseItems ?? []),
+  ) as PrintFlowDb["showcaseItems"];
 
   return {
     users: [],
@@ -58,8 +65,8 @@ export function createInitialData(): PrintFlowDb {
       shareImageUrl: studioBrandLogoPath,
       updatedAt: now,
     },
-    showcaseLibraries: [],
-    showcaseItems: [],
+    showcaseLibraries,
+    showcaseItems,
     showcaseTestimonials: [],
     showcaseInquiries: [],
     auditLogs: [],

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
 import { ShowcaseCartView } from "@/components/showcase-cart-view";
 import { getCurrentUser } from "@/lib/auth";
+import { isShowcaseItemVisible } from "@/lib/showcase";
 import { getHydratedData } from "@/lib/view-data";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -24,7 +25,7 @@ export default async function ShowcaseCartPage() {
       title="Seu carrinho"
       subtitle="Reuna varias pecas da vitrine, ajuste quantidades e envie tudo em uma unica mensagem para o WhatsApp."
     >
-      <ShowcaseCartView items={showcaseItems.filter((item) => item.active)} />
+      <ShowcaseCartView items={showcaseItems.filter((item) => isShowcaseItemVisible(item))} />
     </AppShell>
   );
 }

@@ -357,6 +357,31 @@ export type DbShowcaseTestimonial = {
   updatedAt: IsoDateString;
 };
 
+export type DbShowcaseLibrarySyncSource = {
+  mode: "FILESYSTEM";
+  key: string;
+  relativePath: string;
+  generatedName: string;
+  generatedDescription?: string;
+  missing?: boolean;
+};
+
+export type DbShowcaseItemSyncSource = {
+  mode: "FILESYSTEM";
+  key: string;
+  relativePath: string;
+  generatedName: string;
+  generatedCategory?: string;
+  generatedDescription?: string;
+  generatedTagline?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileFormat?: string;
+  fileCount: number;
+  imageCount: number;
+  missing?: boolean;
+};
+
 export type DbShowcaseLibrary = {
   id: string;
   name: string;
@@ -364,6 +389,7 @@ export type DbShowcaseLibrary = {
   coverImageUrl?: string;
   sortOrder: number;
   active: boolean;
+  syncSource?: DbShowcaseLibrarySyncSource;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
 };
@@ -406,6 +432,7 @@ export type DbShowcaseItem = {
   whatsappClickCount: number;
   featured: boolean;
   active: boolean;
+  syncSource?: DbShowcaseItemSyncSource;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
 };

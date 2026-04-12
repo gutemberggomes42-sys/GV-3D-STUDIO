@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useActionState } from "react";
@@ -23,11 +24,19 @@ export function ShowcaseLibraryEditor({
   const [updateState, updateAction] = useActionState(updateShowcaseLibraryAction, initialState);
   const [deleteState, deleteAction] = useActionState(deleteShowcaseLibraryAction, initialState);
   const fields = updateState.fields ?? {};
+  const isFilesystemSynced = library.syncSource?.mode === "FILESYSTEM";
 
   return (
     <article className="rounded-[24px] border border-white/10 bg-slate-950/60 p-5">
       <form action={updateAction} encType="multipart/form-data" className="space-y-4">
         <input type="hidden" name="libraryId" value={library.id} />
+
+        {isFilesystemSynced ? (
+          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-50">
+            Sincronizada da pasta `{library.syncSource?.relativePath}`.
+            {library.syncSource?.missing ? " A pasta não foi encontrada agora, então a biblioteca sumiu da loja pública até voltar." : " Mudanças de nome da pasta e novas capas entram aqui automaticamente."}
+          </div>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <label className="block text-sm text-white/70 xl:col-span-2">
@@ -119,31 +128,41 @@ export function ShowcaseLibraryEditor({
         />
       </form>
 
-      <form
-        action={deleteAction}
-        onSubmit={(event) => {
-          if (!window.confirm("Excluir esta biblioteca? Os produtos ficarão sem vínculo.")) {
-            event.preventDefault();
-          }
-        }}
-        className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-500/5 p-4"
-      >
-        <input type="hidden" name="libraryId" value={library.id} />
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="font-semibold text-rose-100">Excluir biblioteca</p>
-            <p className="mt-1 text-sm text-rose-100/75">
-              Os produtos vinculados continuam existindo, mas ficam sem biblioteca definida.
-            </p>
-          </div>
-          <SubmitButton
-            label="Excluir biblioteca"
-            pendingLabel="Excluindo..."
-            className="bg-rose-500/90 text-white hover:bg-rose-400"
-          />
+      {isFilesystemSynced ? (
+        <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/5 p-4">
+          <p className="font-semibold text-amber-100">Biblioteca protegida pela sincronização</p>
+          <p className="mt-1 text-sm text-amber-100/75">
+            Para remover esta biblioteca da loja, apague ou mova a pasta de origem em `D:\Impressoes 3D`.
+          </p>
+          {deleteState.error ? <p className="mt-3 text-sm text-rose-200">{deleteState.error}</p> : null}
         </div>
-        {deleteState.error ? <p className="mt-3 text-sm text-rose-200">{deleteState.error}</p> : null}
-      </form>
+      ) : (
+        <form
+          action={deleteAction}
+          onSubmit={(event) => {
+            if (!window.confirm("Excluir esta biblioteca? Os produtos ficarão sem vínculo.")) {
+              event.preventDefault();
+            }
+          }}
+          className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-500/5 p-4"
+        >
+          <input type="hidden" name="libraryId" value={library.id} />
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="font-semibold text-rose-100">Excluir biblioteca</p>
+              <p className="mt-1 text-sm text-rose-100/75">
+                Os produtos vinculados continuam existindo, mas ficam sem biblioteca definida.
+              </p>
+            </div>
+            <SubmitButton
+              label="Excluir biblioteca"
+              pendingLabel="Excluindo..."
+              className="bg-rose-500/90 text-white hover:bg-rose-400"
+            />
+          </div>
+          {deleteState.error ? <p className="mt-3 text-sm text-rose-200">{deleteState.error}</p> : null}
+        </form>
+      )}
     </article>
   );
 }

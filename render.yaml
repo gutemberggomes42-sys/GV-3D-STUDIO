@@ -30,6 +30,8 @@ services:
         sync: false
       - key: PRINTFLOW_POSTGRES_URL
         sync: false
+      - key: PRINTFLOW_SHOWCASE_SYNC_DIR
+        sync: false
       - key: PRINTFLOW_S3_BUCKET
         sync: false
       - key: PRINTFLOW_S3_REGION

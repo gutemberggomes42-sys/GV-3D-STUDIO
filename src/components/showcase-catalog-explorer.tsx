@@ -36,6 +36,7 @@ import {
   getShowcasePrimaryImage,
   getShowcasePrimaryVideo,
   getShowcaseTagline,
+  isShowcaseLibraryVisible,
   normalizeShowcaseSearchText,
 } from "@/lib/showcase";
 
@@ -337,7 +338,7 @@ export function ShowcaseCatalogExplorer({
     [libraries],
   );
   const activeLibraries = useMemo(
-    () => libraries.filter((library) => library.active),
+    () => libraries.filter(isShowcaseLibraryVisible),
     [libraries],
   );
   const categories = getShowcaseCategoryOptions(items);

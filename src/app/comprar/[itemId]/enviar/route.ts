@@ -181,6 +181,10 @@ export async function POST(
         throw new Error("Item da vitrine nao encontrado.");
       }
 
+      if (item.syncSource?.missing) {
+        throw new Error("Esse item foi removido da biblioteca local e não pode mais ser enviado.");
+      }
+
       const managesStock = item.fulfillmentType === "STOCK";
 
       if (managesStock && item.stockQuantity <= 0) {

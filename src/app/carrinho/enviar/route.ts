@@ -9,6 +9,7 @@ import {
   normalizeStateCode,
   sanitizePostalCode,
 } from "@/lib/shipping";
+import { isShowcaseItemVisible } from "@/lib/showcase";
 import { createId, updateDb } from "@/lib/store";
 import type { ShowcaseCartEntry } from "@/lib/showcase-cart";
 
@@ -103,11 +104,11 @@ export async function POST(request: NextRequest) {
       const reservedByItem = new Map<string, number>();
       const normalizedEntries = cartEntries.map((entry, index) => {
         const item = db.showcaseItems.find(
-          (candidate) => candidate.id === entry.itemId && candidate.active,
+          (candidate) => candidate.id === entry.itemId && isShowcaseItemVisible(candidate),
         );
 
         if (!item) {
-          throw new Error("Um dos produtos do carrinho nao esta mais ativo na vitrine.");
+          throw new Error("Um dos produtos do carrinho nao esta mais disponivel na vitrine.");
         }
 
         const selectedVariant = item.variants.find(
