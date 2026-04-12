@@ -287,14 +287,6 @@ const showcaseItemSchema = z
     active: z.boolean(),
   })
   .superRefine((data, ctx) => {
-    if (data.fulfillmentType === "MADE_TO_ORDER" && data.leadTimeDays <= 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Informe um prazo estimado para itens sob encomenda.",
-        path: ["leadTimeDays"],
-      });
-    }
-
     if (data.compareAtPrice != null && data.compareAtPrice <= data.price) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -1165,7 +1157,7 @@ function getShowcaseLeadTimeText(
   }
 
   if (!leadTimeDays) {
-    return "Prazo sob consulta";
+    return "A definir";
   }
 
   return leadTimeDays === 1 ? "1 dia util" : `${leadTimeDays} dias uteis`;

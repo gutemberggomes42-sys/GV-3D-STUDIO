@@ -368,7 +368,7 @@ export function getShowcaseLeadTimeLabel(item: Pick<DbShowcaseItem, "fulfillment
   }
 
   if (!item.leadTimeDays) {
-    return "Prazo sob consulta";
+    return "A definir";
   }
 
   if (item.leadTimeDays === 1) {

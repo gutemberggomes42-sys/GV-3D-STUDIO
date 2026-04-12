@@ -760,7 +760,7 @@ export async function syncFilesystemShowcaseCatalog(db: PrintFlowDb) {
         seoTitle: undefined,
         seoDescription: undefined,
         seoKeywords: [],
-        leadTimeDays: 7,
+        leadTimeDays: 0,
         imageUrl: discoveredItem.imageUrl,
         videoUrl: undefined,
         galleryImageUrls: discoveredItem.galleryImageUrls,
@@ -835,6 +835,11 @@ export async function syncFilesystemShowcaseCatalog(db: PrintFlowDb) {
 
     if (existingItem.tagline !== nextTagline) {
       existingItem.tagline = nextTagline;
+      itemChanged = true;
+    }
+
+    if (existingItem.leadTimeDays !== 0) {
+      existingItem.leadTimeDays = 0;
       itemChanged = true;
     }
 

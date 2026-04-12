@@ -598,7 +598,7 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
           normalizedItem.seoKeywords?.map((entry) => entry.trim()).filter(Boolean) ?? [],
         leadTimeDays:
           normalizedItem.leadTimeDays ??
-          (normalizedItem.fulfillmentType === "MADE_TO_ORDER" ? 5 : 0),
+          0,
         videoUrl: normalizedItem.videoUrl ?? undefined,
         galleryImageUrls:
           normalizedItem.galleryImageUrls?.map((entry) => entry.trim()).filter(Boolean) ?? [],

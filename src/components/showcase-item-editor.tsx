@@ -369,8 +369,8 @@ function ShowcaseItemEditorContent({
                     <input type="hidden" name="stockQuantity" value="0" />
                     <input type="hidden" name="restockQuantity" value="0" />
                     <label className="block text-sm text-white/70">
-                      Prazo estimado (dias uteis)
-                      <input name="leadTimeDays" type="number" min="1" step="1" defaultValue={fields.leadTimeDays ?? String(item.leadTimeDays || 7)} className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60" />
+                      Prazo estimado (dias uteis, 0 = a definir)
+                      <input name="leadTimeDays" type="number" min="0" step="1" defaultValue={fields.leadTimeDays ?? String(item.leadTimeDays ?? 0)} className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60" />
                     </label>
                   </>
                 )}
