@@ -3,6 +3,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { getHydratedData } from "@/lib/view-data";
 import type { Metadata } from "next";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type HomePageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };

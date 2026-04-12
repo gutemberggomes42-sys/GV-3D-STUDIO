@@ -34,9 +34,130 @@
       },
       "createdAt": "2026-04-12T04:31:36.318Z",
       "updatedAt": "2026-04-12T04:31:36.318Z"
+    },
+    {
+      "id": "libfs_cb5ed3449dc2",
+      "name": "Biblioteca Modelos Usados No instagram",
+      "description": "Biblioteca sincronizada automaticamente da pasta Biblioteca Modelos Usados No instagram.",
+      "sortOrder": 2,
+      "active": true,
+      "syncSource": {
+        "mode": "FILESYSTEM",
+        "key": "Biblioteca Modelos Usados No instagram",
+        "relativePath": "Biblioteca Modelos Usados No instagram",
+        "generatedName": "Biblioteca Modelos Usados No instagram",
+        "generatedDescription": "Biblioteca sincronizada automaticamente da pasta Biblioteca Modelos Usados No instagram.",
+        "missing": false
+      },
+      "createdAt": "2026-04-12T05:15:10.344Z",
+      "updatedAt": "2026-04-12T05:15:10.344Z"
     }
   ],
   "showcaseItems": [
+    {
+      "id": "vitfs_78236b960ed8",
+      "name": "Luffy from One Piece 3D print model",
+      "category": "One Piece",
+      "libraryId": "libfs_05784a540ab2",
+      "tagline": "Preview sincronizado automaticamente da biblioteca One Piece.",
+      "description": "Preview importado automaticamente da biblioteca local da loja. Origem: Biblioteca de Animes/One Piece/Luffy from One Piece 3D print model. 10 arquivos 3D e 1 imagem encontrados.",
+      "price": 0,
+      "colorOptions": [],
+      "sizeOptions": [],
+      "finishOptions": [],
+      "badges": [
+        "Biblioteca local"
+      ],
+      "deliveryModes": [
+        "PICKUP",
+        "SHIPPING"
+      ],
+      "shippingSummary": "Retirada, entrega local ou envio sob consulta.",
+      "seoKeywords": [],
+      "leadTimeDays": 7,
+      "imageUrl": "/biblioteca-arquivos/Biblioteca%20de%20Animes/One%20Piece/Luffy%20from%20One%20Piece%203D%20print%20model/photo_2023-05-24_09-35-01.jpg",
+      "galleryImageUrls": [
+        "/biblioteca-arquivos/Biblioteca%20de%20Animes/One%20Piece/Luffy%20from%20One%20Piece%203D%20print%20model/photo_2023-05-24_09-35-01.jpg"
+      ],
+      "variants": [],
+      "fulfillmentType": "MADE_TO_ORDER",
+      "stockQuantity": 0,
+      "estimatedPrintHours": 1,
+      "estimatedMaterialGrams": 0,
+      "viewCount": 0,
+      "whatsappClickCount": 0,
+      "featured": false,
+      "active": true,
+      "syncSource": {
+        "mode": "FILESYSTEM",
+        "key": "Biblioteca de Animes/One Piece/Luffy from One Piece 3D print model",
+        "relativePath": "Biblioteca de Animes/One Piece/Luffy from One Piece 3D print model",
+        "generatedName": "Luffy from One Piece 3D print model",
+        "generatedCategory": "One Piece",
+        "generatedDescription": "Preview importado automaticamente da biblioteca local da loja. Origem: Biblioteca de Animes/One Piece/Luffy from One Piece 3D print model. 10 arquivos 3D e 1 imagem encontrados.",
+        "generatedTagline": "Preview sincronizado automaticamente da biblioteca One Piece.",
+        "fileUrl": "/biblioteca-arquivos/Biblioteca%20de%20Animes/One%20Piece/Luffy%20from%20One%20Piece%203D%20print%20model/uploads_files_2734256_figure_SubTool3.stl",
+        "fileName": "uploads_files_2734256_figure_SubTool3.stl",
+        "fileFormat": "stl",
+        "fileCount": 10,
+        "imageCount": 1,
+        "missing": false
+      },
+      "createdAt": "2026-04-12T05:12:44.582Z",
+      "updatedAt": "2026-04-12T05:12:44.582Z"
+    },
+    {
+      "id": "vitfs_47d9a4591fb2",
+      "name": "Boa Hancock V5 From One Piece",
+      "category": "One Piece",
+      "libraryId": "libfs_05784a540ab2",
+      "tagline": "Preview sincronizado automaticamente da biblioteca One Piece.",
+      "description": "Preview importado automaticamente da biblioteca local da loja. Origem: Biblioteca de Animes/One Piece/Boa Hancock V5 From One Piece. 85 arquivos 3D e 1 imagem encontrados.",
+      "price": 0,
+      "colorOptions": [],
+      "sizeOptions": [],
+      "finishOptions": [],
+      "badges": [
+        "Biblioteca local"
+      ],
+      "deliveryModes": [
+        "PICKUP",
+        "SHIPPING"
+      ],
+      "shippingSummary": "Retirada, entrega local ou envio sob consulta.",
+      "seoKeywords": [],
+      "leadTimeDays": 7,
+      "imageUrl": "/biblioteca-arquivos/Biblioteca%20de%20Animes/One%20Piece/Boa%20Hancock%20V5%20From%20One%20Piece/photo_2022-01-25_18-37-56.jpg",
+      "galleryImageUrls": [
+        "/biblioteca-arquivos/Biblioteca%20de%20Animes/One%20Piece/Boa%20Hancock%20V5%20From%20One%20Piece/photo_2022-01-25_18-37-56.jpg"
+      ],
+      "variants": [],
+      "fulfillmentType": "MADE_TO_ORDER",
+      "stockQuantity": 0,
+      "estimatedPrintHours": 1,
+      "estimatedMaterialGrams": 0,
+      "viewCount": 0,
+      "whatsappClickCount": 0,
+      "featured": false,
+      "active": true,
+      "syncSource": {
+        "mode": "FILESYSTEM",
+        "key": "Biblioteca de Animes/One Piece/Boa Hancock V5 From One Piece",
+        "relativePath": "Biblioteca de Animes/One Piece/Boa Hancock V5 From One Piece",
+        "generatedName": "Boa Hancock V5 From One Piece",
+        "generatedCategory": "One Piece",
+        "generatedDescription": "Preview importado automaticamente da biblioteca local da loja. Origem: Biblioteca de Animes/One Piece/Boa Hancock V5 From One Piece. 85 arquivos 3D e 1 imagem encontrados.",
+        "generatedTagline": "Preview sincronizado automaticamente da biblioteca One Piece.",
+        "fileUrl": "/biblioteca-arquivos/Biblioteca%20de%20Animes/One%20Piece/Boa%20Hancock%20V5%20From%20One%20Piece/15%20cm/trono_2.stl",
+        "fileName": "trono_2.stl",
+        "fileFormat": "stl",
+        "fileCount": 85,
+        "imageCount": 1,
+        "missing": false
+      },
+      "createdAt": "2026-04-12T05:12:44.582Z",
+      "updatedAt": "2026-04-12T05:12:44.582Z"
+    },
     {
       "id": "vitfs_b46cc99342c6",
       "name": "zoro (1)",

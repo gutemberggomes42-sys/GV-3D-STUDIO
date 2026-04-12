@@ -442,10 +442,6 @@ async function discoverFilesystemShowcase(): Promise<DiscoveredShowcase> {
     const libraryDirectoryPath = path.join(showcaseFilesystemRoot, libraryDirectory.name);
     const items = await discoverLibraryItems(libraryDirectoryPath, libraryDirectory.name);
 
-    if (!items.length) {
-      continue;
-    }
-
     for (const item of items) {
       discoveredItems.set(item.key, item);
     }
@@ -903,6 +899,10 @@ export function isShowcaseFilesystemSyncEnabled() {
 
 export function getShowcaseFilesystemRoot() {
   return showcaseFilesystemRoot;
+}
+
+export async function isShowcaseFilesystemRootReachable() {
+  return Boolean(showcaseFilesystemRoot && (await pathExists(showcaseFilesystemRoot)));
 }
 
 export async function resolveShowcaseFilesystemAsset(relativeSegments: string[]) {

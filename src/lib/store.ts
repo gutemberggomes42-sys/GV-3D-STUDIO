@@ -13,7 +13,10 @@ import {
 import { ownerEmail } from "@/lib/constants";
 import type { DbBackupSnapshot, PrintFlowDb } from "@/lib/db-types";
 import { createInitialData } from "@/lib/seed-data";
-import { syncFilesystemShowcaseCatalog } from "@/lib/showcase-filesystem";
+import {
+  isShowcaseFilesystemRootReachable,
+  syncFilesystemShowcaseCatalog,
+} from "@/lib/showcase-filesystem";
 
 const dataDirectory = path.join(process.cwd(), "storage");
 const dataPath = path.join(dataDirectory, "printflow-db.json");
@@ -36,6 +39,22 @@ type PgBackupRow = {
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function hydrateShowcaseSnapshotFallback(data: PrintFlowDb) {
+  if (data.showcaseLibraries.length > 0 || data.showcaseItems.length > 0) {
+    return false;
+  }
+
+  const seededData = createInitialData();
+
+  if (!seededData.showcaseLibraries.length && !seededData.showcaseItems.length) {
+    return false;
+  }
+
+  data.showcaseLibraries = clone(seededData.showcaseLibraries);
+  data.showcaseItems = clone(seededData.showcaseItems);
+  return true;
 }
 
 function sortByDateDesc<T extends { createdAt: string }>(items: T[]) {
@@ -688,8 +707,12 @@ export async function readDb() {
 
   normalizedData = await ensureOwnerBootstrap(normalizedData);
 
+  const showcaseFilesystemReachable = await isShowcaseFilesystemRootReachable();
+  const snapshotHydrated = !showcaseFilesystemReachable
+    ? hydrateShowcaseSnapshotFallback(normalizedData)
+    : false;
   const syncChanged = await syncFilesystemShowcaseCatalog(normalizedData);
-  if (syncChanged) {
+  if (snapshotHydrated || syncChanged) {
     await writeDb(normalizedData);
   }
 
