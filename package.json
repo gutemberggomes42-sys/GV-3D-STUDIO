@@ -9,6 +9,10 @@
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "showcase:sync": "tsx scripts/showcase-sync.ts",
+    "showcase:sync:push": "tsx scripts/showcase-sync.ts --push",
+    "showcase:watch": "tsx scripts/showcase-sync.ts --watch",
+    "showcase:watch:push": "tsx scripts/showcase-sync.ts --watch --push",
     "postinstall": "prisma generate"
   },
   "dependencies": {

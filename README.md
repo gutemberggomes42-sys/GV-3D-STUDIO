@@ -109,6 +109,14 @@ Observação importante:
 - os arquivos 3D completos continuam locais por padrão; para abri-los no servidor, o próprio servidor precisa ter acesso a uma pasta configurada em `PRINTFLOW_SHOWCASE_SYNC_DIR`
 - o projeto agora inclui um snapshot commitado do catálogo sincronizado para o primeiro deploy no Render nascer com a vitrine pronta
 
+### Watcher automatico da pasta
+
+- para atualizar o snapshot local sempre que voce mudar algo em `D:\Impressoes 3D`, rode `npm run showcase:watch`
+- para atualizar e tambem publicar sozinho no GitHub, rode `npm run showcase:watch:push`
+- esse watcher precisa ficar rodando no computador que tem acesso a pasta `D:\Impressoes 3D`
+- quando estiver em `showcase:watch:push`, uma nova colecao, foto ou mudanca de arquivo gera commit e push automaticos, entao o Render recebe um novo deploy sozinho
+- no Render a mudanca nao aparece instantaneamente porque ainda depende do tempo do deploy terminar
+
 ## Hospedagem 24h
 
 Agora o projeto pode rodar de 3 formas no Render:

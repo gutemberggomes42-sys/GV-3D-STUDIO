@@ -4,7 +4,7 @@
       "id": "libfs_05784a540ab2",
       "name": "Biblioteca de Animes",
       "description": "Biblioteca sincronizada automaticamente da pasta Biblioteca de Animes.",
-      "coverImageUrl": "/biblioteca-arquivos/Biblioteca%20de%20Animes/Naruto/3%20summons%20-%20Naruto/Captura%20de%20pantalla%202023-04-16%20163513.png",
+      "coverImageUrl": "/biblioteca-arquivos/Biblioteca%20de%20Animes/Dragon%20Ball/Broly%20Vs%20GoKu/broly-vs-goku-3d-model-stl.jpg",
       "sortOrder": 0,
       "active": true,
       "syncSource": {
@@ -16,7 +16,7 @@
         "missing": false
       },
       "createdAt": "2026-04-12T04:31:36.318Z",
-      "updatedAt": "2026-04-12T04:31:36.318Z"
+      "updatedAt": "2026-04-12T05:37:31.832Z"
     },
     {
       "id": "libfs_a84e12f47681",
@@ -51,9 +51,198 @@
       },
       "createdAt": "2026-04-12T05:15:10.344Z",
       "updatedAt": "2026-04-12T05:15:10.344Z"
+    },
+    {
+      "id": "libfs_262c40957e13",
+      "name": "Chibis",
+      "description": "Biblioteca sincronizada automaticamente da pasta Chibis.",
+      "sortOrder": 3,
+      "active": true,
+      "syncSource": {
+        "mode": "FILESYSTEM",
+        "key": "Chibis",
+        "relativePath": "Chibis",
+        "generatedName": "Chibis",
+        "generatedDescription": "Biblioteca sincronizada automaticamente da pasta Chibis.",
+        "missing": false
+      },
+      "createdAt": "2026-04-12T05:37:31.832Z",
+      "updatedAt": "2026-04-12T05:37:31.832Z"
+    },
+    {
+      "id": "libfs_398ed3298149",
+      "name": "Games",
+      "description": "Biblioteca sincronizada automaticamente da pasta Games.",
+      "sortOrder": 5,
+      "active": true,
+      "syncSource": {
+        "mode": "FILESYSTEM",
+        "key": "Games",
+        "relativePath": "Games",
+        "generatedName": "Games",
+        "generatedDescription": "Biblioteca sincronizada automaticamente da pasta Games.",
+        "missing": false
+      },
+      "createdAt": "2026-04-12T05:37:31.832Z",
+      "updatedAt": "2026-04-12T05:37:31.832Z"
+    },
+    {
+      "id": "libfs_fb62f8fde1ac",
+      "name": "Miniaturas",
+      "description": "Biblioteca sincronizada automaticamente da pasta Miniaturas.",
+      "sortOrder": 7,
+      "active": true,
+      "syncSource": {
+        "mode": "FILESYSTEM",
+        "key": "Miniaturas",
+        "relativePath": "Miniaturas",
+        "generatedName": "Miniaturas",
+        "generatedDescription": "Biblioteca sincronizada automaticamente da pasta Miniaturas.",
+        "missing": false
+      },
+      "createdAt": "2026-04-12T05:37:31.832Z",
+      "updatedAt": "2026-04-12T05:37:31.832Z"
+    },
+    {
+      "id": "libfs_bccb5e553429",
+      "name": "Mitologia",
+      "description": "Biblioteca sincronizada automaticamente da pasta Mitologia.",
+      "sortOrder": 9,
+      "active": true,
+      "syncSource": {
+        "mode": "FILESYSTEM",
+        "key": "Mitologia",
+        "relativePath": "Mitologia",
+        "generatedName": "Mitologia",
+        "generatedDescription": "Biblioteca sincronizada automaticamente da pasta Mitologia.",
+        "missing": false
+      },
+      "createdAt": "2026-04-12T05:37:31.832Z",
+      "updatedAt": "2026-04-12T05:37:31.832Z"
+    },
+    {
+      "id": "libfs_314ca57931ed",
+      "name": "Religiao",
+      "description": "Biblioteca sincronizada automaticamente da pasta Religiao.",
+      "sortOrder": 11,
+      "active": true,
+      "syncSource": {
+        "mode": "FILESYSTEM",
+        "key": "Religiao",
+        "relativePath": "Religiao",
+        "generatedName": "Religiao",
+        "generatedDescription": "Biblioteca sincronizada automaticamente da pasta Religiao.",
+        "missing": false
+      },
+      "createdAt": "2026-04-12T05:37:31.832Z",
+      "updatedAt": "2026-04-12T05:37:31.832Z"
     }
   ],
   "showcaseItems": [
+    {
+      "id": "vitfs_6ecf5015e029",
+      "name": "brolyDiorama",
+      "category": "Dragon Ball",
+      "libraryId": "libfs_05784a540ab2",
+      "tagline": "Preview sincronizado automaticamente da biblioteca Dragon Ball.",
+      "description": "Preview importado automaticamente da biblioteca local da loja. Origem: Biblioteca de Animes/Dragon Ball/brolyDiorama. 37 arquivos 3D e 1 imagem encontrados.",
+      "price": 0,
+      "colorOptions": [],
+      "sizeOptions": [],
+      "finishOptions": [],
+      "badges": [
+        "Biblioteca local"
+      ],
+      "deliveryModes": [
+        "PICKUP",
+        "SHIPPING"
+      ],
+      "shippingSummary": "Retirada, entrega local ou envio sob consulta.",
+      "seoKeywords": [],
+      "leadTimeDays": 7,
+      "imageUrl": "/biblioteca-arquivos/Biblioteca%20de%20Animes/Dragon%20Ball/brolyDiorama/photo5857218275501519374.jpg",
+      "galleryImageUrls": [
+        "/biblioteca-arquivos/Biblioteca%20de%20Animes/Dragon%20Ball/brolyDiorama/photo5857218275501519374.jpg"
+      ],
+      "variants": [],
+      "fulfillmentType": "MADE_TO_ORDER",
+      "stockQuantity": 0,
+      "estimatedPrintHours": 1,
+      "estimatedMaterialGrams": 0,
+      "viewCount": 0,
+      "whatsappClickCount": 0,
+      "featured": false,
+      "active": true,
+      "syncSource": {
+        "mode": "FILESYSTEM",
+        "key": "Biblioteca de Animes/Dragon Ball/brolyDiorama",
+        "relativePath": "Biblioteca de Animes/Dragon Ball/brolyDiorama",
+        "generatedName": "brolyDiorama",
+        "generatedCategory": "Dragon Ball",
+        "generatedDescription": "Preview importado automaticamente da biblioteca local da loja. Origem: Biblioteca de Animes/Dragon Ball/brolyDiorama. 37 arquivos 3D e 1 imagem encontrados.",
+        "generatedTagline": "Preview sincronizado automaticamente da biblioteca Dragon Ball.",
+        "fileUrl": "/biblioteca-arquivos/Biblioteca%20de%20Animes/Dragon%20Ball/brolyDiorama/brolyv1/Basev1_FULL.stl",
+        "fileName": "Basev1_FULL.stl",
+        "fileFormat": "stl",
+        "fileCount": 37,
+        "imageCount": 1,
+        "missing": false
+      },
+      "createdAt": "2026-04-12T05:37:31.832Z",
+      "updatedAt": "2026-04-12T05:37:31.832Z"
+    },
+    {
+      "id": "vitfs_ba33c71e07be",
+      "name": "Broly Vs GoKu",
+      "category": "Dragon Ball",
+      "libraryId": "libfs_05784a540ab2",
+      "tagline": "Preview sincronizado automaticamente da biblioteca Dragon Ball.",
+      "description": "Preview importado automaticamente da biblioteca local da loja. Origem: Biblioteca de Animes/Dragon Ball/Broly Vs GoKu. 1 arquivo 3D e 1 imagem encontrados.",
+      "price": 0,
+      "colorOptions": [],
+      "sizeOptions": [],
+      "finishOptions": [],
+      "badges": [
+        "Biblioteca local"
+      ],
+      "deliveryModes": [
+        "PICKUP",
+        "SHIPPING"
+      ],
+      "shippingSummary": "Retirada, entrega local ou envio sob consulta.",
+      "seoKeywords": [],
+      "leadTimeDays": 7,
+      "imageUrl": "/biblioteca-arquivos/Biblioteca%20de%20Animes/Dragon%20Ball/Broly%20Vs%20GoKu/broly-vs-goku-3d-model-stl.jpg",
+      "galleryImageUrls": [
+        "/biblioteca-arquivos/Biblioteca%20de%20Animes/Dragon%20Ball/Broly%20Vs%20GoKu/broly-vs-goku-3d-model-stl.jpg"
+      ],
+      "variants": [],
+      "fulfillmentType": "MADE_TO_ORDER",
+      "stockQuantity": 0,
+      "estimatedPrintHours": 1,
+      "estimatedMaterialGrams": 0,
+      "viewCount": 0,
+      "whatsappClickCount": 0,
+      "featured": false,
+      "active": true,
+      "syncSource": {
+        "mode": "FILESYSTEM",
+        "key": "Biblioteca de Animes/Dragon Ball/Broly Vs GoKu",
+        "relativePath": "Biblioteca de Animes/Dragon Ball/Broly Vs GoKu",
+        "generatedName": "Broly Vs GoKu",
+        "generatedCategory": "Dragon Ball",
+        "generatedDescription": "Preview importado automaticamente da biblioteca local da loja. Origem: Biblioteca de Animes/Dragon Ball/Broly Vs GoKu. 1 arquivo 3D e 1 imagem encontrados.",
+        "generatedTagline": "Preview sincronizado automaticamente da biblioteca Dragon Ball.",
+        "fileUrl": "/biblioteca-arquivos/Biblioteca%20de%20Animes/Dragon%20Ball/Broly%20Vs%20GoKu/Finished.stl",
+        "fileName": "Finished.stl",
+        "fileFormat": "stl",
+        "fileCount": 1,
+        "imageCount": 1,
+        "missing": false
+      },
+      "createdAt": "2026-04-12T05:37:31.832Z",
+      "updatedAt": "2026-04-12T05:37:31.832Z"
+    },
     {
       "id": "vitfs_78236b960ed8",
       "name": "Luffy from One Piece 3D print model",
