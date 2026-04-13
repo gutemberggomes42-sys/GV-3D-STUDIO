@@ -8,6 +8,7 @@ import type {
   ShowcaseDeliveryMode,
 } from "@/lib/db-types";
 import { studioCollectionName } from "@/lib/branding";
+import { formatNumber } from "@/lib/format";
 
 export const showcaseCategorySuggestions = [
   "Geek",
@@ -376,6 +377,18 @@ export function getShowcaseLeadTimeLabel(item: Pick<DbShowcaseItem, "fulfillment
   }
 
   return `${item.leadTimeDays} dias uteis`;
+}
+
+export function getShowcasePrintTimeLabel(item: Pick<DbShowcaseItem, "estimatedPrintHours">) {
+  if (!item.estimatedPrintHours) {
+    return "A definir";
+  }
+
+  if (item.estimatedPrintHours < 1) {
+    return `${formatNumber(item.estimatedPrintHours * 60, 0)} min`;
+  }
+
+  return `${formatNumber(item.estimatedPrintHours, 1)} h`;
 }
 
 export function getShowcaseDeliverySummary(item: Pick<DbShowcaseItem, "deliveryModes" | "shippingSummary">) {

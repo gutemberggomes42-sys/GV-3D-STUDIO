@@ -5,13 +5,13 @@ import { AppShell } from "@/components/app-shell";
 import { BuyItemWhatsAppForm } from "@/components/buy-item-whatsapp-form";
 import { getCurrentUser } from "@/lib/auth";
 import type { ShowcaseDeliveryMode } from "@/lib/db-types";
-import { formatHours } from "@/lib/format";
 import {
   getShowcaseAvailabilityLabel,
   getShowcaseColorSummary,
   getShowcaseDeliverySummary,
   getShowcaseGallery,
   getShowcaseLeadTimeLabel,
+  getShowcasePrintTimeLabel,
   getShowcasePrimaryVideo,
   isShowcaseItemVisible,
 } from "@/lib/showcase";
@@ -181,7 +181,7 @@ export default async function BuyItemPage({
                   <Clock3 className="h-3.5 w-3.5" />
                   Impressao
                 </div>
-                <p className="mt-2 text-sm font-semibold text-white/88">{formatHours(item.estimatedPrintHours)}</p>
+                <p className="mt-2 text-sm font-semibold text-white/88">{getShowcasePrintTimeLabel(item)}</p>
               </div>
               <div className="sm:col-span-2">
                 <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/45">

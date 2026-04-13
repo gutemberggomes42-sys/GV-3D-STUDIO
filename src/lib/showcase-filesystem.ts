@@ -767,7 +767,7 @@ export async function syncFilesystemShowcaseCatalog(db: PrintFlowDb) {
         variants: [],
         fulfillmentType: "MADE_TO_ORDER",
         stockQuantity: 0,
-        estimatedPrintHours: 1,
+        estimatedPrintHours: 0,
         estimatedMaterialGrams: 0,
         viewCount: 0,
         whatsappClickCount: 0,
@@ -840,6 +840,11 @@ export async function syncFilesystemShowcaseCatalog(db: PrintFlowDb) {
 
     if (existingItem.leadTimeDays !== 0) {
       existingItem.leadTimeDays = 0;
+      itemChanged = true;
+    }
+
+    if (existingItem.estimatedPrintHours !== 0) {
+      existingItem.estimatedPrintHours = 0;
       itemChanged = true;
     }
 

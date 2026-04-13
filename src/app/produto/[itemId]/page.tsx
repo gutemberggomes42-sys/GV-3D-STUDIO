@@ -16,7 +16,6 @@ import { ShowcaseProductPurchasePanel } from "@/components/showcase-product-purc
 import { ShowcaseViewTracker } from "@/components/showcase-view-tracker";
 import { ShowcaseWishlistButton } from "@/components/showcase-wishlist-button";
 import { getCurrentUser } from "@/lib/auth";
-import { formatHours } from "@/lib/format";
 import { getShowcaseAiPreview } from "@/lib/showcase-ai";
 import {
   getShowcaseAvailabilityLabel,
@@ -27,6 +26,7 @@ import {
   getShowcaseDeliverySummary,
   getShowcaseGallery,
   getShowcaseLeadTimeLabel,
+  getShowcasePrintTimeLabel,
   getShowcasePrimaryVideo,
   isShowcaseItemVisible,
   sanitizeShowcaseItemForStorefront,
@@ -221,7 +221,7 @@ export default async function ShowcaseProductPage({ params }: ShowcaseProductPag
                 <Clock3 className="h-4 w-4 text-orange-200" />
                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Impressao</p>
               </div>
-              <p className="mt-3 text-base font-semibold text-white/88">{formatHours(item.estimatedPrintHours)}</p>
+              <p className="mt-3 text-base font-semibold text-white/88">{getShowcasePrintTimeLabel(item)}</p>
             </div>
           </div>
 

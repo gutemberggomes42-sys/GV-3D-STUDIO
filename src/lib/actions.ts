@@ -257,7 +257,9 @@ const showcaseItemSchema = z
     tagline: z.string().trim().optional(),
     description: z.string().min(10, "Descreva o item exposto."),
     price: z.coerce.number().positive("Informe o valor do item."),
-    estimatedPrintHours: z.coerce.number().positive("Informe o tempo de impressão cadastrado."),
+    estimatedPrintHours: z.coerce
+      .number()
+      .nonnegative("Informe o tempo de impressão cadastrado."),
     estimatedMaterialGrams: z.coerce.number().nonnegative("Informe o consumo estimado de material."),
     productionChecklist: z.string().trim().optional(),
     fulfillmentType: z.enum(["STOCK", "MADE_TO_ORDER"]),

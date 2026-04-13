@@ -338,8 +338,8 @@ function ShowcaseItemEditorContent({
 
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <label className="block text-sm text-white/70">
-                  Tempo de impressão (h)
-                  <input name="estimatedPrintHours" value={estimatedPrintHours} onChange={(event) => setEstimatedPrintHours(event.target.value)} type="number" step="0.1" min="0.1" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60" />
+                  Tempo de impressão (h, 0 = a definir)
+                  <input name="estimatedPrintHours" value={estimatedPrintHours} onChange={(event) => setEstimatedPrintHours(event.target.value)} type="number" step="0.1" min="0" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-orange-400/60" />
                 </label>
               </div>
 

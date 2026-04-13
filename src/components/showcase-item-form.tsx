@@ -103,7 +103,7 @@ function ShowcaseItemFormContent({
 }: ShowcaseItemFormContentProps) {
   const fields = state.fields ?? {};
   const [price, setPrice] = useState(fields.price ?? "");
-  const [estimatedPrintHours, setEstimatedPrintHours] = useState(fields.estimatedPrintHours ?? "1");
+  const [estimatedPrintHours, setEstimatedPrintHours] = useState(fields.estimatedPrintHours ?? "0");
   const [fulfillmentType, setFulfillmentType] = useState<"STOCK" | "MADE_TO_ORDER">(
     fields.fulfillmentType === "MADE_TO_ORDER" ? "MADE_TO_ORDER" : "STOCK",
   );
@@ -193,8 +193,8 @@ function ShowcaseItemFormContent({
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <label className="block text-sm text-white/70">
-            Tempo de impressão (h)
-            <input name="estimatedPrintHours" value={estimatedPrintHours} onChange={(event) => setEstimatedPrintHours(event.target.value)} type="number" step="0.1" min="0.1" className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60" />
+            Tempo de impressão (h, 0 = a definir)
+            <input name="estimatedPrintHours" value={estimatedPrintHours} onChange={(event) => setEstimatedPrintHours(event.target.value)} type="number" step="0.1" min="0" className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-orange-400/60" />
           </label>
           <label className="block text-sm text-white/70">
             Modalidade

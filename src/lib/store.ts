@@ -620,7 +620,7 @@ function normalizeDb(data: Partial<PrintFlowDb>): PrintFlowDb {
           })) ?? [],
         fulfillmentType: normalizedItem.fulfillmentType ?? "STOCK",
         stockQuantity: normalizedItem.stockQuantity ?? 0,
-        estimatedPrintHours: normalizedItem.estimatedPrintHours ?? 1,
+        estimatedPrintHours: normalizedItem.estimatedPrintHours ?? 0,
         estimatedMaterialGrams: normalizedItem.estimatedMaterialGrams ?? 0,
         viewCount: normalizedItem.viewCount ?? 0,
         whatsappClickCount: normalizedItem.whatsappClickCount ?? 0,
